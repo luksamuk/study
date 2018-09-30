@@ -1,0 +1,23 @@
+#+TITLE: Atividade de Cálculo I: Introdução ao Limite
+#+AUTHOR: Lucas Vieira
+#+EMAIL: lucasvieira@protonmail.com
+#+OPTIONS: toc:nil
+
+* Solução
+
+1. Mova o ponto =A= e observe o que acontece com =BA= e =BD=.
+
+   Estes dois segmentos parecem manter uma proporção que satisfaz a relação
+   =BA = BD + 1=.
+
+2. O que ocorre quando =A = 1=?
+
+   Ocorre uma descontinuidade na reta, uma vez que o valor da equação para
+   =A = x = 1= é indeterminado.
+
+3. O limite pode ajudar a compreender o que acontece nesse ponto?
+
+   Sim. O limite ajuda-nos a compreender o comportamento da equação na medida em
+   que o ponto =A= aproxima-se deste ponto, pela esquerda ou pela direita. Ao
+   fazermos isto, podemos determinar um valor para o qual a equação parece
+   tender, naquele ponto de imagem indeterminada.

@@ -1,0 +1,133 @@
+#+TITLE: AEDS 1 - AULA 1
+#+AUTHOR: Lucas Vieira
+#+EMAIL: lucasvieira@lisp.com.br
+#+OPTIONS: toc:nil
+
+* Linguagem C
+
+#+BEGIN_SRC c
+#include <stdio.h>
+
+int
+main(void)
+{
+    printf("Hello, world!\n");
+    return 0;
+}
+#+END_SRC
+
+Compilando:
+#+BEGIN_SRC bash
+# Compilação em objeto, e então linking:
+$ gcc -c arquivo.c
+$ gcc arquivo.o -o programa
+
+# Compilação direta:
+$ gcc arquivo.c -o programa
+#+END_SRC
+
+** Vantagens
+
+Eficiência, uso em softwares de base, utilizada no ensino de CC, proximidade com
+Machine Code.
+
+** Desvantagens
+
+Falta de suporte ao programador, eventuais bugs e etc.
+
+* Linguagem C++
+
+Desenvolvida a partir de C.
+Agrega os conceitos de C aos conceitos de POO: Classe, objeto, herança,
+polimorfismo, sobrecarga.
+
+* Partes essenciais de um algoritmo
+- Estrutura sequencial
+- Estrutura condicional
+- Estrutura de repetição
+
+=Problema -> Algoritmo -> Código-Fonte -> Objeto -> Executável=
+
+** Primeiro Programa
+
+=programa1.cpp=
+#+BEGIN_SRC cpp
+// Comentário
+/* K&R é um livro muito foda */
+#include <iostream>
+
+int
+main(void)
+{
+    std::cout << "Hello, world!" << std::endl;
+    return 0;
+}
+#+END_SRC
+
+
+Compilando:
+#+BEGIN_SRC bash
+# Compilação + linking
+$ g++ -c programa1.cpp
+$ g++ programa1.o -o programa1
+
+# Compilação direta
+$ g++ programa.cpp -o programa1
+#+END_SRC
+
+- Anexo: =primeiroprograma.cpp=
+#+INCLUDE: "./primeiroprograma.cpp" src cpp
+
+** Notas de compiladores
+
+Alguns compiladores mostram warnings onde não deviam.
+
+* Tipos básicos de dados
+
+- =char=
+- =int=
+- =float=
+- =void=
+
+Exemplo. (Ver estilo de código)
+#+BEGIN_SRC cpp
+#include <iostream>
+
+int
+main(void)
+{
+    int num1 = 400;
+    int num2 = num1 + 20;
+    std::cout << "o primeiro numero eh " << num1 << std::endl
+	      << "o segundo numero eh \"num1 + 20\" = " << num2 << std::endl;
+    return 0;
+}
+#+END_SRC
+
+* Identificadores
+
+- letras ou underscores no início;
+- letras, underscores ou números no restante;
+- case-sensitive;
+- palavras-chave proibidas;
+- constantes são declaradas com =const=.
+
+* Cadeias de caracteres (Strings)
+
+- Aspas duplas
+- Caractere não é o mesmo que String, e usa aspas simples
+
+* Exercício
+
+Fazer um programa que escreva o seguinte texto, na formatação
+apresentada:
+
+#+BEGIN_SRC text
+Aprender algoritmo
+em C/C++ é muito divertido
+#+END_SRC
+
+** Solução
+
+Anexo: =exercicio1.cpp=
+#+INCLUDE: "./exercicio1.cpp" src cpp

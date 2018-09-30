@@ -1,0 +1,56 @@
+#+TITLE: study
+#+DESCRIPTION: Repositório de anotações de aulas e exercícios resolvidos
+#+AUTHOR: Lucas Vieira
+#+EMAIL: lucasvieira@lisp.com.br
+
+* Objetivo
+
+O objetivo deste repositório é reunir, de forma organizada, todas as anotações
+de aulas e de exercícios resolvidos, ao longo do meu curso de Sistemas de
+Informação.
+
+Este repositório deverá servir, para mim, como referências futuras que eu possa
+revisitar, assim como uma forma de praticar a minha organização das minhas notas
+de estudo.
+
+Os exercícios aqui presentes não envolvem atividades pontuadas pelos
+professores, pura e simplesmente porque minha intenção não é facilitar o plágio,
+mas sim indexar minhas notas para meu uso próprio. Independente da forma como os
+arquivos deste repositório sejam distribuídos, desde já isento-me da
+responsabilidade sobre as informações nele contidas; dito isto, não tenho a
+pretensão ou a arrogância de afirmar a corretude dos textos e exercícios aqui
+listados.
+
+A maioria ou todos os exercícios aqui presentes poderão, também, não incluir
+seus respectivos enunciados; também me comprometo a não redistribuir, aqui,
+nenhum dos materiais dos meus professores.
+
+Um objetivo secundário é o aspecto da utilização de formatos e recursos abertos,
+ou de código-aberto, durante o curso de uma formação acadêmica na área da
+tecnologia. Ao realizar o uso de tecnologias abertas (exceto quando não houver
+outra saída senão utilizar uma tecnologia proprietária), pode-se reforçar
+os conceitos de flexibilidade e distribuição irrestrita de informação; desta
+forma, outros leitores não necessariamente precisarão, da mesma forma, de
+ferramentas fechadas e possivelmente restritas a alguns poucos sistemas, para
+lidar com problemas acadêmicos.
+
+* Conteúdo
+
+A maior parte das informações aqui existentes estará escrita em texto plano, sob
+o formato Org, para melhor integração com o editor de texto Emacs. Trabalhos
+exigindo uma maior responsabilidade sobre a formatação estarão escritos em
+LaTeX; exercícios de linguagens de programação poderão estar escritos em pseudo-
+-código, ou na linguagem de programação estudada ou utilizada.
+
+Todos os commits presentes neste repositório estarão digitalmente assinados por
+mim. Desta forma, acredito que posso atestar o fato de que as respostas para
+exercícios aqui descritas vieram de mim mesmo.
+
+* Licenciamento
+
+Todo e qualquer código aqui escrito estará distribuído sob a Licença MIT, o que
+fomenta o compartilhamento da informação e do software livre. Os dados neste
+repositório podem ser redistribuídos, no entanto esta licença deverá ser seguida
+à risca. Se você quiser um melhor detalhamento desta licença, veja a página
+da mesma em [[http://escolhaumalicenca.com.br/licencas/mit/][escolhaumalicenca.com.br]] ou veja o arquivo [[./LICENSE.txt][LICENSE.txt]].
+
