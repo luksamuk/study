@@ -1,0 +1,56 @@
+#+TITLE: Aula 2 - AEDS I
+#+AUTHOR: Lucas Vieira
+#+EMAIL: lucasvieira@protonmail.com001
+
+* Exercícios
+
+1. Veja o que será impresso:
+
+#+INCLUDE: "./exercicio1.cpp" src cpp
+
+2. Veja o que será impresso:
+
+#+INCLUDE: "./exercicio2.cpp" src cpp
+
+3. Saída em uma linha:
+
+#+BEGIN_SRC cpp
+#include <cstdio>
+
+int
+main()
+{
+    printf("um\n\tdois\n\t\ttres\n");
+    printf("%d\n", 17 % 5);
+    return 0;
+}
+#+END_SRC
+
+
+4. Entrada/Saída
+#+BEGIN_SRC cpp
+#include <iostream>
+
+int
+main(void)
+{
+    int idade;
+    std::cout << "Digite sua idade em anos: ";
+    std::cin >> idade;
+    (idade < 18) && std::cout << "Voce eh um pirralho!\n";
+
+
+    float p1, p2, p3, p4;
+
+    std::cout << "Digite as suas quatro notas: ";
+    std::cin >> p1 >> p2 >> p3 >> p4;
+'
+    float media = (p1 + p2 + p3 + p4) / 4.0f;
+    std::cout << "Sua media eh " << media << std::endl;
+    (media < 6.0) && std::cout << "E voce eh BURRO!\n";
+    
+    return 0;
+}
+#+END_SRC
+
+#+INCLUDE: "./atividade3.cpp" src cpp

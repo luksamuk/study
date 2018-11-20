@@ -1,0 +1,15 @@
+CPP        = g++
+CPPFLAGS   = -Wall -g --std=c++14
+LDFLAGS    = -lm
+SRCS       = $(wildcard *.cpp)
+BINARIES   = $(SRCS:%.cpp=%.out)
+
+.PHONY: all clean
+all: $(BINARIES)
+
+%.out: %.cpp
+	$(CPP) $(CPPFLAGS) $^ $(LDFLAGS) -o $@
+
+clean:
+	rm -f *.out *~
+
