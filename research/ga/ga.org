@@ -1,7 +1,7 @@
 #+TITLE:  Learning Genetic Algorithms
 #+AUTHOR: Lucas Vieira
 #+EMAIL:  lucasvieira@lisp.com.br
-#+DATE:   Dec 26, 2018
+#+DATE:   Dec 27, 2018
 #+PROPERTY: header-args:lisp :cache yes :exports code :tangle yes
 #+STARTUP:  showall
 
@@ -27,13 +27,18 @@ recurrent thing). I'll leave optimization heuristics for later, though.
 #+BEGIN_SRC lisp
 (defparameter *population* nil)
 (defparameter *fittest* nil)
+(defparameter *convergence-flag* nil)
+(defparameter *max-fitness* 20)
+(defparameter *rnd-state* (make-random-state))
 #+END_SRC
 
-#+RESULTS[aeda8afd95f3864e81ded9b8d179823b8b18cb67]:
-: *FITTEST*
+#+RESULTS[ee1f53f217a5bf9fb606fe0af8f94fd52cdba31a]:
+: *RND-STATE*
 
 Each individual on this population is a different chromosome. The genes
-themselves will be the bits of each number.
+themselves will be the bits of each number. The two numbers of large fitness are
+stored in ~*fittest*~, while the ~*convergence-flag*~ tells whether the population
+has converged yet.
 
 ** Zygotes: partial chromosomes
 
@@ -43,25 +48,25 @@ randomly generated. For that, we use a global random state which will provide
 our random numbers.
 
 #+BEGIN_SRC lisp
-(defparameter *rnd-state* (make-random-state))
-
 (defun make-zygote ()
   (let ((chromosome 0))
     (declare ((unsigned-byte 32) chromosome))
     (dotimes (i 16)
+      ;; Run d20 < 5 to see if bit should be set
       (setf chromosome (logior (ash chromosome 1)
-			       (random 2 *rnd-state*))))
+			       (if (< (random 20 *rnd-state*) 5) 1 0))))
     (ash chromosome 16)))
-
 #+END_SRC
 
-#+RESULTS[484a791a5a4fdcfb3b62176cd77d8e77d4ae77e7]:
+#+RESULTS[d403dc4036eacef73358290cef69c1f6a212e3dd]:
 : MAKE-ZYGOTE
 
 I'm calling here a chromosome in a not-ready state a /zygote/, since it is still
-expecting a cross-over phase. Printing any chromosome, be it a zygote or not, is
-rather easy. We just instruct the ~format~ function to pad it with 32 positions,
-and fill the nonexistant ones with zeroes. We can even build a function for that:
+expecting a crossover phase. Each zygote gene has a chance of 3/10 to be a ~1~.
+
+Printing any chromosome, be it a zygote or not, is rather easy. We just instruct
+the ~format~ function to pad it with 32 positions, and fill the nonexistant ones
+with zeroes. We can even build a function for that:
 
 #+BEGIN_SRC lisp
 (defun format-chromosome (chromosome)
@@ -71,29 +76,28 @@ and fill the nonexistant ones with zeroes. We can even build a function for that
 (defun print-chromosome (chromosome)
   (princ (format-chromosome chromosome))
   (terpri))
-
 #+END_SRC
 
-#+RESULTS[c455e58fc4d3a1e8f03c3d728154aee37e83625f]:
+#+RESULTS[85ac28687cf4be2496afb147f4050506edad74d7]:
 : PRINT-CHROMOSOME
 
-*** Example
+*** Example: Checking zygote generation
 
 Here is an example of what happens when you print an immediately created
 zygote. The first line is the actual value of the 32-bit integer, and the second
 line is the binary representation of such integer, when you call
 ~print-chromosome~ using its value.
 
-#+BEGIN_SRC lisp :tangle no :results output list :exports results
+#+BEGIN_SRC lisp :tangle no :results output :exports results
 (let ((zygote (make-zygote)))
   (princ zygote)
   (terpri)
   (print-chromosome zygote))
 #+END_SRC
 
-#+RESULTS[11894984996287993ee5babf7957ad0d1b988c9c]:
-: - 393347072
-: - 00010111011100100000000000000000
+#+RESULTS[2df934f9717138064c89f6937ef3008e27586f2a]:
+: 138412032
+: 00001000010000000000000000000000
 
 
 
@@ -105,32 +109,30 @@ helper macro which will only push a new chromosome onto the list if it is not
 already there.
 
 #+BEGIN_SRC lisp
-(defparameter *convergence-threshold*
-  (truncate (* (expt 2 32) 0.1)))
-
-(defparameter *convergence-flag* nil)
+(defparameter *distinction-threshold*
+  (truncate (* (expt 2 32) 0.0001)))
 
 (defmacro with-distinct-chromosome (&body generator-thunk)
   (let ((chr-sym (gensym))
 	(repets  (gensym)))
     `(let ((,chr-sym nil)
 	   (,repets 0))
-       (declare (fixnum ,repets))
        ;; Only perform operation if population has not converged
-       (unless *convergence-flag*
+       (when (null *convergence-flag*)
 	 ;; Keep repeating until convergence, or until new
 	 ;; chromosome is found
 	 (loop while (or (eq ,chr-sym nil)
 			 (member ,chr-sym *population*))
 	    do (setf ,chr-sym (progn ,@generator-thunk)
 		     ,repets  (1+ ,repets))
-	    never (>= ,repets *convergence-threshold*))
-	 (if (>= ,repets *convergence-threshold*)
-	     (setf *convergence-flag* t)
-	     ;; If population has not converged, see if new
-	     ;; chromosome's  fitness makes it one of the fittest
+	    never (>= ,repets *distinction-threshold*))
+	 (unless (>= ,repets *distinction-threshold*)
+	   ;; If generation attempts have not been exhausted,
+	   ;; go ahead and push those individuals to population
 	     (let ((fitness (calc-fitness ,chr-sym)))
 	       (push ,chr-sym *population*)
+	       ;; Also see if their fitness is enough to make
+	       ;; them fittest individuals
 	       (cond ((or (null *fittest*)
 			  (< (length *fittest*) 2))
 		      (push ,chr-sym *fittest*))
@@ -139,29 +141,33 @@ already there.
 		     ((> fitness (calc-fitness (cadr *fittest*)))
 		      (setf *fittest* (list (car *fittest*) ,chr-sym))))))))))
 
+(defun make-chromosome ()
+  (logior (make-zygote)
+	  (ash 1 (random 16 *rnd-state*))))
+
 (defun initialize-population ()
-  (setf *population* nil
-	,*fittest*    nil)
+  (setf *population*       nil
+	,*fittest*          nil
+	,*convergence-flag* nil)
   (dotimes (i 10)
-    (with-distinct-chromosome
-     (logior (make-zygote)
-	     (ash 1 (random 16 *rnd-state*))))))
+    (with-distinct-chromosome (make-chromosome))))
 
 #+END_SRC
 
-#+RESULTS[9436b025c91d000c0fe930e82e45ca3cd07b93a8]:
+#+RESULTS[6008503f841c729cb08101fd80d6339d8a0a6911]:
 : INITIALIZE-POPULATION
 
 The macro ~with-distinct-chromosome~ takes a generator thunk and performs it over
 and over again, until the generated chromosome is not a member of the population
 anymore. Since this behaviour may cause an infinite loop (or a seemingly
-infinite loop in case we get stuck for a while), we define a convergence
+infinite loop in case we get stuck for a while), we define a distinction
 threshold for this repetition.
 
-In other words, in case we end up stuck in what could be an infinite loop, our
-macro halts the chromosome generation, and also informs the whole application
-that we've exhausted our possible chromosomes by using the ~*convergence-flag*~
-variable.
+In case we end up stuck in what could be an infinite loop, our macro halts the
+chromosome generation, and gives up on adding the new chromosome to the
+population. Since this macro is so useful on making sure we are not testing
+again any chromosomes which we've tested on the near past, we also use it later,
+on the crossover phase.
 
 The macro also compares for the fitness of the newly-generated number. We always
 need to have at least two fittest chromosomes. For that, when we identify a
@@ -197,19 +203,30 @@ and counts how many of them are ~1~'s.
   (loop for x below 32
      when (bit-set-p chromosome x)
      sum 1))
-
 #+END_SRC
 
-#+RESULTS[c45dce0cb874b505034cbfb3701a45292830ab55]:
+#+RESULTS[fc867b0dcbc1bcbfdd8d56d5709379ba2bb05bca]:
 : CALC-FITNESS
 
-** Checking generated population
+We also add a convenient function for printing the chromosome with its fitness.
+
+#+BEGIN_SRC lisp
+(defun print-chromosome-with-fitness (chrm)
+  (format t "~a => ~a~&"
+	  (format-chromosome chrm)
+	  (calc-fitness chrm)))
+#+END_SRC
+
+#+RESULTS[4c05e490073addb2bbb68a1baadc6dd4fe3e63a6]:
+: PRINT-CHROMOSOME-WITH-FITNESS
+
+** Example: Checking generated population
 
 We can use ~mapcan~ along with a special anonymous function over the population to
 beautifully print all of our generated specimen, and each chromosome's
 fitness. Here is an example.
 
-#+BEGIN_SRC lisp :tangle no :results output list :exports both
+#+BEGIN_SRC lisp :tangle no :results output :exports both
 ;; Initialize a population first
 (initialize-population)
 
@@ -220,37 +237,260 @@ fitness. Here is an example.
 	,*population*)
 #+END_SRC
 
-#+RESULTS[cf3567c751e78f47efbd48cd89eb72a852b5e618]:
+#+RESULTS[6624a2f4b7380b978cf04bb8dbe55ebc992ba2e7]:
 #+begin_example
-- 11001101000111110000000000000100 => 11
-- 11000010001111010000000000010000 => 9
-- 11111001011000010000000010000000 => 10
-- 10001000101100110010000000000000 => 8
-- 01011000000101010100000000000000 => 7
-- 10100101001011010000000000000010 => 9
-- 00010000010011100001000000000000 => 6
-- 11111000000100100000100000000000 => 8
-- 01010110001000010000000000010000 => 7
-- 00011001001111100010000000000000 => 9
+00100000000101000001000000000000 => 4
+00000011000001010000001000000000 => 5
+01011001010000000000000010000000 => 6
+01111001000000000000000000000100 => 6
+00011010000000000000000000100000 => 4
+01000000010010100000000000001000 => 5
+00010100100000000000001000000000 => 4
+00000011000000000000000010000000 => 3
+10011010010000000010000000000000 => 6
+00100001000000100100000000000000 => 4
 #+end_example
-
-We can also do the same over our fittest chromosomes to check their bits. This
-time, though, we don't need to see their fitness, so ~mapcan~ along with
-~print-chromosome~ will do the trick.
-
-#+BEGIN_SRC lisp :tangle no :results output list :exports both
-(mapcan #'print-chromosome *fittest*)
-#+END_SRC
-
-#+RESULTS[4ee096a8e9f432d79c4724525b7adbc96afd08dc]:
-: - 11001101000111110000000000000100
-: - 11111001011000010000000010000000
 
 * Selection
 
-* Crossover
+The selection phase is where the two fittest individuals are selected to pass on
+their genes to the next generation. This phase is automagically done on the
+~with-distinct-chromosome~ macro.
+
+** Example: Checking selected chromosomes
+
+Using the same principle on printing the population, we can do the same with
+~*fittest*~, which is the variable storing the two fittest individuals. This time,
+though, their fitness values are irrelevant, so passing ~print-chromosome~ over
+each one with the aid of ~mapcan~ should do the trick.
+
+#+BEGIN_SRC lisp :tangle no :results output :exports both
+(mapcan #'print-chromosome *fittest*)
+#+END_SRC
+
+#+RESULTS[673ff0d68926dda63c601f59644b785ac5e0b6dc]:
+: 01111110111111010000100110010111
+: 01101110111110010000100010111100
+
+* Crossover (Breeding)
+
+The crossover process produces two new chromosomes. We generate a new individual
+by making the parents exchange their least significant bits. Each new value is,
+then, added to the population, and the selection phase takes place.
+
+#+BEGIN_SRC lisp
+(defun breed (parent1 parent2)
+  (declare ((unsigned-byte 32) parent1 parent2))
+  (labels ((swap-bit (n)
+	     (let ((bit-p1 (bit-set-p parent1 n))
+		   (bit-p2 (bit-set-p parent2 n)))
+	       (when (not (eq bit-p1 bit-p2))
+		 (setf parent1 (logxor parent1 (ash 1 n))
+		       parent2 (logxor parent2 (ash 1 n)))))))
+    (dotimes (i 16)
+      (swap-bit i)))
+  (values parent1 parent2))
+#+END_SRC
+
+#+RESULTS[08e178012598e489997237f9c71ede10a0b6e19c]:
+: BREED
+
+We also define a function to ensure our population never surpasses its fixed
+size. If it does, then the individuals of least fitness are removed.
+
+#+BEGIN_SRC lisp
+(defun limit-population (max-num)
+  (let* ((pop-len (length *population*))
+	 (exceed (- pop-len max-num)))
+    (when (> exceed 0)
+      (let ((pop-fitness (mapcar #'calc-fitness *population*)))
+	(labels ((remove-minimum ()
+		   (let ((min-index
+			  (loop for i below pop-len
+			     for elt in pop-fitness
+			     with min = (cons 32 nil)
+			     when (< elt (car min))
+			     do (setf min (cons elt i))
+			     finally (return (cdr min)))))
+		     (when min-index
+		       (setf *population*
+			     (loop for elt in *population*
+				for i from 0
+				unless (= i min-index) collect elt)
+			     pop-len (1- pop-len))))))
+	  (dotimes (i exceed)
+	    (remove-minimum)))))))
+#+END_SRC
+
+#+RESULTS[1600186dc53f31ec041946993fd7bdd3f250e592]:
+: LIMIT-POPULATION
 
 * Mutation
+
+To ensure population diversity and remove the chances of early convergence, we
+mutate some genes at a low rate. I pick a maximum of 16 genes, regardless of
+significancy, at random, and then I also roll the dice again (with little
+probability): should the odds be on favor, the specified gene will suffer a
+"flip".
+
+#+BEGIN_SRC lisp
+(defun mutate (chromosome)
+  (declare ((unsigned-byte 32) chromosome))
+  (let* ((num-mutations (random 16 *rnd-state*))
+	 (mutating-indexes (remove-duplicates
+			    (loop for i below num-mutations
+				collect (random 32 *rnd-state*)))))
+    (labels ((attempt-mutation-at (n)
+	       ;; Throw d20 and expect < 8
+	       (when (< (random 20 *rnd-state*) 7)
+		 (setf chromosome (logxor chromosome (ash 1 n))))))
+      (mapcan #'attempt-mutation-at mutating-indexes)))
+  chromosome)
+#+END_SRC
+
+#+RESULTS[6dbd53c23b865c6ca78a0a3ec9bd11c854dd038d]:
+: MUTATE
+
+** Example: Testing the mutation algorithm
+
+We can check whether this is working or not with a simple algorithm which
+generates a chromosome and its mutation; then, we just print them and see if
+they can be compared. By re-running it a couple of times, we should see a
+mutated gene here and there.
+
+#+BEGIN_SRC lisp :tangle no :results output :exports both
+(let ((chromosome (make-chromosome)))
+  (mapcan #'print-chromosome
+	  (list chromosome
+		(mutate chromosome))))
+#+END_SRC
+
+#+RESULTS[8f77e6d1801cdd7607aecab2e5a9c4d720b560b7]:
+: 00101001000010000000000000100000
+: 00101101000011000100000000100000
+
+* Crossover (Finalization)
+
+Now we define our actual crossover function. The crossover function takes into
+consideration both the breeding process and the mutation.
+
+#+BEGIN_SRC lisp
+(defun crossover ()
+  (multiple-value-bind (offspring1 offspring2)
+      (apply #'breed *fittest*)
+    (with-distinct-chromosome (mutate offspring1))
+    (with-distinct-chromosome (mutate offspring2))))
+#+END_SRC
+
+#+RESULTS[b630460668c6ffca75b2c6cd585ec214c48be816]:
+: CROSSOVER
+
+* Convergence
+
+We need a strategy to check if our population converged. For a genetic
+algorithm, a converged population usually means that we've reached a max
+fitness. Therefore, we just need to check if our fittest individual has a
+fitness greater or equal than the specified max fitness.
+
+#+BEGIN_SRC lisp
+(defun population-converged-p ()
+  (>= (calc-fitness (car *fittest*))
+      ,*max-fitness*))
+#+END_SRC
+
+#+RESULTS[e1d47d93bbb55d7027344fe2d40bc60a8b1201e4]:
+: POPULATION-CONVERGED-P
+
+* Debriefing and running the genetic algorithm
+
+Now we can create a proper loop which will execute the proper steps of our
+algorithm until the population converges.
+
+#+BEGIN_SRC lisp
+(defun debriefing ()
+  (princ "Population converged.") (terpri)
+  (format t "Best fitness: ~a~%~%" (calc-fitness (car *fittest*)))
+  (princ "Final population:") (terpri)
+  (mapcan #'print-chromosome-with-fitness *population*)
+  (terpri))
+
+(defun run-genetic-algorithm ()
+  (initialize-population)
+   (loop until (population-converged-p)
+      for i from 0
+      do (format t "Generation: ~a~%Fittest:~%" i)
+	(mapcan #'print-chromosome *fittest*)
+	(terpri)
+	(crossover)
+	(limit-population 10))
+  (debriefing))
+#+END_SRC
+
+#+RESULTS[1874d4fce158597dec9d1377c491f12d7789f139]:
+: RUN-GENETIC-ALGORITHM
+
+* Conclusion
+
+With everything all sorted and done, we can test our algorithm at once. Here's
+one possible output when running the function ~run-genetic-algorithm~:
+
+#+BEGIN_SRC lisp :tangle no :exports results :results output
+(run-genetic-algorithm)
+#+END_SRC
+
+#+RESULTS[32db23317bf915961623d386c29ac67e9b73aca1]:
+#+begin_example
+Generation: 0
+Fittest:
+00100110100010010010000000000000
+00010010100001010001000000000000
+
+Generation: 1
+Fittest:
+00100110100010010001000010000010
+00100110100010010010000000000000
+
+Generation: 2
+Fittest:
+00100110100010010010001001010000
+00100110100010010001000010000010
+
+Generation: 3
+Fittest:
+00101110101010010001000110010010
+00100110100010010010001001010100
+
+Generation: 4
+Fittest:
+00110110100010010000100110110110
+00101110101010010001000110010010
+
+Generation: 5
+Fittest:
+00110110100010010000100110110110
+00101110101010010000100110010110
+
+Generation: 6
+Fittest:
+01101110111110010000100010111100
+00110110100010010000100110110110
+
+Population converged.
+Best fitness: 20
+
+Final population:
+00110110100010010000100010111100 => 13
+01111110111111010000100110010111 => 20
+01101110111110010000100010111100 => 17
+00110110100010010010100110010110 => 14
+00101110101010010000100110010110 => 14
+00110110100010010001000010010010 => 11
+00110110100010010000100110110110 => 14
+00101110101010010010001001010100 => 13
+00100110100010010010001001010100 => 11
+00101110101010010001000110010010 => 13
+
+#+end_example
 
 * Footnotes
 

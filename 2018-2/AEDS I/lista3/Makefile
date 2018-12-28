@@ -1,5 +1,5 @@
-CPP        = g++
-CPPFLAGS   = -Wall -g --std=c++14
+CPP        = clang++
+CPPFLAGS   = -Wall -g --std=c++17
 LDFLAGS    = -lm
 SRCS       = $(wildcard *.cpp)
 BINARIES   = $(SRCS:%.cpp=%.out)
