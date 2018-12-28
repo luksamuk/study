@@ -116,29 +116,27 @@ will only push a new chromosome onto the list if it is not already there.
 	(repets  (gensym)))
     `(let ((,chr-sym nil)
 	   (,repets 0))
-       ;; Only perform operation if population has not converged
-       (when (null *convergence-flag*)
-	 ;; Keep repeating until convergence, or until new
-	 ;; chromosome is found
-	 (loop while (or (eq ,chr-sym nil)
-			 (member ,chr-sym *population*))
-	    do (setf ,chr-sym (progn ,@generator-thunk)
-		     ,repets  (1+ ,repets))
-	    never (>= ,repets *distinction-threshold*))
-	 (unless (>= ,repets *distinction-threshold*)
-	   ;; If generation attempts have not been exhausted,
-	   ;; go ahead and push those individuals to population
-	     (let ((fitness (calc-fitness ,chr-sym)))
-	       (push ,chr-sym *population*)
-	       ;; Also see if their fitness is enough to make
-	       ;; them fittest individuals
-	       (cond ((or (null *fittest*)
-			  (< (length *fittest*) 2))
-		      (push ,chr-sym *fittest*))
-		     ((> fitness (calc-fitness (car *fittest*)))
-		      (setf *fittest* (list ,chr-sym (car *fittest*))))
-		     ((> fitness (calc-fitness (cadr *fittest*)))
-		      (setf *fittest* (list (car *fittest*) ,chr-sym))))))))))
+       ;; Keep repeating until convergence, or until new
+       ;; chromosome is found
+       (loop while (or (eq ,chr-sym nil)
+		       (member ,chr-sym *population*))
+	  do (setf ,chr-sym (progn ,@generator-thunk)
+		   ,repets  (1+ ,repets))
+	  never (>= ,repets *distinction-threshold*))
+       (unless (>= ,repets *distinction-threshold*)
+	 ;; If generation attempts have not been exhausted,
+	 ;; go ahead and push those individuals to population
+	 (let ((fitness (calc-fitness ,chr-sym)))
+	   (push ,chr-sym *population*)
+	   ;; Also see if their fitness is enough to make
+	   ;; them fittest individuals
+	   (cond ((or (null *fittest*)
+		      (< (length *fittest*) 2))
+		  (push ,chr-sym *fittest*))
+		 ((> fitness (calc-fitness (car *fittest*)))
+		  (setf *fittest* (list ,chr-sym (car *fittest*))))
+		 ((> fitness (calc-fitness (cadr *fittest*)))
+		  (setf *fittest* (list (car *fittest*) ,chr-sym)))))))))
 
 (defun make-chromosome ()
   (logior (make-zygote)
