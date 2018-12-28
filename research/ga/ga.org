@@ -8,12 +8,12 @@
 * Introduction
 
 A teacher of mine tasked me with the challenge of building a genetic algorithm
-to solve diofantine equations. Before I jump into it, I will first attempt to
+to solve diophantine equations. Before I jump into it, I will first attempt to
 build a simple genetic algorithm which just evolves in a very stupid manner. I
 am using a certain tutorial[fn:1] for that.
 
 The goal here is to have a minimal environment in which 32-bit numbers keep
-evolving, until they reach twenty-four ~1~'s on their binary composition.
+evolving, until they reach twenty ~1~'s on their binary composition.
 
 This GA is built using Common Lisp, due to my distaste for Java. If you're
 allergic to parenthesis, you've been warned.
@@ -27,7 +27,6 @@ recurrent thing). I'll leave optimization heuristics for later, though.
 #+BEGIN_SRC lisp
 (defparameter *population* nil)
 (defparameter *fittest* nil)
-(defparameter *convergence-flag* nil)
 (defparameter *max-fitness* 20)
 (defparameter *rnd-state* (make-random-state))
 #+END_SRC
@@ -35,17 +34,17 @@ recurrent thing). I'll leave optimization heuristics for later, though.
 #+RESULTS[ee1f53f217a5bf9fb606fe0af8f94fd52cdba31a]:
 : *RND-STATE*
 
-Each individual on this population is a different chromosome. The genes
+Each individual on ~*population*~ is a different chromosome. The genes
 themselves will be the bits of each number. The two numbers of large fitness are
-stored in ~*fittest*~, while the ~*convergence-flag*~ tells whether the population
-has converged yet.
+stored in ~*fittest*~. ~*max-fitness*~ tells us the least number of ~1~'s we're
+expecting. And then, we have an initial ~*rnd-state*~ for randomization purposes.
 
 ** Zygotes: partial chromosomes
 
-Having a 32-bit number as genome also means that we need to look at the 16 least
-significant bits at crossover phase, but the 16 most significant bits can be
-randomly generated. For that, we use a global random state which will provide
-our random numbers.
+Having a 32-bit number as chromosome also means that we need to look at the 16
+least significant bits at crossover phase, but the 16 most significant bits can
+be randomly generated. For that, we use the global random state which will
+provide our random numbers.
 
 #+BEGIN_SRC lisp
 (defun make-zygote ()
@@ -62,11 +61,12 @@ our random numbers.
 : MAKE-ZYGOTE
 
 I'm calling here a chromosome in a not-ready state a /zygote/, since it is still
-expecting a crossover phase. Each zygote gene has a chance of 3/10 to be a ~1~.
+expecting a crossover phase. Each zygote gene has a chance of 3/10 (or 6/20) to
+be a ~1~.
 
 Printing any chromosome, be it a zygote or not, is rather easy. We just instruct
-the ~format~ function to pad it with 32 positions, and fill the nonexistant ones
-with zeroes. We can even build a function for that:
+the ~format~ function to pad it with 32 positions, and fill the nonexistant
+leading ones with zeroes. We can even build a function for that:
 
 #+BEGIN_SRC lisp
 (defun format-chromosome (chromosome)
@@ -103,10 +103,9 @@ line is the binary representation of such integer, when you call
 
 ** Generating initial chromosomes
 
-We generate our first two chromosomes in a very simple way. We just generate two
-different chromosomes from zygotes and put them on the list. We also use a
-helper macro which will only push a new chromosome onto the list if it is not
-already there.
+We generate our first ten chromosomes in a very simple way. We just generate
+them from zygotes and put them on the list. We also use a helper macro which
+will only push a new chromosome onto the list if it is not already there.
 
 #+BEGIN_SRC lisp
 (defparameter *distinction-threshold*
@@ -169,18 +168,26 @@ population. Since this macro is so useful on making sure we are not testing
 again any chromosomes which we've tested on the near past, we also use it later,
 on the crossover phase.
 
-The macro also compares for the fitness of the newly-generated number. We always
+It is deduced that the chromosome generation is in an infinite loop if the
+repetition was performed for roughly a number of 0.01% of the distinct
+chromosomes we could generate (about 429496 numbers). We do not make
+distinctions between different numbers to count the amount of repetitions,
+though.
+
+The macro also compares the fitness of the newly-generated number. We always
 need to have at least two fittest chromosomes. For that, when we identify a
 chromosome which could be added to the list, we compare if its fitness is
-greater than one of the two most-fit genomes, said genome will be replaced, and
-the newly generated genome will occupy its desired space. Fittest genomes are
-disposed in such a way that the fittest of the couple remains on top. More
-information about calculating fitness will be given later.
+greater than one of the two most-fit chromosomes. If that is true, said
+chromosome will be replaced, and the newly generated chromosome will occupy its
+proper space. Fittest chromosomes are arranged in such a way that the fittest of
+the couple remains on top. More information about calculating fitness will be
+given later. This represents a phase called *selection*; more on it will be said
+later.
 
 The ~initialize~ function makes good use of said macro, by generating ten distinct
-chromosomes: it takes a zygote, then set a random flag at one of the 16 least
-significant bytes to 1, ensuring that we'll have two different bitmasks at the
-beginning.
+chromosomes: it takes a zygote, then sets a random flag at one of the 16 least
+significant bits to 1, ensuring that we'll most likely have ten different
+bitmasks at the beginning.
 
 * Computing fitness
 
@@ -259,7 +266,7 @@ their genes to the next generation. This phase is automagically done on the
 
 ** Example: Checking selected chromosomes
 
-Using the same principle on printing the population, we can do the same with
+Using the same principle of printing the population, we can do the same with
 ~*fittest*~, which is the variable storing the two fittest individuals. This time,
 though, their fitness values are irrelevant, so passing ~print-chromosome~ over
 each one with the aid of ~mapcan~ should do the trick.
@@ -328,8 +335,8 @@ size. If it does, then the individuals of least fitness are removed.
 * Mutation
 
 To ensure population diversity and remove the chances of early convergence, we
-mutate some genes at a low rate. I pick a maximum of 16 genes, regardless of
-significancy, at random, and then I also roll the dice again (with little
+mutate some genes at a low rate. By picking a maximum of 16 genes, regardless of
+significancy, at random, it is possible to roll the dice again (with little
 probability): should the odds be on favor, the specified gene will suffer a
 "flip".
 
@@ -403,8 +410,8 @@ fitness greater or equal than the specified max fitness.
 
 * Debriefing and running the genetic algorithm
 
-Now we can create a proper loop which will execute the proper steps of our
-algorithm until the population converges.
+Now we can create a proper loop which will execute the steps of our algorithm
+until the population converges.
 
 #+BEGIN_SRC lisp
 (defun debriefing ()
