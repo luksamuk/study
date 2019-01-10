@@ -1,0 +1,8 @@
+CHIP HalfSum {
+    IN a, b;
+    OUT out, carryout;
+    PARTS:
+    Xor(a=a, b=b, out=out);
+    And(a=a, b=b, out=carryout);
+}
+

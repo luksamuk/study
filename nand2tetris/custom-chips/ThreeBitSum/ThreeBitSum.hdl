@@ -1,0 +1,8 @@
+CHIP ThreeBitSum {
+     IN a[3], b[3];
+     OUT out[4];
+     PARTS:
+     HalfSum(a=a[0], b=b[0], out=out[0], carryout=carry0);
+     Sum(a=a[1], b=b[1], carryin=carry0, out=out[1], carryout=carry1);
+     Sum(a=a[2], b=b[2], carryin=carry1, out=out[2], carryout=out[3]);
+}

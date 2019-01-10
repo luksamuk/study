@@ -1,0 +1,8 @@
+CHIP Sum {
+    IN a, b, carryin;
+    OUT out, carryout;
+    PARTS:
+    HalfSum(a=a, b=b, out=halfsum, carryout=carry1);
+    HalfSum(a=carryin, b=halfsum, out=out, carryout=carry2);
+    Or(a=carry1, b=carry2, out=carryout);
+}
