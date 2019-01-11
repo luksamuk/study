@@ -1,0 +1,8 @@
+#+TITLE: Chapter 01 Exercises
+
+All exercises here are implementations, tests and comparisions for chips on the
+book.
+
+Chips without tests and comparision files use the ones from the book files
+themselves.
+
