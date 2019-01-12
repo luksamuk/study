@@ -1,0 +1,11 @@
+#+TITLE: Chapter 02 Exercises
+
+This directory features a full implementation of the ALU. It uses only the
+predefined chips.
+
+Thanks to the nand2tetris forums which helped me a not, specially with zr and ng
+on the ALU.
+
+Oh, this includes no tests nor comparision tables; you should use the ones
+included in the book materials.
+

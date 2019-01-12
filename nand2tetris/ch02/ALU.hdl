@@ -1,0 +1,61 @@
+CHIP ALU {
+    IN x[16], y[16],
+       zx, nx, zy, ny, f, no;
+    OUT out[16], zr, ng;
+
+    PARTS:
+
+    /// X input processing
+    // Zerofill on zx set
+    Not(in=zx, out=notzx);
+    Mux16(a=false, b=true, sel=notzx, out=notzx16);
+    And16(a=x, b=notzx16, out=zxout);
+
+    // Xor16 on nx set
+    Not(in=nx, out=notnx);
+    Not16(in=zxout, out=notzxout);
+    Mux16(a=false, b=true, sel=nx, out=nx16);
+    Mux16(a=false, b=true, sel=notnx, out=notnx16);
+
+    And16(a=zxout, b=notnx16, out=w0);
+    And16(a=notzxout, b=nx16, out=w1);
+    Or16(a=w0, b=w1, out=nxout);
+
+    /// Y input processing
+    // Zerofill on zy set
+    Not(in=zy, out=notzy);
+    Mux16(a=false, b=true, sel=notzy, out=notzy16);
+    And16(a=y, b=notzy16, out=zyout);
+
+    // Xor16 on ny set
+    Not(in=ny, out=notny);
+    Not16(in=zyout, out=notzyout);
+    Mux16(a=false, b=true, sel=ny, out=ny16);
+    Mux16(a=false, b=true, sel=notny, out=notny16);
+
+    And16(a=zyout, b=notny16, out=w2);
+    And16(a=notzyout, b=ny16, out=w3);
+    Or16(a=w2, b=w3, out=nyout);
+
+    /// Handle f
+    // f=0 => Add16, f=1 => And16
+
+    And16(a=nxout, b=nyout, out=andout);
+    Add16(a=nxout, b=nyout, out=addout);
+
+    /// Pickup the right operation result
+    Mux16(a=andout, b=addout, sel=f, out=opout);
+
+    /// Negate on no set
+    Not16(in=opout, out=notopout);
+    Mux16(a=opout, b=notopout, sel=no, out=preout, out[0..7]=w4, out[8..15]=w5);
+
+    /// zr
+    Or8Way(in=w4, out=zr0);
+    Or8Way(in=w5, out=zr1);
+    Or(a=zr0, b=zr1, out=zr2);
+    Not(in=zr2, out=zr);
+
+    /// Redirect output + ng
+    And16(a=preout, b=true, out=out, out[15]=ng);
+}
