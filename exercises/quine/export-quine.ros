@@ -4,6 +4,11 @@
 exec ros -Q -- $0 "$@"
 |#
 
+;;;; export-quine.ros
+;;;; Roswell script for exporting "quine.lisp" in its generated form.
+;;;; Copyright (c) 2019, Lucas Vieira. All rights reserved.
+;;;; Licensed under the BSD 2-Clause License. See LICENSE for details.
+
 (load "export-quine.lisp")
 
 (defun main (&rest argv)
