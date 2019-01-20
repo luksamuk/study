@@ -1,0 +1,13 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+
+(load "export-quine.lisp")
+
+(defun main (&rest argv)
+  (if (zerop (length argv))
+      (progn (princ "usage: ./export-quine.ros filename.lisp")
+	     (terpri))
+      (export-quine (car argv))))

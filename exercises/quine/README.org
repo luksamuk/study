@@ -1,0 +1,14 @@
+#+TITLE: Quine
+#+AUTHOR: Lucas Vieira <lucasvieira@protonmail.com>
+
+A quine implementation in Common Lisp. Includes files:
+
+- ~quine.lisp~: Actual quine implementation.
+- ~export-quine.lisp~: Code for exporting the quine in its
+                       implementation-generated form.
+- ~export-quine-ros~: Roswell script for exporting the
+                      generated quine.
+
+This project is distributed under the BSD 2-Clause License.
+Check the header of the files for more information.
+
