@@ -33,10 +33,8 @@
       `((defparameter *template* '(,@*template*))
 	(defun quine ()
 	  (eval *template*)
-	  (mapc #'print (macroexpand '(eniuq)))
-	  nil)))))
+	  (mapc #'print (macroexpand '(eniuq))))))))
 
 (defun quine ()
   (eval *template*)
-  (mapc #'print (macroexpand '(eniuq)))
-  nil)
+  (mapc #'print (macroexpand '(eniuq))))
