@@ -8,6 +8,9 @@ A quine implementation in Common Lisp. Includes files:
 - ~export-quine.ros~: Roswell script for exporting the generated quine.
 - ~generated.lisp~: Quine in its Lisp-generated form. Can be used just like the
   original code.
+- ~diff.sh~: A bash script for showing the diff between generated and original
+  quine code. If all goes well, it'll only show the copyright notice as a
+  difference.
 
 All of this folder's code files are distributed under the BSD 2-Clause License.
 Check the [[./LICENSE][LICENSE]] file for more information.

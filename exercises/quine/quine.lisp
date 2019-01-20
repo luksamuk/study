@@ -10,7 +10,4 @@
 	(defun quine ()
 	  (eval *template*)
 	  (mapc #'print (macroexpand '(eniuq))))))))
-
-(defun quine ()
-  (eval *template*)
-  (mapc #'print (macroexpand '(eniuq))))
+(defun quine () (eval *template*) (mapc #'print (macroexpand '(eniuq))))
