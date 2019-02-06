@@ -1,0 +1,25 @@
+CHIP PC {
+    IN in[16], load, inc, reset;
+    OUT out[16];
+    PARTS:
+    // Incrementor
+    Inc16(in=feedback, out=w0);
+    Mux16(a=feedback, b=w0, sel=inc, out=incout);
+
+    // Loader
+    Mux16(a=incout, b=in, sel=load, out=loadout);
+
+    // Resetter
+    Mux16(a=loadout, b=false, sel=reset, out=resetout);
+
+    // Selector for register
+    Or(a=inc, b=load, out=w1);
+    Or(a=w1, b=reset, out=regload);
+
+    // Register
+    Register(in=resetout, load=regload, out=w2);
+
+    // Feedback and output
+    And16(a=w2, b=w2, out=feedback);
+    And16(a=w2, b=w2, out=out);
+}

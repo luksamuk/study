@@ -1,0 +1,29 @@
+CHIP RAM64 {
+     IN in[16], address[6], load;
+     OUT out[16];
+     PARTS:
+     // Demux load so it reaches appropriate RAM8 chip.
+     // Addresses are MSB of address
+     DMux8Way(in=load, sel=address[3..5],
+              a=load0, b=load1, c=load2,
+	      d=load3, e=load4, f=load5,
+	      g=load6, h=load7);
+
+     // Memory cells. Addresses are LSB of address
+     RAM8(in=in, address=address[0..2], load=load0, out=out0);
+     RAM8(in=in, address=address[0..2], load=load1, out=out1);
+     RAM8(in=in, address=address[0..2], load=load2, out=out2);
+     RAM8(in=in, address=address[0..2], load=load3, out=out3);
+     RAM8(in=in, address=address[0..2], load=load4, out=out4);
+     RAM8(in=in, address=address[0..2], load=load5, out=out5);
+     RAM8(in=in, address=address[0..2], load=load6, out=out6);
+     RAM8(in=in, address=address[0..2], load=load7, out=out7);
+
+     // Mux RAM8 outputs so the desired one reaches out.
+     // Addresses are MSB of address
+     Mux8Way16(a=out0, b=out1, c=out2,
+               d=out3, e=out4, f=out5,
+	       g=out6, h=out7,
+	       sel=address[3..5],
+	       out=out);
+}

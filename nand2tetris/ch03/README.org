@@ -1,0 +1,7 @@
+#+TITLE: Chapter 03 Exercises
+
+This directory features implementations for a memory cell (Bit), a 16-bit
+register (Register), a 16-bit program counter (PC), and various memory cells
+(RAM8, RAM64, RAM512, RAM8K, RAM16K).
+
+No tests and no comparision tables are provided. Use the ones from the book.
