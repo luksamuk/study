@@ -1,0 +1,30 @@
+#+TITLE: Chapter 04 Exercises
+
+There are no exercises in this book. However, I did invent an exercise on my
+own.
+
+*** Notes of the chapter
+
+The .asm and .hack files in this directory refer to a slight modification in the
+code on page 65 but, instead of adding up all numbers from 1 below 100, I add up
+all numbers from 0 below 100, counting them 2 by 2.
+
+Since this involves the removal of an incrementation line, I had to add some
+small code which would add 2 to the D register.
+
+This small exercise also made me realize that labels are referred as by their
+proper instruction "line" number. For example, an instruction ~@END~ is
+translated to ~@N~, where ~N~ is the exact line number of the instruction in
+~(END)~. Plus, labels are not counted as lines, as if they were just a "comment"
+in the beginning of the next line.
+
+Oh, and of course, any jump (except ~JMP)~ is only made by an address indicated by
+the ALU. This means that, for example, if you need to compare a number at any
+register, you first need to pass the value of this register through the ALU, and
+then you make the jump. This is pretty much what occurs in an instruction such
+as ~D;JGT~: The ALU outputs the intact contents of register ~D~, and then ~JGT~ jumps
+to the label indicated by it. ~JMP~, however, looks at register ~A~ to make a jump,
+so the ALU is ignored.
+
+The .asm file can be used on the Assembler, and the .hack file, though it can be
+generated from the .asm one, should be used on the CPU Emulator.
