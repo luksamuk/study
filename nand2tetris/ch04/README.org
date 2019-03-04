@@ -3,7 +3,7 @@
 There are no exercises in this book. However, I did invent an exercise on my
 own.
 
-*** Notes of the chapter
+** Notes of the chapter
 
 The .asm and .hack files in this directory refer to a slight modification in the
 code on page 65 but, instead of adding up all numbers from 1 below 100, I add up
@@ -11,6 +11,18 @@ all numbers from 0 below 100, counting them 2 by 2.
 
 Since this involves the removal of an incrementation line, I had to add some
 small code which would add 2 to the D register.
+
+Oh, and of course, I made the extra effort of compiling this whole thing by
+hand, based on what the book describes from the opcodes and instructions. Most
+of it was right, except the memory locations given by the variables (I suppose
+this has to do with assembler and emulator implementation), and the jumps, which
+I thought were actually diffs from the current instruction (I thought at some
+point that, to jump to the label ~LOOP~, I had to go 13 instructions backwards, so
+my jump involved setting the ~A~ register to -13 previously -- though now I
+recall, it made no sense, since I only had 15 bits for the labels, so they had
+to be unsigned).
+
+*** Conclusion on the exercise
 
 This small exercise also made me realize that labels are referred as by their
 proper instruction "line" number. For example, an instruction ~@END~ is
