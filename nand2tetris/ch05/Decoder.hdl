@@ -1,0 +1,35 @@
+CHIP Decoder {
+	IN  instruction[16];
+	OUT instrType, aVal[15], mAop, mZx, mNx, mZy, mNy, mF, mNo,
+	mCwriteM, mCwriteD, mCwriteA,
+	mCjGT, mCjEQ, mCjLT;
+	PARTS:
+
+	And(a=instruction[15], b=instruction[15], out=sel);
+	And(a=sel, b=sel, out=instrType);
+
+	// JMP
+	DMux(in=instruction[0],  sel=sel, a=aVal[0],  b=mCjGT);
+	DMux(in=instruction[1],  sel=sel, a=aVal[1],  b=mCjEQ);
+	DMux(in=instruction[2],  sel=sel, a=aVal[2],  b=mCjLT);
+
+	// DST
+	DMux(in=instruction[3],  sel=sel, a=aVal[3],  b=mCwriteM);
+	DMux(in=instruction[4],  sel=sel, a=aVal[4],  b=mCwriteD);
+	DMux(in=instruction[5],  sel=sel, a=aVal[5],  b=mCwriteA);
+
+	// CMP
+	DMux(in=instruction[6],  sel=sel, a=aVal[6],  b=mNo);
+	DMux(in=instruction[7],  sel=sel, a=aVal[7],  b=mF);
+	DMux(in=instruction[8],  sel=sel, a=aVal[8],  b=mNy);
+	DMux(in=instruction[9],  sel=sel, a=aVal[9],  b=mZy);
+	DMux(in=instruction[10], sel=sel, a=aVal[10], b=mNx);
+	DMux(in=instruction[11], sel=sel, a=aVal[11], b=mZx);
+
+	// A
+	DMux(in=instruction[12], sel=sel, a=aVal[12], b=mAop);
+
+	// Rest of VAL
+	DMux(in=instruction[13], sel=sel, a=aVal[13], b=unused0);
+	DMux(in=instruction[13], sel=sel, a=aVal[14], b=unused1);
+}

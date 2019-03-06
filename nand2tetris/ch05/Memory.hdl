@@ -1,0 +1,18 @@
+CHIP Memory {
+	IN  in[16], load, address[15];
+	OUT out[16];
+	PARTS:
+	// Addresses:
+	// 0x0000 >= x >= 0x3FFF => RAM16K
+	// 0x4000 >= x >= 0x5FFF => Screen chip
+	// x = 0x6000            => Keyboard chip
+	// x > 0x6000            => Invalid
+	DMux4Way(in=load, sel=address[13..14], a=toram0, b=toram1, c=toscreen, d=tokeyboard);
+	Or(a=toram0, b=toram1, out=toram);
+
+	RAM16K(in=in, load=toram, address=address[0..13], out=outram);
+	Screen(in=in, load=toscreen, address=address[0..12], out=outscreen);
+	Keyboard(out=outkeyboard);
+
+	Mux4Way16(a=outram, b=outram, c=outscreen, d=outkeyboard, sel=address[13..14], out=out);
+}
