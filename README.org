@@ -46,6 +46,44 @@ Todos os commits presentes neste repositório estarão digitalmente assinados po
 mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
+** Relação de diretórios e atividades incluídas
+Última atualização: <2019-03-07 qui>
+
+- ~2018/2~: Exercícios relacionados ao curso de Sistemas de Informação, no segundo
+  semestre de 2018.
+  - ~AEDS I~: Resoluções de exercícios da disciplina de Algoritmos e Estruturas de
+    Dados I. Não necessariamente terminados.
+  - ~Cálculo I~: Alguns poucos documentos escritos em Org, servindo como
+    resoluções de exercícios enviados via Moodle, na disciplina de Cálculo I.
+- ~exercises~: Exercícios variados, não necessariamente relacionados a estudo.
+  - ~quine~: Tentativa de implementação de um quine (programa auto-replicável) em
+    Common Lisp.
+- ~nand2tetris~: Exercícios resolvidos do livro /The Elements of Computing Systems/,
+  de Nisan e Schocken. Normalmente, não inclui os arquivos de testes do livro,
+  que podem ser encontrados na distribuição do material eletrônico.
+  - ~ch01~: Implementação de chips básicos.
+  - ~ch02~: Implementação de meio-somador, somador; incrementador e somador de
+    16-bits; e finalmente, da unidade lógico-aritmética (ALU) da plataforma
+    Hack.
+  - ~ch03~: Implementação de registrador, chips variados de memória, e do program
+    counter (PC).
+  - ~ch04~: Auto-estudo. Réplica com ligeira modificação do programa em Assembly
+    de exemplo do livro. Utilizado para melhor auto-conhecimento da linguagem de
+    Assembly da plataforma Hack.
+  - ~ch05~: Implementação dos chips de memória (Memory) e do processador (CPU) da
+    plataforma Hack, culminando em um chip representativo de uma máquina
+    completa (Computer).
+  - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
+    estudos avulsos a respeito de circuitos integrados.
+- ~research~: Outros programas implementados com o intuito de pesquisa
+  pessoal. Não necessariamente relacionados a tópicos acadêmicos.
+  - ~ga~: Implementação de um algoritmo genético simples baseado em um tutorial em
+    Python. O algoritmo foi implementado em Common Lisp, utilizando um arquivo
+    Org (=ga.org=) para programação literada. Exige o editor de textos Emacs para
+    realizar entrelaçamento ou para execução dinâmica com o SLIME. Também inclui
+    uma arquivo de código pós-entrelaçamento (=ga.lisp=) para acessibilidade.
+  
+
 * Licenciamento
 
 Todo e qualquer código aqui escrito estará distribuído sob a Licença MIT, o que
