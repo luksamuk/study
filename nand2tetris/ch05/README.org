@@ -1,0 +1,12 @@
+#+TITLE: Chapter 05 Exercises
+
+This directory features implementations for RAM (Memory), processor (CPU) and
+the topmost Computer chips for the book.
+
+Also in this directory is a secondary chip called Decoder, which is responsible
+for dismantling a certain instruction into named one-bit pins inside the
+CPU. For this specific chip, there are test and comparison files (Decoder.tst
+and Decoder.cmp).
+
+With this, we now have a full implementation of a simple 16-bit computer of the
+Hack architecture.
