@@ -1,0 +1,92 @@
+CHIP CPU {
+	IN  inM[16], instruction[16], reset;
+	OUT outM[16], writeM, addressM[15], pc[15];
+	PARTS:
+
+	// Decode instruction into valid internal pins
+	Decoder(instruction=instruction, instrType=instrType, aVal=aVal,
+	mAop=mAop, mZx=mZx, mNx=mNx, mZy=mZy, mNy=mNy, mF=mF, mNo=mNo,
+	mCwriteM=writeM, mCwriteD=mCwriteD, mCwriteA=mCwriteA,
+	mCjGT=mCjGT, mCjEQ=mCjEQ, mCjLT=mCjLT);
+
+	// Mux instruction and ALU output in A register
+	// Needs aMuxSel from CONTROLLER
+	Mux16(a[0..14]=aVal, b=aluOut, sel=aMuxSel, out=aMuxOut);
+
+	// A Register. Needs aShouldLoad from CONTROLLER.
+	ARegister(in=aMuxOut, load=aShouldLoad, out=aOut);
+
+	// Mux M[A(t-1)] and A(t) as ALU operand.
+	// Needs aluMuxAorM from CONTROLLER.
+	// Mux16(a=aOut, b=inM, sel=aluMuxAorM, out=aluY);
+	Mux16(a=aOut, b=inM, sel=mAop, out=aluY);
+
+	// D Register. Needs dShouldLoad from CONTROLLER.
+	DRegister(in=aluOut, load=dShouldLoad, out=aluX);
+
+	// == ALU == //
+	ALU(x=aluX, y=aluY, zx=mZx, nx=mNx, zy=mZy, ny=mNy, f=mF, no=mNo,
+	out=aluOut, zr=aluZr, ng=aluNg); // OK
+
+	// == PC == //
+	// Needs pcShouldLoad and pcShouldInc from CONTROLLER.
+	PC(in=aOut, load=pcShouldLoad, inc=pcShouldInc, reset=reset,
+	out[0..14]=pc, out[15]=unused0);
+
+	
+	
+	// == Controller == //
+	// Produces aShouldLoad, dShouldLoad, pcShouldLoad, pcShouldInc.
+
+	// aMuxSel = Determines whether A write value comes from ALU (0)
+	//           or from A-instruction.
+	Not(in=instrType, out=aInstr);
+	And(a=instrType,  b=mCwriteA, out=aMuxSel);
+
+	// aShouldLoad = Determines whether A should be overwritten.
+	//               A is overwritten when using an A-instruction or
+	//               when M-instruction says so (3rd bit of destination).
+	// (~instrType v (instrType ^ mCwriteA)) -- OK
+	Or(a=aMuxSel, b=aInstr, out=aShouldLoad);
+
+	
+	// aluMuxAorM = Determines whether field Y of ALU should use A or M[A].
+	//              Told by an M-instruction (mAop=1 when using M[A]).
+	// -- No implementation, so we save some chips. Use mAop directly.
+	
+	
+	// dShouldLoad = Determines whether D should be overwritten.
+	//               Told by an M-instruction (2nd bit of destination).
+	And(a=instrType, b=mCwriteD, out=dShouldLoad);
+
+
+	
+	// pcShouldLoad = Determines whether the PC should be overwritten by
+	//                the value of A. This is directly related to jumps.
+	
+	// pcShouldInc = Determines whether the PC should be incremented.
+	//               This means: whenever PC is not changed by an
+	//               instruction.
+
+
+	And(a=aluZr, b=mCjEQ, out=jeq);
+	And(a=aluNg, b=mCjLT, out=jlt);
+	Or(a=aluZr, b=aluNg, out=zrOrNg);
+	Not(in=zrOrNg, out=aluPositive);
+	And(a=aluPositive, b=mCjGT, out=jgt);
+	Or(a=jeq, b=jlt, out=jle);
+	Or(a=jle, b=jgt, out=jmp);
+
+	And(a=instrType, b=jmp, out=pcShouldLoad);
+	Not(in=pcShouldLoad, out=pcShouldInc);
+
+
+	
+	// writeM      = Determines whether RAM should be overwritten at
+	//               M[A(t-1)]. Given by M-instruction (mCwriteM).
+	// -- No implementation, so we save some chips. Redirected to output.
+	
+	// == Outputs == //
+	And16(a=aluOut, b=aluOut, out=outM);
+	And16(a=aOut, b=aOut, out[0..14]=addressM, out[15]=unused1);
+}

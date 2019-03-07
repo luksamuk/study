@@ -31,5 +31,5 @@ CHIP Decoder {
 
 	// Rest of VAL
 	DMux(in=instruction[13], sel=sel, a=aVal[13], b=unused0);
-	DMux(in=instruction[13], sel=sel, a=aVal[14], b=unused1);
+	DMux(in=instruction[14], sel=sel, a=aVal[14], b=unused1);
 }
