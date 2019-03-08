@@ -2,12 +2,5 @@
 
 Solutions to exercises in nand2tetris, and other extra topics.
 
-* chXX
-
-Solutions for the chapter identified on folder name.
-
-* custom-chips
-
-Custom chips I built as extra-curricular exercise. Some are related to my
-graduation itself.
-
+Each folder contains a small readme file stating extra information on the solved
+exercises.

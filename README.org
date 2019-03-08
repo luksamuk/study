@@ -73,6 +73,9 @@ exercícios aqui descritas vieram de mim mesmo.
   - ~ch05~: Implementação dos chips de memória (Memory) e do processador (CPU) da
     plataforma Hack, culminando em um chip representativo de uma máquina
     completa (Computer).
+  - ~ch06~: Implementação de um assembler capaz de gerar código de máquina para a
+    arquitetura Hack. O trabalho foi feito em um repositório externo, que foi
+    linkado como submódulo Git neste diretório.
   - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
     estudos avulsos a respeito de circuitos integrados.
 - ~research~: Outros programas implementados com o intuito de pesquisa

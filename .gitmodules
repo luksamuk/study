@@ -1,0 +1,3 @@
+[submodule "nand2tetris/ch06/cl-hackasm"]
+	path = nand2tetris/ch06/cl-hackasm
+	url = https://github.com/luksamuk/cl-hackasm

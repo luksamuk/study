@@ -1,0 +1,14 @@
+#+TITLE: Chapter 06 Exercises
+
+There is practically nothing in here, except for a direct reference to a
+separate repository in which the Assembler is being stored and has been written.
+
+My language of choice for making the assembler was Common Lisp, and so I also
+managed to redistribute it under the name ~cl-hackasm~.
+
+If you are familiarized with Roswell, you can effectively have the script
+~hackasm~ in your PATH and effectively use it as an assembler. It runs pretty well
+and is capable of assembling multiple files, too.
+
+For more information, see the project README or visit the [[https://github.com/luksamuk/cl-hackasm][repository]].
+
