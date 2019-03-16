@@ -79,8 +79,9 @@ exercícios aqui descritas vieram de mim mesmo.
   - ~ch07~: Códigos Assembly gerados pela implementação inicial do tradutor da VM
     para a plataforma Hack. O projeto não foi incluído como submódulo neste
     diretório, pois não estava completo ainda, e sua implementação não possuía
-    interceptação de condições de erros. A versão estável do software fica a cargo
-    do capítulo 08.
+    interceptação de condições de erros. Todavia, este estágio do projeto pode
+    ser acompanhado na [[https://github.com/luksamuk/cl-hackvmtr/tree/v0.5][tag v0.5]] do repositório do mesmo. A versão estável do
+    software fica delegada para o capítulo 08.
   - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
     estudos avulsos a respeito de circuitos integrados.
 - ~research~: Outros programas implementados com o intuito de pesquisa
@@ -91,7 +92,6 @@ exercícios aqui descritas vieram de mim mesmo.
     realizar entrelaçamento ou para execução dinâmica com o SLIME. Também inclui
     uma arquivo de código pós-entrelaçamento (=ga.lisp=) para acessibilidade.
   
-
 * Licenciamento
 
 Todo e qualquer código aqui escrito estará distribuído sob a Licença MIT, o que
