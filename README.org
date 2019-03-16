@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: <2019-03-07 qui>
+Última atualização: <2019-03-16 sáb>
 
 - ~2018/2~: Exercícios relacionados ao curso de Sistemas de Informação, no segundo
   semestre de 2018.
@@ -76,6 +76,11 @@ exercícios aqui descritas vieram de mim mesmo.
   - ~ch06~: Implementação de um assembler capaz de gerar código de máquina para a
     arquitetura Hack. O trabalho foi feito em um repositório externo, que foi
     linkado como submódulo Git neste diretório.
+  - ~ch07~: Códigos Assembly gerados pela implementação inicial do tradutor da VM
+    para a plataforma Hack. O projeto não foi incluído como submódulo neste
+    diretório, pois não estava completo ainda, e sua implementação não possuía
+    interceptação de condições de erros. A versão estável do software fica a cargo
+    do capítulo 08.
   - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
     estudos avulsos a respeito de circuitos integrados.
 - ~research~: Outros programas implementados com o intuito de pesquisa

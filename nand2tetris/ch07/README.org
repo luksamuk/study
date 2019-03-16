@@ -1,0 +1,11 @@
+#+TITLE: Chapter 07 Exercises
+
+This directory is related to the first implementation of the VM Translator.
+
+In here, there is no actual code for the VM Translator, since it is at a private
+repository on GitHub at the time of this writing. Instead, here are only the
+generated ~.asm~ files, which were also tested using the test scripts.
+
+The project was called ~cl-hackvmtr~, and is also built in Common Lisp, just like
+the assembler. Once the VM Translator is completed, it will also be linked as a
+submodule for the next chapter.
