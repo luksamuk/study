@@ -1,0 +1,11 @@
+#+TITLE: Chapter 08 Exercises
+
+This directory contains a submodule for =cl-hackvmtr=, the full VM Translator for
+the Hack platform.
+
+The subdirectories =FunctionCalls= and =ProgramFlow= present resulting ASM and OUT
+files for the tests provided by the book materials. As ever, these tests are not
+included, as they can be obtained from the internet.
+
+Just like ~cl-hackasm~, ~cl-hackvmtr~ offers a Roswell script so you can use it from
+command line. For more info, visit [[https://github.com/luksamuk/cl-hackvmtr][the project's repository]].

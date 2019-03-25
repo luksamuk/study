@@ -81,6 +81,12 @@ exercícios aqui descritas vieram de mim mesmo.
     diretório, pois não estava completo ainda Todavia, este estágio do projeto
     pode ser acompanhado na [[https://github.com/luksamuk/cl-hackvmtr/tree/v0.5][tag v0.5]] do repositório do mesmo. A versão estável
     do software fica delegada para o capítulo 08.
+  - ~ch08~: Códigos assembly gerados pela implementação final do tradutor da VM
+    para a plataforma Hack. O projeto final também suporta uma /flag/ que inibe o
+    código de /bootstrap/ de ser injetado no cabeçalho do arquivo .asm
+    final. Assim como no Capítulo 06, o VM Translator foi programado em um
+    repositório externo, e linkado como submódulo Git no diretório deste
+    capítulo.
   - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
     estudos avulsos a respeito de circuitos integrados.
 - ~research~: Outros programas implementados com o intuito de pesquisa
