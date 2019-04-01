@@ -1,0 +1,104 @@
+#+TITLE: TC - Lista 1
+#+AUTHOR: Lucas Vieira
+#+OPTIONS: tex:t toc:nil title:nil footer:nil num:nil
+#+DATE: 31/02/2018
+#+LANGUAGE: pt-br
+
+* DONE Exercício 1
+
+Dada a variável de partida $P$, derivamos, segundo as regras de
+$L(G)$, a palavra $\{a³b³c³\}$:
+
+\begin{align}
+  P          \rightarrow aAbc       \qquad \textrm{(Regra 1)}\\
+  aAbc       \rightarrow aaAbCbc    \qquad \textrm{(Regra 2)}\\
+  aaAbCbc    \rightarrow aaAbbCc    \qquad \textrm{(Regra 4)}\\
+  aaAbbCc    \rightarrow aaAbbcc    \qquad \textrm{(Regra 5)}\\
+  aaAbbcc    \rightarrow aaaAbCbbcc \qquad \textrm{(Regra 2)}\\
+  aaaAbCbbcc \rightarrow aaaAbbCbcc \qquad \textrm{(Regra 4)}\\
+  aaaAbbCbcc \rightarrow aaaAbbbCcc \qquad \textrm{(Regra 4)}\\
+  aaaAbbbCcc \rightarrow aaaAbbbccc \qquad \textrm{(Regra 5)}\\
+  aaaAbbbccc \rightarrow aaabbbccc  \qquad \textrm{(Regra 3)}\\
+  aaabbbbccc = \{a³b³c³\} \qquad\\
+\end{align}
+
+Sendo assim, $\{a³b³c³\} \in L(G)$.
+
+* DONE Exercício 2
+
+Relembramos que uma gramática é uma quádrupla $(V, \Sigma, R, P)$,
+onde $V$ são as variáveis, $\Sigma$ é um alfabeto, $R$ é um conjunto
+de regras, e $P$ é uma variável de partida.
+
+Temos a gramática $G = (\{A, B\}, \{a, b\}, R, A)$, onde $R = \{(A,
+aA), (A, B), (B, bB), (B, λ)\}$.
+
+As palavras da linguagem $\{a\}^*\{b\}^*$ consistem em um número
+arbitrário de símbolos $a$, seguidos de um número arbitrário de
+símbolos $b$, onde estes números arbitrários são independentes entre
+si e, ao assumirem valor zero, coletam a palavra vazia do alfabeto
+particular a qual referenciam.
+
+As regras da gramática $G$ constroem as palavras da linguagem $L(G)$ a
+partir de um algoritmo em específico, como delineado a seguir:
+
+- Toma-se um número arbitrário de $a$'s, com a variável $A$ como
+  sufixo (Regra 1);
+- Passa-se para o passo a seguir, trocando a variável $A$ do sufixo
+  pela variável $B$ (Regra 2);
+- Toma-se um número arbitrário de $b$'s, substituindo a variável $B$
+  na fórmula por eles, e insere-se uma nova variável $B$ como sufixo
+  (Regra 3);
+- Substitui-se a variável $B$ pela palavra vazia $λ$, encerrando-se o
+  processo (Regra 4).
+
+Ora, dado este algoritmo, fica claro, portanto, que qualquer palavra
+de $L(G)$ trata-se, também, de um número arbitrário de símbolos $a$,
+seguidos por um número arbitrário de símbolos $b$, podendo também
+assumir um número zero de elementos para cada símbolo.
+
+Portanto, prova-se que $L(G) \subseteq \{a\}^*\{b\}^*$.
+
+
+* Exercício 3
+
+** DONE Letra A
+Seja $L(G) = \{\omega \in \{a, b\}^* \, | \, \textrm{o número de} \,
+a\textrm{'s em} \, \omega \, \textrm{é par}\}$.
+
+Assim, teremos a gramática $G = (V, \Sigma, R, P)$, onde:
+
+\begin{align}
+  V &= \{A\}\\
+  \Sigma &= \{a, b\}\\
+  R &= \{(A, \lambda), (A, bA), (A, aaA), (A, bbA), (A, aAa)\}\\
+  P &= A\\
+\end{align}
+
+** DONE Letra B
+Seja $L(G) = \{a^nb^n \, | \, n \in \mathbb{N}\}$.
+
+Assim, teremos a gramática $G = (V, \Sigma, R, P)$, onde:
+
+\begin{align}
+  V &= \{A\}\\
+  \Sigma &= \{a, b\}\\
+  R &= \{(A, aAb), (A, \lambda)\}\\
+  P &= A\\
+\end{align}
+
+** DONE Letra C
+Seja $L(G) = \{\omega \in \{a, b\}^*\, |\, \omega = \omega^r\}$.
+
+Sabemos que $\omega^r$ é o reverso de uma palavra $\omega$. Portanto,
+se $\omega = \omega^r$, esta linguagem só admite palavras que sejam
+palíndromos.
+
+Assim, teremos a gramática $G = (V, \Sigma, R, P)$, onde:
+
+\begin{align}
+  V &= \{A\}\\
+  \Sigma &= \{a, b\}\\
+  R &= \{(A, \lambda), (A, aAa), (A, bAb), (A, a), (A, b)\}\\
+  P &= A\\
+\end{align}
