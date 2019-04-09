@@ -1,0 +1,41 @@
+class Main {
+      static Board board;
+      static int   game_playing;
+      static int   input_line;
+
+      function void run_game() {
+          while(~(game_playing = 0)) {
+	      do board.print();
+	      do Output.println();
+
+	      do Output.moveCursor(input_line, 0);
+	      do Output.printString("Type a key (1-9) for line:   ");
+	      /* TODO */
+	      
+	      do Output.moveCursor(input_line, 0);
+	      do Output.printString("Type a key (1-9) for column: ");
+	      /* TODO */
+	      
+	      // force halt; TODO!
+	      let game_playing = 0;
+	  }
+	  do Output.println();
+	  do Output.printString("Thanks for playing!");
+	  return;
+      }
+      
+      function void main() {
+          let board = Board.new();
+	  let game_playing = 1;
+	  let input_line   = 13;
+
+
+	  do Output.printString("Minesweeper for the nand2tetris Hack Platform");
+	  do Output.println();
+	  do Output.printString("v0.0.1 Copyright (c) 2019 Lucas Vieira");
+	  do Main.run_game();
+	  do board.print();
+	  do board.dispose();
+	  return;
+      }
+}

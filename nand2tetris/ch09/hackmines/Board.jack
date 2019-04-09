@@ -1,0 +1,78 @@
+class Board {
+      field int   width;
+      field int   height;
+      field int   size;
+      field Array content;
+
+      constructor Board new() {
+          var int i;
+	  let i = 0;
+          let width  = 9;
+          let height = 9;
+	  let size   = (width * height);
+          let content = Array.new(width * height);
+	  while(~(i = size)) {
+	      let content[i] = 0;
+	      let i = i + 1;
+	  }
+          return this;
+      }
+
+      method void dispose() {
+          do content.dispose();
+	  do Memory.deAlloc(this);
+	  return;
+      }
+
+      method int calcIndex(int x, int y) {
+          var int index;
+          let index = (y * width) + x;
+          return index;
+      }
+
+      method int elementAt(int x, int y) {
+          var int index;
+          let index = calcIndex(x, y);
+          return content[index];
+      }
+
+      method void print() {
+          var int i;
+	  var int j;
+	  var int curr_line;
+	  let i = 0;
+	  let j = 0;
+	  let curr_line = 1;
+	  do Output.moveCursor(3, 0);
+	  while(~(i = size)) {
+	      if(j = 0) {
+	          do Output.printInt(curr_line);
+		  do Output.printChar(32);
+	          do Output.printChar(124);
+	      }
+
+              do Output.printChar(32);
+	      do Output.printInt(content[i]);
+	      do Output.printChar(32);
+	      
+	      let i = (i + 1);
+	      let j = (j + 1);
+	      if(j = width) {
+	          do Output.printChar(124);
+		  do Output.printChar(32);
+		  do Output.printInt(curr_line);
+	          do Output.println();
+		  let j = 0;
+		  let curr_line = (curr_line + 1);
+	      }
+	  }
+	  return;
+      }
+
+      method void setElementAt(int x, int y, int val) {
+          var int index;
+          let index = calcIndex(x, y);
+          let content[index] = val;
+	  return;
+      }
+}
