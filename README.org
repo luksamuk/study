@@ -62,6 +62,7 @@ completamente feitas por mim.
 - ~2019-1~: Exercícios relacionados à faculdade, no primeiro semestre
   de 2019.
   - ~TC~: Exercícios de Teoria da Computação.
+  - ~AEDS2~: Algoritmos e Estruturas de Dados II.
 
 *** ~exercises~
 Exercícios variados, não necessariamente relacionados a estudo.
