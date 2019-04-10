@@ -4,8 +4,9 @@ class Main {
       static int   input_line;
 
       function void run_game() {
+          do board.revealAt(3, 0); // debug
           while(~(game_playing = 0)) {
-	      do board.print();
+	      do board.print(0);
 	      do Output.println();
 
 	      do Output.moveCursor(input_line, 0);
@@ -25,16 +26,16 @@ class Main {
       }
       
       function void main() {
+          do Random.init();
+	  
           let board = Board.new();
 	  let game_playing = 1;
 	  let input_line   = 13;
-
 
 	  do Output.printString("Minesweeper for the nand2tetris Hack Platform");
 	  do Output.println();
 	  do Output.printString("v0.0.1 Copyright (c) 2019 Lucas Vieira");
 	  do Main.run_game();
-	  do board.print();
 	  do board.dispose();
 	  return;
       }
