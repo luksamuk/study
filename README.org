@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-04-01 seg]
+Última atualização: [2019-04-13 sáb]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -101,6 +101,11 @@ eletrônico.
   final. Assim como no Capítulo 06, o VM Translator foi programado em um
   repositório externo, e linkado como submódulo Git no diretório deste
   capítulo.
+- ~ch09~: Código Jack implementando um Campo Minado. É provável que o
+  código não compile apropriadamente sob 32K, com o restante do
+  sistema operacional a ser posteriormente desenvolvido. Todavia, os
+  arquivos ~.vm~ gerados executam apropriadamente sob o VM Emulator
+  incluído no material de apoio do livro.
 - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
   estudos avulsos a respeito de circuitos integrados.
 
