@@ -73,7 +73,7 @@ class Main {
 
 	  do Output.printString("Minesweeper for the nand2tetris Hack Platform");
 	  do Output.println();
-	  do Output.printString("v0.0.1 Copyright (c) 2019 Lucas Vieira");
+	  do Output.printString("v1.0 Copyright (c) 2019 Lucas Vieira");
 	  do Main.run_game();
 	  do board.dispose();
 	  return;

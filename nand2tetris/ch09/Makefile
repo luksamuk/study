@@ -1,6 +1,6 @@
 .PHONY: vmfiles asmfile
 
-all: asmfile
+all: vmfiles
 
 asmfile: vmfiles
 	hackvmtr hackmines
