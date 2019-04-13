@@ -1,4 +1,15 @@
 #+TITLE: Chapter 09 Exercises
 
-Just like other chapters, there are not many things with relevance in
-here.
+This chapter is only an exercise to get acquainted with the Jack
+language.
+
+This directory contains an implementation for a Minesweeper game,
+written in Jack. The implementation is a little "fat", so I suppose it
+will not compile with a full Jack OS implementation in under
+32K. However, it runs file under the VM Emulator, which should run
+just fine.
+
+Compiling the ~hackmines~ directory should provide all necessary ~.vm~
+files to run the game. One can just open the ~hackmines~ directory using
+the VM Emulator to play the game.
+

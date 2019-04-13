@@ -219,4 +219,15 @@ class Board {
 	  }
 	  return;
       }
+
+      method int step(int x, int y) {
+          var int element;
+	  let element = calcIndex(x, y);
+	  let element = content[element];
+	  if(element = 9) {
+	      return 1;
+	  }
+	  do revealAt(x, y);
+	  return 0;
+      }
 }
