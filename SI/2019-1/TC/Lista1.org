@@ -26,6 +26,8 @@ Sendo assim, $\{a³b³c³\} \in L(G)$.
 
 * DONE Exercício 2
 
+#+NOTE: Esta resposta pode ser formalizada.
+
 Relembramos que uma gramática é uma quádrupla $(V, \Sigma, R, P)$,
 onde $V$ são as variáveis, $\Sigma$ é um alfabeto, $R$ é um conjunto
 de regras, e $P$ é uma variável de partida.
@@ -59,7 +61,6 @@ assumir um número zero de elementos para cada símbolo.
 
 Portanto, prova-se que $L(G) \subseteq \{a\}^*\{b\}^*$.
 
-
 * Exercício 3
 
 ** DONE Letra A
@@ -71,7 +72,7 @@ Assim, teremos a gramática $G = (V, \Sigma, R, P)$, onde:
 \begin{align}
   V &= \{A\}\\
   \Sigma &= \{a, b\}\\
-  R &= \{(A, \lambda), (A, bA), (A, aaA), (A, bbA), (A, aAa)\}\\
+  R &= \{(A, \lambda), (A, bA), (A, aaA), (A, bAb), (A, aAa)\}\\
   P &= A\\
 \end{align}
 
