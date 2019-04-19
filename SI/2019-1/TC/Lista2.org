@@ -1,0 +1,197 @@
+#+TITLE: TC - Lista 2
+#+AUTHOR: Lucas Vieira
+#+OPTIONS: tex:t toc:nil title:nil footer:nil num:nil
+#+DATE: 18/04/2018
+#+LANGUAGE: pt-br
+
+# This generates graphviz graphs.
+# #+name: make-dot
+# #+BEGIN_SRC emacs-lisp :var table=dot-eg-table :results output :exports none
+#   (mapcar #'(lambda (x)
+#               (princ (format "%s [label =\"%s\", shape = \"box\"];\n"
+#                              (first x) (second x)))) table)
+#               (princ (format "%s -- %s;\n" (first (first table)) (first (second table))))
+# #+END_SRC
+
+* Exercício 1
+Diagrama de estados para o problema dos missionários e dos canibais.
+
+$\Sigma = \{1C, 2C, 1M, 2M, MC\}$
+
+#+BEGIN_SRC dot :file images/ex01.png :cmdline -Kdot -Tpng
+digraph Autômato {
+    // Informação visual dos nós
+    begin   [style=invis];
+    mmmcccC [label="{m, m, m, c, c, c}"];
+    mmmc    [label="{m, m, m, c}"];
+    mmmcc   [label="{m, m, m, c, c}"];
+    mmcc    [label="{m, m, c, c}"];
+    mmmccC  [label="{m, m, m, c, c}"];
+    mmm     [label="{m, m, m}"];
+    mmmcC   [label="{m, m, m, c}"];
+    mc      [label="{m, c}"];
+    mmccC   [label="{m, m, c, c}"];
+    cc      [label="{c, c}"];
+    cccC    [label="{c, c, c}"];
+    c       [label="{c}"];
+    mcC     [label="{m, c}"];
+    ∅       [shape="doublecircle"];
+
+    // Seta de partida
+    begin -> mmmcccC;
+
+    // Relações e etc
+    mmmcccC -> mmmc   [label="2C", dir="both"];
+    mmmcccC -> mmmcc  [label="1C", dir="both"];
+    mmmcccC -> mmcc   [label="MC", dir="both"];
+
+    mmcc    -> mmmccC [label="1M", dir="both"];
+    mmmc    -> mmmccC [label="1C", dir="both"];
+    
+    mmmccC -> mmm     [label="2C", dir="both"];
+    mmm    -> mmmcC   [label="1C", dir="both"];
+    mmmcC  -> mc      [label="2M", dir="both"];
+    mc     -> mmccC   [label="MC", dir="both"];
+    mmccC  -> cc      [label="2M", dir="both"];
+    cc     -> cccC    [label="1C", dir="both"];
+    cccC   -> c       [label="2C", dir="both"];
+    c      -> mcC     [label="1M", dir="both"];
+    mcC    -> ∅       [label="MC", dir="both"];
+
+    // Hierarquias entre nós para garantir um desenho
+    // mais compacto
+    { rank="same"; mmmcccC, begin }
+    { rank="same"; mmmccC, mmmcC }
+    { rank="same"; mmmc, cc }
+    { rank="same"; cc, c }
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:images/ex01.png]]
+
+* Exercício 2
+
+** Linguagem A
+
+Seja o AFD $A = (E, \Sigma, \delta, i, F)$, tal que:
+
+\begin{align}
+  E &=\{\lambda, A, B\}\\
+  \Sigma &= \{a, b\}\\
+  \delta &\textrm{ é a função de transição}\\
+  i &= \{\lambda\}\\
+  F &= \{A, B\}\\
+\end{align}
+
+Temos o diagrama para $A$:
+
+#+BEGIN_SRC dot :file images/ex02a.png :cmdline -Kdot -Tpng
+digraph AFD {
+    begin  [style=invis];
+    a      [label="A", shape="doublecircle"];
+    b      [label="B", shape="doublecircle"];
+
+    begin -> λ;
+    λ     -> a     [label="a"];
+    λ     -> b     [label="b"];
+    b     -> a     [label="a"];
+    a:ne   -> a:se [label="a"];
+    b:nw   -> b:sw [label="b"];
+
+    { rank="same"; λ, begin }
+    { rank="same"; a, b }
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:images/ex02a.png]]
+
+** Linguagem B
+
+Seja o AFD $B = (E, \Sigma, \delta, i, F)$, tal que:
+
+\begin{align}
+  E &=\{\lambda, A, B, C\}\\
+  \Sigma &= \{a, b\}\\
+  \delta &\textrm{ é a função de transição}\\
+  i &= \{\lambda\}\\
+  F &= \{A, B, C\}\\
+\end{align}
+
+Temos o diagrama para $B$:
+
+#+BEGIN_SRC dot :file images/ex02b.png :cmdline -Kdot -Tpng
+digraph AFD {
+    begin   [style=invis];
+    a       [label="A", shape="doublecircle"];
+    b       [label="B", shape="doublecircle"];
+    c       [label="C", shape="doublecircle"];
+
+    begin -> λ;
+    λ     -> b    [label="a, b"];
+    b:nw  -> b:sw [label="b"];
+    b     -> a    [label="a"];
+    a     -> λ    [label="a"];
+    a     -> c    [label="b"];
+    c     -> b    [label="b"];
+
+    { rank = "same"; λ, begin }
+    { rank = "same"; a, b }
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:images/ex02b.png]]
+
+* Exercício 3
+
+Sejam as linguagens a seguir compostas do alfabeto $\Sigma = \{0, 1\}$:
+
+** Linguagem A
+$A = L(G) = \{\omega\, |\, \omega\, \textrm{termina com}\, 00\}$
+
+Temos, então, o diagrama para o AFN:
+
+#+BEGIN_SRC dot :file images/ex03a.png :cmdline -Kdot -Tpng
+digraph {
+    begin  [style=invis];
+    a      [label="A"];
+    b      [label="B", shape="doublecircle"];
+
+    begin  -> λ;
+    λ:nw   -> λ:ne [label="1"];
+    λ      -> a    [label="0"];
+    a      -> λ    [label="1"];
+    a      -> b    [label="0"];
+
+    { rank = "same"; begin, λ, a }
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:images/ex03a.png]]
+
+** Linguagem B
+
+$B = L(G) = 1^* \{001^+\}^*$
+
+#+BEGIN_SRC dot :file images/ex03b.png :cmdline -Kdot -Tpng
+digraph {
+    begin  [style=invis];
+    λ      [shape="doublecircle"];
+    a      [label="A"];
+    b      [label="B"];
+
+    begin  -> λ;
+    λ:nw   -> λ:ne [label="1"];
+    λ      -> a    [label="0"];
+    a      -> b    [label="0"];
+    b      -> λ    [label="1"];
+
+    { rank = "same"; begin, λ, a }
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:images/ex03b.png]]
