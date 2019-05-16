@@ -1,0 +1,96 @@
+Testando "testes/ListaAleatoria-1000.txt":
+
+   Bubble:       3356 microssegundos
+Selection:       5020 microssegundos
+Insertion:        256 microssegundos
+    Merge:        141 microssegundos
+    Quick:         61 microssegundos
+ --------------------- 
+Testando "testes/ListaAleatoria-10000.txt":
+
+   Bubble:     142040 microssegundos
+Selection:     155210 microssegundos
+Insertion:      24306 microssegundos
+    Merge:       1696 microssegundos
+    Quick:        750 microssegundos
+ --------------------- 
+Testando "testes/ListaAleatoria-100000.txt":
+
+   Bubble:   16238615 microssegundos
+Selection:   15216051 microssegundos
+Insertion:    1766041 microssegundos
+    Merge:      16984 microssegundos
+    Quick:       7598 microssegundos
+ --------------------- 
+Testando "testes/ListaInversamenteOrdenada-1000.txt":
+
+   Bubble:        834 microssegundos
+Selection:       4108 microssegundos
+Insertion:        419 microssegundos
+    Merge:        103 microssegundos
+    Quick:        644 microssegundos
+ --------------------- 
+Testando "testes/ListaInversamenteOrdenada-10000.txt":
+
+   Bubble:      94275 microssegundos
+Selection:     156523 microssegundos
+Insertion:      38664 microssegundos
+    Merge:       1941 microssegundos
+    Quick:      54161 microssegundos
+ --------------------- 
+Testando "testes/ListaInversamenteOrdenada-100000.txt":
+
+   Bubble:    8756818 microssegundos
+Selection:   15286046 microssegundos
+Insertion:    3455950 microssegundos
+    Merge:      10021 microssegundos
+    Quick:    5191275 microssegundos
+ --------------------- 
+Testando "testes/ListaOrdenada-1000.txt":
+
+   Bubble:       1053 microssegundos
+Selection:       4681 microssegundos
+Insertion:          2 microssegundos
+    Merge:        284 microssegundos
+    Quick:       1152 microssegundos
+ --------------------- 
+Testando "testes/ListaOrdenada-10000.txt":
+
+   Bubble:      39298 microssegundos
+Selection:     154925 microssegundos
+Insertion:         23 microssegundos
+    Merge:       1018 microssegundos
+    Quick:      72229 microssegundos
+ --------------------- 
+Testando "testes/ListaOrdenada-100000.txt":
+
+   Bubble:    3476160 microssegundos
+Selection:   15302719 microssegundos
+Insertion:        101 microssegundos
+    Merge:       9983 microssegundos
+    Quick:    6943906 microssegundos
+ --------------------- 
+Testando "testes/ListaQuaseOrdenada-1000.txt":
+
+   Bubble:       1879 microssegundos
+Selection:       3209 microssegundos
+Insertion:         37 microssegundos
+    Merge:        168 microssegundos
+    Quick:         66 microssegundos
+ --------------------- 
+Testando "testes/ListaQuaseOrdenada-10000.txt":
+
+   Bubble:      69513 microssegundos
+Selection:     166016 microssegundos
+Insertion:       2308 microssegundos
+    Merge:       1029 microssegundos
+    Quick:        773 microssegundos
+ --------------------- 
+Testando "testes/ListaQuaseOrdenada-100000.txt":
+
+   Bubble:    6561563 microssegundos
+Selection:   15176540 microssegundos
+Insertion:     210148 microssegundos
+    Merge:      10757 microssegundos
+    Quick:       9939 microssegundos
+ --------------------- 
