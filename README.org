@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-06-10 seg]
+Última atualização: [2019-06-19 qua]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -124,6 +124,9 @@ Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
 Arquivos relacionados à leitura e ao estudo do livro /The Little
 MLer/. Os exemplos utilizam OCaml ao invés de Standard ML; distinções
 são apontadas segundo necessário.
+*** =purescript-by-example=
+Projeto englobando arquivos escritos de acordo com o livro /PureScript
+By Example/, de Phil Freeman.
 * Licenciamento
 
 Todo e qualquer código aqui escrito estará distribuído sob a Licença MIT, o que
