@@ -1,7 +1,7 @@
 [submodule "nand2tetris/ch06/cl-hackasm"]
-	path = nand2tetris/ch06/cl-hackasm
+	path = books/nand2tetris/ch06/cl-hackasm/cl-hackasm
 	url = https://github.com/luksamuk/cl-hackasm
 	branch = master
 [submodule "nand2tetris/ch08/cl-hackvmtr"]
-	path = nand2tetris/ch08/cl-hackvmtr
+	path = books/nand2tetris/ch08/cl-hackvmtr/cl-hackvmtr
 	url = https://github.com/luksamuk/cl-hackvmtr

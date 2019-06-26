@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-06-19 qua]
+Última atualização: [2019-06-26 qua]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -71,7 +71,20 @@ Exercícios variados, não necessariamente relacionados a estudo.
 - ~quine~: Tentativa de implementação de um quine (programa auto-replicável) em
   Common Lisp.
 
-*** ~nand2tetris~
+*** ~research~
+Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
+
+- ~ga~: Implementação de um algoritmo genético simples baseado em um tutorial em
+  Python. O algoritmo foi implementado em Common Lisp, utilizando um arquivo
+  Org (=ga.org=) para programação literada. Exige o editor de textos Emacs para
+  realizar entrelaçamento ou para execução dinâmica com o SLIME. Também inclui
+  uma arquivo de código pós-entrelaçamento (=ga.lisp=) para
+  acessibilidade.
+
+*** =books=
+Exercícios variados de livros e afins.
+
+**** ~nand2tetris~
 Exercícios resolvidos do livro /The Elements of Computing Systems/, de
 Nisan e Schocken. Normalmente, não inclui os arquivos de testes do
 livro, que podem ser encontrados na distribuição do material
@@ -111,22 +124,23 @@ eletrônico.
 - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
   estudos avulsos a respeito de circuitos integrados.
 
-*** ~research~
-Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
-
-- ~ga~: Implementação de um algoritmo genético simples baseado em um tutorial em
-  Python. O algoritmo foi implementado em Common Lisp, utilizando um arquivo
-  Org (=ga.org=) para programação literada. Exige o editor de textos Emacs para
-  realizar entrelaçamento ou para execução dinâmica com o SLIME. Também inclui
-  uma arquivo de código pós-entrelaçamento (=ga.lisp=) para acessibilidade.
-
-*** =little-mler=
+**** =little-mler=
 Arquivos relacionados à leitura e ao estudo do livro /The Little
 MLer/. Os exemplos utilizam OCaml ao invés de Standard ML; distinções
 são apontadas segundo necessário.
-*** =purescript-by-example=
+
+**** =purescript-by-example=
 Projeto englobando arquivos escritos de acordo com o livro /PureScript
 By Example/, de Phil Freeman.
+Relação de módulos:
+
+- =Chapter2=: Exercícios do capítulo 2.
+- =Data.AddressBook=: Exercícios do capítulo 3.
+- =Chapter4=: Exercícios do capítulo 4.
+- =Chapter5=: Exercícios iniciais do capítulo 5.
+  - =Data.Picture=: Exercícios finais do capítulo 5, contendo biblioteca
+    de manipulação de figuras.
+
 * Licenciamento
 
 Todo e qualquer código aqui escrito estará distribuído sob a Licença MIT, o que
