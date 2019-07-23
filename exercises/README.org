@@ -2,3 +2,10 @@
 
 Exercícios avulsos feitos com propósito de aprendizagem.
 
+- =quine=
+Implementação de um quine em Common Lisp.
+
+- =project-euler=
+Resoluções de problemas do Project Euler em linguagens variadas. Dica:
+faça você mesmo antes de copiar a resolução. :)
+
