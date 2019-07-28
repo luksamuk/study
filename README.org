@@ -79,6 +79,9 @@ Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
   uma arquivo de código pós-entrelaçamento (=ga.lisp=) para
   acessibilidade.
 
+- =neural-networks=: Implementações de teste de redes neurais
+  artificiais, feitas durante o aprendizado das mesmas, em =C++= e =JS=.
+
 *** =books=
 Exercícios variados de livros e afins.
 
