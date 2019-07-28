@@ -22,9 +22,6 @@ Exercícios avulsos feitos com propósito de aprendizagem.
   Códigos feitos como resolução de Maratonas de Programação. Também
   inclui códigos do URI Online Judge e do SPOJ.
 
-- =neural-networks=
-  Códigos feitos durante o aprendizado sobre redes neurais.
-
 - =project-euler=
   Resoluções de problemas do Project Euler em linguagens
   variadas. Dica: faça você mesmo antes de copiar a resolução. :)
