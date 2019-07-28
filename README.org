@@ -67,9 +67,7 @@ completamente feitas por mim.
 
 *** ~exercises~
 Exercícios variados, não necessariamente relacionados a estudo.
-
-- ~quine~: Tentativa de implementação de um quine (programa auto-replicável) em
-  Common Lisp.
+Para maiores informações, veja o README incluído nesta pasta.
 
 *** ~research~
 Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
