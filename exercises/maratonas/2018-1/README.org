@@ -1,0 +1,14 @@
+#+TITLE: Problemas -- Maratona de Programação
+#+AUTHOR: Lucas Vieira
+#+email: lucasvieira@lisp.com.br
+
+* Sobre
+  Este projeto contém soluções para as questões da Maratona de Programação, realizada na UFVJM, no dia 03/08/2018.
+
+* Desenvolvimento
+  Todos os códigos aqui presentes foram desenvolvidos em um momento posterior à maratona em si, uma vez que a folha de problemas foi disponibilizada.
+  Os programas foram escritos na linguagem C, com exceção do problema extra, que faz uso da STL de C++, e por isto essa linguagem foi utilizada.
+  Foi utilizado o editor de texto Emacs para desenvolvimento, e o compilador Clang para compilação e testes, em um ambiente FreeBSD 11.2.
+
+* Licenciamento
+  Este projeto é distribuido sob a licença MIT. Veja LICENSE.txt para mais detalhes.

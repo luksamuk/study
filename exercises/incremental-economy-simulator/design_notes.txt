@@ -1,0 +1,232 @@
+        == Design notes for Incremental Economy Simulator ==
+
+The whole idea is to make a simulation, where visual effects are the least
+possible; the main goal is to actually develop a small, simple game, made
+entirely on Common Lisp, despite the SDL2/OpenGL bindings.
+
+Basically, the game style is pretty straightforward; you get resources
+and manage them. Getting a certain amount of units will unlock other units,
+which will consume resources on build and might consume resources
+from time to time.
+
+Personally, I was hoping I could dive into the whole concept of neural networks
+to create AI that would interact with the player in a nice way; given that the
+player has reached a rank/level and already started developing an army,
+it could be fun to let him be attacked by other lesser armies. That could
+introduce casualties and stuff, which would require forward planning.
+
+At the same time, I don't want the game to be mentally expensive for the
+player, specially because I can get bored with this sort of approach myself!
+Never been a fan of RPGs and I don't think that having choices that influence
+too deeply on later/other decisions (consider situations where the player NEEDS
+to be mindful of this kind of stuff at all times) are something that relax you.
+Rather, it makes you tense - at least that's what happens to me.
+Sure, you can have decisions that influence stuff later. Sure, you can have
+a world that's smart enough to be like that. But you don't need to throw at the
+player this kind of stuff to make him worry, nor design it so it will be a
+complete path-blocker afterwards. Just let the game do its job.
+
+With that said and done, let's get to it.
+
+
+Those are the game's general fields (Inventory):
+* Max Storage
+  Maximum storage for materials.
+  Starting value: 1000
+* Materials
+  Holds all materials you acquire.
+* Units
+  Holds all units you create.
+* Coins
+  Currency for the game.
+  Not really classified as material, because the amount is unlimited.
+* Trades
+  List of errands for the game.
+  Every errand created is stored on the errands list.
+  Each errand may return coins and/or materials, depending on whatever is
+  being traded. A percentage will be sold, while another percentage will
+  be traded - both randomically -, for every tradeable included on the
+  errand.
+  Each errand will take some time to complete. That will be calculated
+  according to the amount of tradeables included and according to a
+  randomic component.
+
+
+Each unit has the following fields:
+* Unit type
+  Type of unit. See below.
+* Maximum number of units
+  This is typically -1, which means infinite.
+* Build costs
+  Each unit built will consume these materials from the inventory.
+* Build requirements
+  Each unit built will need these materials to EXIST and maintain themselves,
+  however they won't be consumed.
+* Build prize
+  Each unit built will give you these materials when created.
+* Consume cost
+  Each unit built will consume these materials every minute to maintain
+  themselves.
+* Production
+  Each unit built will give you these materials every minute.
+* Unlockables
+  Creating the first unit of this kind will unlock these materials/units.
+And the following methods:
+=> update-unit(unit, inventory) 
+
+
+Materials:
+* Wood
+  Used when constructing buildings.
+* Brick
+  Used when constructing buildings.
+* Citizen
+  Used for creating professionals such as lumberjacks or potters.
+* Corn
+  ! Unlocked when creating "Barn".
+  Used to feed chicken on farms.
+  Tradeable.
+* Food
+  ! Unlocked when creating "Plantation".
+  Used to feed bigger shelters.
+  Tradeable.
+* Hay
+  ! Unlocked when creating "Plantation".
+  Used to feed cattle and troops.
+  Tradeable.
+* Meat
+  ! Unlocked when creating "Cattle".
+  Tradeable.
+* Egg
+  ! Unlocked when creating "Farm".
+  Tradeable.
+* Chicken
+  ! Unlocked when creating "Farm".
+  Tradeable.
+
+
+
+Unit types:
+== Homestead
+  Created in the beginning of the game.
+  * Max number: 1
+  * Build prize:
+    + Citizen: 5
+== Lumberjack
+  * Build cost:
+    - Citizen: 1
+  * Production:
+    + Wood: 20
+== Potter
+  * Build Cost:
+    - Citizen: 1
+  * Production:
+    + Brick: 10
+== Shelter
+  * Build Cost:
+    - Wood:  100
+    - Brick: 200
+  * Build Prize:
+    + Citizen: 20
+== Warehouse
+  * Build Cost:
+    - Wood:  400
+    - Brick: 800
+  * Build Prize:
+    + Maximum storage: 500
+== Ranch
+  * Max number: 1
+  * Unlockables:
+    + Plantation
+    + Barn
+  * Build Cost:
+    - Wood:    400
+    - Brick:   800
+    - Citizen:   2
+== Plantation
+   ! Unlocked when creating "Ranch".
+   * Unlockables:
+     + Food
+     + Hay
+   * Build Cost:
+     - Wood: 50
+   * Production:
+     + Food: 10
+     + Hay:  10
+== Barn
+   ! Unlocked when creating "Ranch".
+   * Unlockables:
+     + Cattle
+     + Troop
+     + Farm
+     + Corn
+   * Build Cost:
+     - Wood:    200
+     - Brick:   400
+     - Citizen:   2
+   * Production:
+     + Corn: 10
+== Cattle
+   ! Unlocked when creating "Barn".
+   * Unlockables:
+     + Meat
+   * Consume Cost:
+     - Hay: 10
+   * Production:
+     + Meat: 2
+   * Build Req:
+     - Barn: 1
+== Troop
+   ! Unlocked when creating "Barn".
+   Used for travelling activities.
+   * Unlockables:
+     + Salesmen
+   * Consume Cost:
+     - Hay: 10
+   * Build Req:
+     - Barn: 1
+== Farm
+   ! Unlocked when creating "Barn".
+   * Unlockables:
+     + Egg
+     + Chicken
+   * Build Cost:
+       - Wood:    200
+       - Brick:   400
+       - Citizen:   3
+   * Consume Cost:
+     - Corn: 10
+   * Production:
+     + Egg:     12
+     + Chicken:  1
+== Salesmen
+   ! Unlocked when creating "Troop".
+   * Unlockables:
+     + Coins (+ game currency itself)
+     + Trades (+ game system)
+     + Errand
+   * Build Cost:
+     - Citizen: 5
+     - Troop:   1
+== Errand
+   ! Unlocked when creating "Salesmen".
+   Works with the in-game trading system.
+   Every errand created is stored on the Trades system, instead of
+   being stored with other units.
+   For more on Trades, check the Trades system.
+   * Max number: (# Salesmen) - (# Existing Trades).
+   * Build Requirements:
+     - Salesmen:     1
+     - Food:        20
+     - Tradeables: ???
+   * Build Prize:
+     - Coins:      ???
+     - Tradeables: ???
+
+
+TO-DO:
+* Luck system?
+  * Thieves?
+  * Good/Bad Trades
+* Special materials
+  ! Obtained when trading

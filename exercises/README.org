@@ -2,10 +2,35 @@
 
 Exercícios avulsos feitos com propósito de aprendizagem.
 
-- =quine=
-Implementação de um quine em Common Lisp.
+- =99-lisp-problems=
+  Resoluções para os [[http://www.ic.unicamp.br/~meidanis/courses/mc336/2006s2/funcional/L-99_Ninety-Nine_Lisp_Problems.html][Ninety-Nine Lisp Problems da Unicamp]].
+
+- =challenges=
+  Códigos soltos que implementam coisas simples. Você pode querer dar
+  uma olhadinha, talvez descubra algo interessante.
+
+- =erlang-tutorial=
+  Exercícios feitos no tutorial oficial da linguagem Erlang.
+
+- =incremental-economy-simulator=
+  Jogo simulador de economia incremental. Não-finalizado.
+
+- =lfe-tutorial=
+  Tutorial de Erlang, reescrito em LFE (Lisp-Flavored Erlang).
+
+- =maratonas=
+  Códigos feitos como resolução de Maratonas de Programação. Também
+  inclui códigos do URI Online Judge e do SPOJ.
+
+- =neural-networks=
+  Códigos feitos durante o aprendizado sobre redes neurais.
 
 - =project-euler=
-Resoluções de problemas do Project Euler em linguagens variadas. Dica:
-faça você mesmo antes de copiar a resolução. :)
+  Resoluções de problemas do Project Euler em linguagens
+  variadas. Dica: faça você mesmo antes de copiar a resolução. :)
 
+- =quine=
+  Implementação de um quine em Common Lisp.
+
+- =rpn-calculator=
+  Calculadora em notação polonesa reversa, feita em F#.

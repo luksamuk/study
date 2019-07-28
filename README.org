@@ -148,6 +148,9 @@ Relação de módulos:
 - =Chapter5=: Exercícios iniciais do capítulo 5.
   - =Data.Picture=: Exercícios finais do capítulo 5, contendo biblioteca
     de manipulação de figuras.
+**** =practical-common-lisp=
+Relação de arquivos criados ao ler o livro /Practical Common Lisp/, de
+Peter Seibel.
 
 * Licenciamento
 

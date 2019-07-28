@@ -3,3 +3,7 @@
 *.out
 *.pdf
 *.aux
+*.exe
+*.swp
+*.beam
+
