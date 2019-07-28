@@ -5,3 +5,9 @@
 [submodule "nand2tetris/ch08/cl-hackvmtr"]
 	path = books/nand2tetris/ch08/cl-hackvmtr/cl-hackvmtr
 	url = https://github.com/luksamuk/cl-hackvmtr
+[submodule "books/sicp"]
+	path = books/sicp
+	url = https://github.com/luksamuk/sicp.git
+[submodule "books/land-of-lisp"]
+	path = books/land-of-lisp
+	url = https://github.com/luksamuk/LandOfLisp.git

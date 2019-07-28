@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-06-26 qua]
+Última atualização: [2019-07-28 dom]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -83,6 +83,14 @@ Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
 
 *** =books=
 Exercícios variados de livros e afins.
+
+**** =sicp=
+Link direto para o repositório de exercícios do livro /Structure and
+Interpretation of Computer Programs/, de Abelson e Sussman.
+
+**** =land-of-lisp=
+Link direto para o repositório de exercícios do livro /Land of Lisp/, de
+Conrad Barski, M.D.
 
 **** ~nand2tetris~
 Exercícios resolvidos do livro /The Elements of Computing Systems/, de
