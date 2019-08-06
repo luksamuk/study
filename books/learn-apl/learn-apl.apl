@@ -1,0 +1,347 @@
+#!/usr/bin/apl --id 1010
+
+⍝ This is a comment.
+⍝ Check the GNU APL keyboard for shortcut hints
+⍝ at any time.
+
+⍝ Simple Arithmetic
+
+5+12
+
+18÷3
+108÷11
+
+4×7
+3.893×7.6
+
+100-95
+8-16
+
+3+2 4 11 7 5
+
+1+2 3 4
+1+234
+
+6 3 8 1+3
+2.5 33.7 12 8÷15
+9.8 11.2 17 1.2×1.175
+
+12 3 29 4×1 3 5 2
+
+3×3-1
+
+2 3 1+8÷2 2 2
+
+(2 3 1+8)÷2 2 2
+
+1985 - 1066       ⍝ Difference of two numbers
+3 ¯1 ¯7 + ¯4 ¯1 2 ⍝ Sum between two lists with negative numbers
+
+2-3+5             ⍝ This does 3+5, then does 2-8
+2 ¯3+5            ⍝ This adds 5 to the number list 2 ¯3
+
+5+4
+1 3 4+3 1 6
+
++12
+
+- 3 ¯6 ¯8 4 12 ¯9
+
+÷1 2 4 10 100
+
+×8 0 ¯3 ¯7 0 4
+
+⌈120.11 12.32 65.01 13.52 - 0.5
+⌊99.99 12.82 15.39 48.90 + 0.5
+
+2 ⌈ 6
+2 ⌊ 6
+
+6 8 1 ⌈ 3 5 9
+6 8 1 ⌊ 3 5 9
+
+⍝ Exercises
+
+4 + 8 × 3 6 2
+
+1.15 × 14 5 78 145
+
+(13 - 8) + 4 6 12 7
+⍝ Or...
+4 6 12 7 + 13 - 8
+
+((6 × 3) × (4 × 8)) - 5
+⍝ Or...
+¯5+(6×3)×4×8
+
+- 3 ¯4 ¯12 6
+
+2 7 0 55 ⌈ 33 1 10 13
+
+200 180 230×1.96
+
+⌊((79 84 83 78 74 69 70-32)×5÷9)+0.5
+⍝ Or...
+⌈¯0.5+(5÷9)×79 84 83 78 74 69 70-32
+
+¯1500+1760×0.9144
+
+⍝ Variables
+
+A ← .175
+
+200×A
+A×30.50 12.25 60.30 15.00
+⌈ A×30.50 12.25 60.30 15.00
+
+C ← .45359237
+17 × C        ⍝ Convert 17 lbs into Kg
+⌈C×11×14      ⍝ How many Kgs are there in 11 stones,
+              ⍝ then round up
+
+JOE ← ⌈C×11×14
+
+AAA ← 4
+ab ← 1
+C9999 ← 0
+Jack_Smith ← 100
+
+PRICE ← 12.45 5.60 5.99 7.75
++VAT   ← PRICE × A ⍝ A was assigned earlier
+
+)VARS
+
+)WSID
+
+)WSID NEW
+
+)CLEAR
+
+A ← 'APL WILL PROCESS TEXT'
+C ← 'CHARACTERS'
+
+NAME ← 'WHAT''S IN A NAME? '
+
+N ← 'NET PRICE'
+QTY ← '230'
+
+(ZAK YAK) ← 5
+
+(YEN MARK BUCK) ← 10 20 30
+
+N 10
+NAME C
+
+X ← 18
+Y ← 3 1985
+X Y
+
+NAME X C
+
+'NET PRICE: ' 10
+
+Z ← X Y
+
+Z ← Z+10
+
+CNAME ← 'BASIL '
+SNAME ← 'BRUSH'
+NAME  ← CNAME SNAME
+
+⍴NAME
+1⍴NAME
+
+NAME ← CNAME,SNAME
+
+⍴NAME
+
+PIERRE ← 1 2 3 4
+MIREILLE ← 'FILLE'
+
+PIERRE ← (1 2 3) (4 5 6 7)
+
+FRANCOISE ← 'UNE' 'JEUNE' 'FILLE'
+
+PHONES ← 'BILL' 577332 'FRANK' 886331
+
+)CLEAR
+
+(D M Y) ← 22 2 2007
+
+DATE ← 'TODAY''S DATE: '
+
+DATE D M Y
+
+⍝ 1 stone = 14 lbs.
+⍝ 1 lb    = 0.454 Kg.
+⍝ Let's pretend I weight 11.5 stones.
+CONV     ← .454
+MYWEIGHT ← ⌊11.5×CONV×14×.9
+MYWEIGHT
+
+ITEMS_A ← 2×8 6 12 4
+ITEMS_B ← 1.75×16 13 7
+ITEMS   ← ⌈1.17×ITEMS_A,ITEMS_B
+'PRICE+VAT: ' ITEMS
+
+TEST1 ← 65 72 54 80 67 60 59
+TEST2 ← 75 70 60 74 58 61 50
+TEST1 ⌈ TEST2
+
+)CLEAR
+
+⍝ Tables
+
+? 100
+
+50 ? 100
+
+⍳100
+
+4 3 ⍴ 10 20 30 40 50 60 70 80 90 100 110 120
+
+DATA ← 12 ? 100
+4 3 ⍴ DATA
+
+4 3 ⍴ 1 2 3 4 5
+
+3 5 ⍴ 1
+
+3 3 ⍴ 1 0 0 0
+
+4 4 ⍴ 1,(4 ⍴ 0)
+
+SALES ← 3 3⍴20 13 8 30 43 48 3 50 21
+SALES
+
+SALES×10
+
+PRICES ← 2 3 ⍴ 21 2 12 47 33 1
+
+SALES ← 3 2⍴SALES
+
+SALES ← 2 3⍴SALES
+
+TOTAL ← SALES×PRICES
+SALES-PRICES
+
+TOTAL ← ⌈¯.5+(5 5⍴25+⍳25)×10×÷5 5⍴⍳25
+
+SALES,PRICES
+
+LITTLE ← 2 2⍴1
+MEDIUM ← 2 6⍴5
+BIG    ← LITTLE,MEDIUM
+
+ZEROES ← 2 4⍴0
+LITTLE ← LITTLE,ZEROES
+LITTLE+MEDIUM
+
+LITTLE ← 2 2⍴1
+LITTLE ← ZEROES,LITTLE
+LITTLE+MEDIUM
+
++TABLE ← 4 3⍴2 12 15 4 11 7 1 16 8 20 19 9
+
+TABLE[4;3]
+
+TABLE[3;2] ← TABLE[1;2] + TABLE[2;2]
+
+TABLE[1;1 2]
+TABLE[1 2;2]
+
+TABLE[1;]
+TABLE[;1]
+
+TABLE[;3] ← TABLE[;1] + TABLE[;2]
+
+LIST ← 8 1 90 4
+LIST[2]
+
+SALES ← 6 4⍴24?50
+
++SALES ← 3 6 4⍴72?100
+SALES[2;5;4]           ⍝ Plane 2, Row 5, Column 4
+SALES[2;;]             ⍝ Plane 2
+
+⍴SALES
+
+TABLE ← 5 3⍴15?20
+LIST ← ⍳6
+NUM ← 234
+
+⍴TABLE
+⍴LIST
+⍴NUM
+
+⍴12 61 502 1 26 0 11
+⍴'SHAMBOLIOSIS'
+
+⍝ Compare these two.
+ALF ← 3 5⍴'ABCDE'
+NUM ← 3 5⍴12345
+
+MYNAME ← 'GORSUCH'
+⍴MYNAME
+
+3 7⍴MYNAME
+3 14⍴MYNAME
+3 18⍴MYNAME
+
+MYNAME ← 'GORSUCH '
+⍴MYNAME
+
+3 40⍴MYNAME
+
+4 11⍴'ADAMS      CHATER     PRENDERGASTLEE        '
+
+MIXTURE ← 3 3⍴'A' 1 'B' 'C' 2 'D' 'E' 3 'F'
+
+MIXTURE[;2] ← 10×MIXTURE[;2]
+
+NEST ← 2 3⍴(2 2⍴⍳4) (⍳5) 'A NAME' (2 4⍴⍳8) 23 (3 4⍴'NAME')
+⍴NEST
+
+≡45          ⍝ Values have depth 0
+≡1 2 3       ⍝ Lists have depth 1
+≡2 2⍴3 4 5 6 ⍝ Tables too
+
+≡NEST
+
+BIG_NEST ← NEST NEST
+⍴BIG_NEST
+≡BIG_NEST
+
+⍝ Playing with sizes of character lists
+(⍴'ABC','DEF')+⍴'GHI'
+
+⍝ Selecting the first nine numbers in row 1 of a big table
+TABLE ← 10 10⍴100?100
+TABLE[1;⍳9]
+
+)CLEAR
+
+MILES ← 4 1⍴300 42 25 140
+
+RATES ← 4 1⍴27.5 15 27.5 27.5
+
++EXPENSES ← .01×RATES×MILES
+
+MILES[3;1] ← 250
++EXPENSES   ← (.01×RATES×MILES)[;1]
+
+⍝ Defining the tables
+X ← 3 10⍴30?30
+Y ← 3 4⍴30+12?12
+
+⍝ To sum Y into X, we catenate zeroes to Y,
+⍝ extending it.
+X+Y,3 ((⍴X)[2]-(⍴Y)[2])⍴0
+
+X[3;] ← X[1;]+X[2;]
+
+9 1⍴'APL ROCKS'
+
+)CLEAR
+
+⍝ Writing a function

@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-07-28 dom]
+Última atualização: [2019-08-06 ter]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -93,6 +93,15 @@ Interpretation of Computer Programs/, de Abelson e Sussman.
 Link direto para o repositório de exercícios do livro /Land of Lisp/, de
 Conrad Barski, M.D.
 
+**** =learn-apl=
+Arquivos relacionados à leitura de material para aprendizado da
+linguagem APL, em especial na /APL Wiki/.
+
+**** =little-mler=
+Arquivos relacionados à leitura e ao estudo do livro /The Little
+MLer/. Os exemplos utilizam OCaml ao invés de Standard ML; distinções
+são apontadas segundo necessário.
+
 **** ~nand2tetris~
 Exercícios resolvidos do livro /The Elements of Computing Systems/, de
 Nisan e Schocken. Normalmente, não inclui os arquivos de testes do
@@ -132,11 +141,6 @@ eletrônico.
   incluído no material de apoio do livro.
 - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
   estudos avulsos a respeito de circuitos integrados.
-
-**** =little-mler=
-Arquivos relacionados à leitura e ao estudo do livro /The Little
-MLer/. Os exemplos utilizam OCaml ao invés de Standard ML; distinções
-são apontadas segundo necessário.
 
 **** =purescript-by-example=
 Projeto englobando arquivos escritos de acordo com o livro /PureScript
