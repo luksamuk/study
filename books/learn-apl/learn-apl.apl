@@ -345,3 +345,93 @@ X[3;] ← X[1;]+X[2;]
 )CLEAR
 
 ⍝ Writing a function
+
++/ 1 6 3 4
+×/ 1 2 3 4
+
+TABLE ← 3 3⍴⍳9
+TABLE
++/ TABLE
+
++/+/ TABLE
+
+⌈/ 75 72 78 90 69 77 81 88
+
+⌊/ 75 72 78 90 69 77 81 88
+
+X ← ⍳5
+(+/ X)÷⍴X
+
++/TABLE
++/[]TABLE
+
++/[1]TABLE
+
+∇TRY1
+  'Type some numbers: '
+  NUM ← ⎕   ⍝ Asks for user input
+  'Total is: ' (+/ NUM)
+∇
+
+∇TRY2
+  'Type some numbers: '
+  NUM ← ⎕
+  'You have entered' (⍴NUM) 'numbers'
+∇
+
+∇AVERAGE
+  'Type some numbers:'
+  NUM ← ⎕
+  'Integer average of these numbers is:' (⌊(+/ NUM)÷⍴NUM)
+∇
+
+∇TRY3
+  'Type some numbers:'
+  NUM ← ⎕
+  'You have entered' (⍴NUM) 'numbers'
+  'The biggest was' (⌈/ NUM)
+  'The smallest was' (⌊/ NUM)
+  'Sum of numbers is' (+/ NUM)
+  'Integer average of numbers is' (⌊(+/ NUM)÷⍴NUM)
+∇
+
+)FNS
+
+)ERASE TABLE X
+
+)WSID ./MyFirstWS.xml
+
+)SAVE
+
+)CLEAR
+
+)LOAD ./MyFirstWS.xml
+
+∇AV X
+  (+/ X)÷⍴X
+∇
+
+AV 12 7 3 1
+AV 3 8 1 4
+AV 192 4534 12 0 2
+
+NUM ← ⍳5
+AV NUM
+
+∇A SUM B
+  A+B
+∇
+
+∇R←AV X
+  R←(+/ X)÷⍴X
+∇
+
+¯3 + AV 3 8 1 4
+
+∇R←A SUM B
+  R←A+B
+∇
+
+)ERASE NUM
+)SAVE
+)CLEAR

@@ -1213,5 +1213,271 @@ to a point, which has no size/dimension/shape.
 ⍝ Writing a function
 #+end_src
 
-To-do.
+** Precondition: the Slash operator
+
+The Slash (=/=) or Reduce operator is not a function; it modifies or
+extends the operation of the functions it is used with.
+
+It works as if by putting the operator between the numbers.
+
+#+begin_src gnu-apl
++/ 1 6 3 4
+×/ 1 2 3 4
+#+end_src
+
+This can be done on a table too, however it will sum in a row basis.
+
+#+begin_src gnu-apl
+TABLE ← 3 3⍴⍳9
+TABLE
++/ TABLE
+#+end_src
+
+We can, however, apply Reduce twice to obtain the entire sum.
+
+#+begin_src gnu-apl
++/+/ TABLE
+#+end_src
+
+Useful combination: To select the largest number in a list, use =⌈=:
+
+#+begin_src gnu-apl
+⌈/ 75 72 78 90 69 77 81 88
+#+end_src
+
+The opposite equivalent (=⌊=) selects the smallest number:
+
+#+begin_src gnu-apl
+⌊/ 75 72 78 90 69 77 81 88
+#+end_src
+
+A final example: We take the sum of =X= (which is =15=) and divide it by
+=X='s shape (=5=). This yields =3=, as expected of /calculating the average/
+of a number.
+
+#+begin_src gnu-apl
+X ← ⍳5
+(+/ X)÷⍴X
+#+end_src
+
+*** Axis arguments
+
+You can apply the Reduce operator on a per-column basis using axis
+arguments. For example, these two are equivalent, since they take the
+dimension zero (rows):
+
+#+begin_src gnu-apl
++/TABLE
++/[]TABLE
+#+end_src
+
+If you wish to use the *columns* instead of the *rows*, just ask for axis
+one:
+
+#+begin_src gnu-apl
++/[1]TABLE
+#+end_src
+
+** User functions
+
+Now we'll preserve statements.
+
+It seems some APL editors have a built-in editor. For example, one can
+use the following commands:
+
+#+begin_src gnu-apl :tangle no
+)EDIT MYFUNC ⍝ On modern editors
+)ED MYFUNC   ⍝ On Dyalog
+∇            ⍝ On older editors, and on GNU APL as well
+#+end_src
+
+GNU APL also calls a new buffer when defining a function, under
+Emacs. We can also send the following region to the interpreter no
+problem. We just need to type in the function (=∇=) operator, which
+starts the input mode.
+
+Typing =∇= again goes back to calculator mode.
+
+#+begin_src gnu-apl
+∇TRY1
+  'Type some numbers: '
+  NUM ← ⎕   ⍝ Asks for user input
+  'Total is: ' (+/ NUM)
+∇
+#+end_src
+
+In case this function doesn't work when typing, just use =∇TRY1= to
+change its definition on the editor.
+
+This defines a user function =TRY1=, which takes no arguments. The Quad
+(=⎕=) operator calls in for user input.
+
+You can edit a function such as =TRY1= anytime, by typing =∇TRY1= on the
+REPL; other APL implementations will allow you to use the command
+=)EDIT TRY1=, for example.
+
+Here is another example:
+
+#+begin_src gnu-apl
+∇TRY2
+  'Type some numbers: '
+  NUM ← ⎕
+  'You have entered' (⍴NUM) 'numbers'
+∇
+#+end_src
+
+And as requested, here is a way to calculate the average of some
+numbers:
+
+#+begin_src gnu-apl
+∇AVERAGE
+  'Type some numbers:'
+  NUM ← ⎕
+  'Integer average of these numbers is:' (⌊(+/ NUM)÷⍴NUM)
+∇
+#+end_src
+
+One more definition.
+
+#+begin_src gnu-apl
+∇TRY3
+  'Type some numbers:'
+  NUM ← ⎕
+  'You have entered' (⍴NUM) 'numbers'
+  'The biggest was' (⌈/ NUM)
+  'The smallest was' (⌊/ NUM)
+  'Sum of numbers is' (+/ NUM)
+  'Integer average of numbers is' (⌊(+/ NUM)÷⍴NUM)
+∇
+#+end_src
+
+** Saving a workspace
+
+You can check out the user-defined functions in your workspace with
+this command:
+
+#+begin_src gnu-apl
+)FNS
+#+end_src
+
+There are some extra variables as well (check by using =)VARS=), so we
+need to erase them:
+
+#+begin_src gnu-apl
+)ERASE TABLE X
+#+end_src
+
+Now we'll save the current workspace. First let's set the workspace ID
+to the filename where it should be salved.
+
+Notice that we are using Unix notation and the XML extension. This is
+a requirement for GNU APL.
+
+#+begin_src gnu-apl
+)WSID ./MyFirstWS.xml
+#+end_src
+
+Windows users, using NARS2000, should do something like:
+
+#+begin_src gnu-apl :tangle no
+)WSID 'c:\foo\MyFirstWS'
+#+end_src
+
+Now we use the command to save.
+
+#+begin_src gnu-apl
+)SAVE
+#+end_src
+
+My result was:
+
+#+begin_example
+      2019-08-06  12:56:35 (GMT-3) ./MyFirstWS.xml
+#+end_example
+
+Now we can safely clear the workspace.
+
+#+begin_src gnu-apl
+)CLEAR
+#+end_src
+
+To load the workspace again, use the load command with the file name.
+
+#+begin_src gnu-apl
+)LOAD ./MyFirstWS.xml
+#+end_src
+
+#+begin_notes
+GNU APL instructs to use =)COPY= instead.
+#+end_notes
+
+** User functions with arguments
+
+User functions can have no arguments, one argument or two arguments.
+
+*** Monadic
+
+We intent to build a function which averages the numbers in a list.
+So let's define it.
+
+#+begin_src gnu-apl
+∇AV X
+  (+/ X)÷⍴X
+∇
+#+end_src
+
+Now we can use it properly.
+
+#+begin_src gnu-apl
+AV 12 7 3 1
+AV 3 8 1 4
+AV 192 4534 12 0 2
+
+NUM ← ⍳5
+AV NUM
+#+end_src
+
+*** Diadic
+
+A diadic function should be declared with arguments to its left and
+its right:
+
+#+begin_src gnu-apl
+∇A SUM B
+  A+B
+∇
+#+end_src
+
+** Using function results in other expressions
+
+To do so, we need to rewrite the function to enable that. See this
+rewriting of =AV=.
+
+#+begin_src gnu-apl
+∇R←AV X
+  R←(+/ X)÷⍴X
+∇
+#+end_src
+
+An example of usage:
+
+#+begin_src gnu-apl
+¯3 + AV 3 8 1 4
+#+end_src
+
+The same can be done to diadic functions.
+
+#+begin_src gnu-apl
+∇R←A SUM B
+  R←A+B
+∇
+#+end_src
+
+** Cleanup
+
+#+begin_src gnu-apl
+)ERASE NUM
+)SAVE
+)CLEAR
+#+end_src
 

@@ -1,1 +1,4 @@
 .apl.history
+*.xml
+workspaces/
+*.xml.bak
