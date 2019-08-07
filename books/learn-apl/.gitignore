@@ -2,3 +2,12 @@
 *.xml
 workspaces/
 *.xml.bak
+*.fdb_latexmk
+*.fls
+*.log
+learn-apl.tex
+cmapl10.600pk
+cmapl10.720pk
+cmapl10.tfm
+*.ilg
+*.ind

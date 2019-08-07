@@ -1,9 +1,14 @@
-#+TITLE:    Learn APL notes
+#+TITLE:    "Learn APL" Notes
 #+AUTHOR:   Lucas Vieira
 #+EMAIL:    lucasvieira@protonmail.com
 #+PROPERTY: header-args :tangle learn-apl.apl
+#+INCLUDE: abntex2.org :only-contents t
+#+OPTIONS:  title:t
+#+LANGUAGE: en-us
+#+LATEX_HEADER: \include{apl}
+#+LATEX_HEADER: \setlength{\parindent}{0in}
 
-* Startup
+* Getting Started: Startup
 
 This file follows the [[https://aplwiki.com/LearnApl/TutorialContents][APL tutorial at APL Wiki]].
 
@@ -20,7 +25,7 @@ Also, for live interaction, use =gnu-apl-interactive-send-*=.
 
 Oh, and just so you know, use a unicode font which supports this stuff.
 
-* Simple arithmetic
+* Getting Started: Simple arithmetic
 
 Use =⍝= at the beginning of any comment.
 
@@ -294,7 +299,7 @@ and a mile. (1 yard = 0.9144m and 1760 yards in a mile)
 ¯1500+1760×0.9144
 #+end_src
 
-* Variables
+* Getting Started: Variables
 
 #+begin_src gnu-apl
 ⍝ Variables
@@ -672,7 +677,7 @@ From now on, we clear the variables and the workspace across chapters.
 )CLEAR
 #+end_src
 
-* Tables
+* Getting Started: Tables
 
 We won't be typing a lot of things here, that is insane! Let's see how
 to generate our tables.
@@ -1196,10 +1201,8 @@ result before you press ENTER.
   =⍴TABLE=\\
   → =2 10 3=
 
-#+begin_notes
-Recall why =⍴'R'= gives an empty response: a single value is equivalent
-to a point, which has no size/dimension/shape.
-#+end_notes
+*NOTE:* Recall why =⍴'R'= gives an empty response: a single value is
+equivalent to a point, which has no size/dimension/shape.
 
 ** Cleanup
 
@@ -1207,7 +1210,7 @@ to a point, which has no size/dimension/shape.
 )CLEAR
 #+end_src
 
-* Writing a function
+* Getting Started: Writing a function
 
 #+begin_src gnu-apl
 ⍝ Writing a function
@@ -1407,9 +1410,7 @@ To load the workspace again, use the load command with the file name.
 )LOAD ./MyFirstWS.xml
 #+end_src
 
-#+begin_notes
-GNU APL instructs to use =)COPY= instead.
-#+end_notes
+*NOTE:* GNU APL instructs to use =)COPY= instead.
 
 ** User functions with arguments
 
@@ -1480,4 +1481,73 @@ The same can be done to diadic functions.
 )SAVE
 )CLEAR
 #+end_src
+
+* APL Concepts: Overview of the APL System
+
+APL is an interpreted language.
+
+APL reserves an area in the RAM, which is called a workspace. This is
+were programs and data reside. Other workspaces can be loaded at will
+for calculation and processing.
+
+** Data
+
+Data is acquired by typing or from files. All data is held in arrays
+or scalars.
+
+GNU APL supports complex numbers.
+
+Formal names will be used from now on.
+
+** Modes
+
+APL uses a modal interpreter. /Calculator mode/ executes statements as
+entered. /Definition mode/ does not execute immediately, and stores
+statements as a user-defined function or operator. /Function execution
+mode/ happens when you run a user-defined function or operator.
+
+** Built-in functions and operators
+
+APL has about 50 built-in /functions/ which can be invoked by a single
+symbol.
+
+Most functions can perform two different opperations depending on
+whether they're used with one or two arguments.
+
+APL also has five built-in /operators/. Combining an operator with its
+operands creates a /derived function/.
+
+** System functions and variables
+
+Part of APL system, yet not part of APL language. Used to extend
+facilities provided by original APL, they vary from one vendor to
+another. Could also be tailored to the system which it is running.
+
+System functions such as =⎕NREAD= and =⎕NWRITE= (with names starting with
+a Quad =⎕=) read and write data from files, and are distinguishable from
+the rest by their starting character.
+
+** System commands
+
+They are also not part of the APL language itself, but are crucial to
+managing the workspace. They always start with a =)=.
+
+** User-defined functions and operators
+
+Functions or operators which can be written by the user. Consists of
+APL statements that have a name. Functions are edited through the
+function editor, which can also be used to tweak a function.
+
+** Files
+
+Files are usually not necessary on APL, given the convenience of
+workspaces, being only really required when dealing with big
+projects. When that time comes, APL has facilities for that; and
+workspaces can be shared between users.
+
+** Error handling
+
+APL provides facilities for error trapping and diagnostics.
+
+* APL Concepts: The Workspace
 
