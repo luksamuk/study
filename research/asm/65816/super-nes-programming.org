@@ -1,0 +1,194 @@
+#+TITLE:  "Super NES Programming" Notes
+#+AUTHOR: Lucas Vieira
+
+* Introduction to 65816 assembly
+
+Useful links:
+- [[https://en.wikibooks.org/wiki/Super_NES_Programming][Super NES Programming Book]]
+- [[https://en.wikibooks.org/wiki/Super_NES_Programming/65c816_reference][65c816 Reference]]
+
+** 65816 Registers
+
+General purpose:
+- Accumulator (=A=): For arithmetic and logic.
+- Index (=X= and =Y=): Index registers with limited capabilities.
+
+Special purpose:
+- Processor Status (=P=): Holds results of tests and processing states.
+- Stack (=S=): Stack pointer.
+- Direct Page (=DP=): Allows processor to access memory in direct
+  addressing modes.
+- Program Bank (=PB=): Holds the memory bank address of current
+  instruction.
+- Program Counter (=PC=): Holds the memory address of the current
+  instruction.
+- Data Bank (=DB=): Holds the memory bank address of accessed data.
+
+** Number notation
+
+Those are much like the m68k.
+
+- Decimal: Write plain numbers. Ex: =122=
+- Hexadecimal: Prepend with =$=. Ex: =$7A=
+- Binary: Prepend with =%=. Ex: =%01111010=
+
+** Address modes
+
+These are also much like the m68k, but instructions have one operand,
+which gives a slight difference on notation:
+
+- Immediate mode: Prepend with =#=.
+
+#+begin_src asm
+	adc #$01ff 		; Add 0x01ff to A
+#+end_src
+
+- Absolute mode: Use plain value.
+
+#+begin_src asm
+	sbc $80fb 		; Subtract value at M[0x80fb] in the bank specified by DB
+#+end_src
+
+- Absolute indexed: Append =,value= or =,register=.
+
+#+begin_src asm
+	and $a0c0,X 		; AND A and M[0xa0c0 + X], store in A
+#+end_src
+
+Here's more: [[https://en.wikibooks.org/wiki/Super_NES_Programming/65c816_reference#Addressing_modes][65c816 Reference: Addressing Modes]]
+
+** Initializing the SNES
+
+See files =Header.inc= and =Snes_Init.asm=.
+
+#+INCLUDE: "./headers/Header.inc" src asm
+#+INCLUDE: "./headers/Snes_Init.asm" src asm
+
+We create a file =green-screen.asm=, then include the previous
+ones. Next, we satisfy the interrupt definition in =Header.inc=:
+
+#+begin_src asm
+.include "headers/Header.inc"
+.include "headers/Snes_Init.asm"	
+VBlank:
+	rti
+#+end_src
+
+We add a =Start= label and initialize the SNES. Then we set the
+accumulator to 8-bits so we can modify single bytes of RAM.
+
+#+begin_src asm
+Start:
+	Snes_Init
+	sep	#$20
+#+end_src
+
+Now we force VBlank.
+One can make sure that the code executes at VBlank by waiting for a
+non-maskable interrupt (NMI), or by turning off the screen by setting
+the eighth bit of the Screen Display Register.
+We set the eighth bit of Screen Display Register, like this:
+
+#+begin_src asm
+	lda 	#%10000000
+	sta	$2100
+#+end_src
+
+To set the background color, we use the SNES 16-bit color format,
+which is stored like this: =0bbbbbgg gggrrrrr=.
+Our desired color is =00000000 11100000= (0 blue, 7 green, 0 red), which
+is dark green. We alternate between passing the low byte and the high
+byte of the color to the Color Data Register:
+
+#+begin_src asm
+	lda	#%11100000 	; low byte
+	sta	$2122
+	lda	#%00000000	; high byte
+	sta	$2122
+#+end_src
+
+After doing that, all that remains is turning the screen back on. We
+do that, and also set the brightness to 15 (100%; see last nibble):
+
+#+begin_src asm
+	lda	#%00001111
+	sta	$2100
+#+end_src
+
+Last thing to do is make the SNES halt the execution.
+
+#+begin_src asm
+Halt:
+	jmp Halt
+#+end_src
+
+To assemble the ROM, we can do that through a Makefile, for
+example.
+
+We start by  using the WLA 65816 assembler to generate an object file:
+
+#+begin_src bash
+wla-65816 -v -o green-screen.asm green-screen.obj
+#+end_src
+
+Now we create a linking script, named =green-screen.link=:
+
+#+begin_src fundamental
+[objects]
+green-screen.obj
+#+end_src
+
+Next, we link the object file and create a SNES ROM:
+
+#+begin_src bash
+wlalink -v -r green-screen.link green-screen.smc
+#+end_src
+
+* DMA
+
+The SNES has, apart from slow memory access times, has the
+disadvantage of having a backward-compatible CPU, which adds on an
+emulation mode.
+
+Given that, the SNES had, in comparison to the NES, 64 times more
+memory, but only 2.5 times more CPU power (1.79MHz NTSC/1.77MHz PAL +
+2048B [2KB] RAM on the NES, vs. 3.58MHz NTSC/3.55MHz PAL + 131072B
+[128KB] RAM on the SNES).
+
+Copying information across devices can slow down the CPU significantly
+(see Von Neumann's bottleneck). Therefore, we use Direct Memory
+Access.
+
+DMA is a method whereby memory is dynamically copied to another
+location independently of the CPU. On the SNES, it can be used to
+quickly copy tile (8x8 tiles and tilemaps) data to VRAM, and palette
+data to the CGRAM; you can only access these locations by
+reading/writing repeatedly to certain hardware registers.
+
+More links:
+
+- [[https://en.wikibooks.org/wiki/Super_NES_Programming/SNES_memory_map][SNES Memory Mapping]]
+- [[https://en.wikibooks.org/wiki/Super_NES_Programming/SNES_Hardware_Registers][SNES Hardware Registers]]
+
+The SNES has three buses:
+
+- 24-bit address bus. The main bus. Handles communication between CPU,
+  cartridge (ROM + SRAM) and main memory (WRAM).
+- 8-bit address bus. May be used via special addresses (hardware
+  registers). Connects the APU (audio) and the PPU (video) to the main
+  bus.
+- 8-bit data bus. Controlled by both address buses to send data to
+  various locations. Blocks for the CPU when a DMA process is issued.
+
+The CPU is supplied with various 16-bit registers, but the data bus is
+1 byte wide. Therefore, one 16-bit register can never be written on
+read in a single clock cycle.
+
+The SNES has a DMA controller supporting 8 DMA channels. This means
+that eight processes of copying chunks from one device to another may
+be set up and started simultaneously; and each channel can be
+configured to behave in a certain way. Also, channel priority
+decreases with number (channel index 0 is top priority, index 7 is
+lowest priority).
+
+

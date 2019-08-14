@@ -1,0 +1,225 @@
+#+TITLE:  68k Tutorial
+#+AUTHOR: Lucas Vieira
+
+* Offsets and Addresses
+
+68000 uses 8 hex digits (4 bytes) for the offset. The last digit of an
+offset corresponds to the byte on that word.
+
+The Sega Genesis' word is 2 bytes long, therefore it is a 16-bit
+console. But it supports long words (4 bytes, 32-bit).
+
+One can understand the offsets as a table.
+
+|   Offset |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |  8 |  9 |  A |  B |  C |  D |  E |  F |
+|----------+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----|
+| 00000000 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 |
+| 00000010 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 |
+| 00000020 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 | 00 |
+
+** Odd addressing
+
+It is impossible to move /word/ or /long-word/ sized data in and out of
+memory, when the informed offset is an odd number. Doing so will crash
+the hardware with an =ADDRESS ERROR=.
+
+#+begin_src asm
+	move.w	$00000047,d0 	; This is incorrect
+#+end_src
+
+This also applies to addresses stored in /address registers/, and
+applies to *ANY* instruction, not only the =MOVE= instruction.
+
+* Syntax
+
+#+begin_example
+<command>.<size>   #<source operand>,<destination operand>
+#+end_example
+
+- Possible commands: =move=, =add=, =sub=, =divu=, =mulu=, =bra=, =jmp=, etc etc.
+- Possible sizes: =b= (byte), =w= (word), =l= (long word)
+
+** Operands
+
+Operands must be prepended with certain symbols, depending on your
+objective.
+
+- =#= indicates an immediate value.
+- =$= indicates a hex number.
+- =%= indicates a binary number.
+
+The symbol =#= can be followed by either =$= or =%=, but not both. Omitting
+hex/binary indicator means that you are typing a decimal number.
+
+*** Example
+
+#+begin_src asm
+	move.b 	#32, $0000001E 	    ; Put byte 32 on offset 0x1e
+	move.b  $00000010,$0000002D ; Read byte held at 0x10, write in 0x2d
+#+end_src
+
+** Registers
+
+68k has 16 registers, and can each store a long word.
+
+*** Data registers
+
+Data registers are named =d0= through =d7=.
+You can perform byte/word/long word instructions on those
+registers. Most instructions work on them.
+
+#+begin_src asm
+	move.w  #$04f0,d0 	; Put word 0x04f0 on register d0
+#+end_src
+
+*** Address registers
+
+Address registers are named =a0= through =d7=.
+You can't perform byte instructions on them-- only word and long word
+instructions are permitted. Some instructions that work on /data/
+registers do not work on /address/ registers.
+
+/Address registers/ are used for storing addresses:
+
+#+begin_src asm
+	movea.l #$00000039,a0 	; Put the long word 0x00000039 into a0
+	move.b  #$44,(a0) 	; Move byte 0x44 into address pointed by a0
+#+end_src
+
+**** Address Register Indexes
+
+#+begin_src asm
+	move.b  #$9B,$04(a0) 	; Moves byte 0x9b into address (a0) + 0x04
+#+end_src
+
+Since =a0= previously contained =00000039=, =$04(a0)= points to =0000003D=.
+
+***** Example
+
+#+begin_src asm
+	movea.l #$00000010,a0
+	move.b  #$20,$01(a0)
+	move.b  #$40,$02(a0)
+	move.b  #$F0,$0F(a0)
+	move.b  #$0E,(a0)
+#+end_src
+
+**** Address Register Auto-Increment/Decrement
+
+You can auto-increment an address register.
+This incrementation happens *after the execution of the instruction*:
+
+#+begin_src asm
+	movea.l #$00000020,a0
+	move.b  #$B5,(a0)+
+	move.b  #$11,(a0)+
+#+end_src
+
+This increment depends on the size expressed on the instruction. So
+because we are using =.b=, =a0= is incremented by =1=. If we were using =.w=,
+like this:
+
+#+begin_src asm
+	movea.l #$00000020,a0
+	move.w  #$A90E,(a0)+
+#+end_src
+
+Then =a0= would be incremented by =2=, since a word uses two bytes. Were
+we using =.l=, =a0= would be incremented by =4=, since a long word uses four
+bytes.
+
+As for decrementing, we use a minus symbol on the left side of the
+register:
+
+#+begin_src asm
+	movea.l #$00000020,a0
+	move.b	#$2E,-(a0)
+#+end_src
+
+However, a decrement *always happens before the instruction execution*.
+
+* Instructions
+
+** =MOVE=
+
+Copies date from source to destination.
+
+#+begin_src asm
+	move.b #$95,d0		; copies byte 0x95 into register d0
+#+end_src
+
+Always notice that, in this case, this will put =0x95= on the LSB of =d0=.
+
+For example, if =d0= contains =00000000=, then after execution it will
+contain =00000095=.
+
+But if =d0= contains =22222222=, after execution it will contain
+=22222295=.
+
+The same principle goes for =.w=; only the rightmost bytes are replaced.
+
+You can also do operations among registers, or from memory:
+
+#+begin_src asm
+	move.w d0,d1
+	move.w d0,$0000104E
+#+end_src
+
+It is also easy to copy data from memory into a register. Notice the
+lack of immediate mode:
+
+#+begin_src asm
+	move.w	$00001062,d0
+#+end_src
+
+Though we do not use =move= to directly put values in Address Registers,
+it is possible to use them for memory manipulation too. See:
+
+#+begin_src asm
+	move.w (a0),(a1) 	; Copy word @ M[a0] to M[a1]
+	move.w (a0),d0		; Copy word @ M[a0] to d0
+	move.w d1,(a0)+		; Copy word @ d1 to M[a0], then increment a0
+	move.w d1,$10(a1)	; Copy word @ d1 to M[a1 + 16]
+	move.b #$98,(a0)+ 	; Copy byte @ 0x98 to M[a0], then increment a0
+	move.l $29(a0),$00120020 ; Copy long word @ M[a0+41] to M[0x00120020]
+	move.b $00120020,(a1)+	 ; Copy byte @ M[0x00120020] to M[a1], then increment a1
+#+end_src
+
+** =ADD=
+
+TO-DO.
+
+* Homeworks
+
+** Homework 1 -- Getting Started
+
+This is a chance for you to test what you've learnt so far. Below is a
+list of instructions which will move numbers to and from places:
+
+#+begin_src asm
+	move.w 	#$0123,d0
+	move.b 	d0,d1
+	move.w	d1,d2
+	move.l	#$FFFF0000,d3
+	move.w	d0,d3
+	move.l	d3,d0
+	move.w	d2,d0
+#+end_src
+
+All of the data registers will start with =00000000= to begin
+with. After all of this is processed, what will =d0= contain?
+
+*** Answer
+Let's follow instruction by instruction and write what is going on.
+
+1. =d0= contains =$00000123=.
+2. =d1= contains =$00000023= (least significant byte in =d0= is copied)
+3. =d2= contains =$00000023= (least significant word in =d1= is copied)
+4. =d3= contains =$FFFF0000=
+5. =d3= contains =$FFFF0123= (LSW in =d0= is copied to LSW in =d3=)
+6. =d0= contains =$FFFF0123= (full copy of whole =d3= to =d0=)
+7. =d0= contains =$FFFF0023= (LSW in =d2= is copied to LSW in =d0=)
+
+The answer is correct!
+
+** Homework 2

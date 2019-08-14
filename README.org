@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-08-06 ter]
+Última atualização: [2019-08-13 ter]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -81,6 +81,12 @@ Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
 
 - =neural-networks=: Implementações de teste de redes neurais
   artificiais, feitas durante o aprendizado das mesmas, em =C++= e =JS=.
+
+- =asm=: Aprendizado de Assembly em geral.
+  - =68k=: Notas e código produzido seguindo o tutorial de Assembly para
+    Motorola 68k do Sega Genesis.
+  - =65816=: Notas e código produzido seguindo os tutoriais do Wikibooks
+    de Assembly para o 65816 do Super Nintendo.
 
 *** =books=
 Exercícios variados de livros e afins.
