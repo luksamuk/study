@@ -1,8 +1,10 @@
 #!/usr/bin/apl --id 1010
 
-⍝ This is a comment.
-⍝ Check the GNU APL keyboard for shortcut hints
-⍝ at any time.
+⍝⍝⍝ Getting started
+
+⍝⍝ This is a comment.
+⍝⍝ Check the GNU APL keyboard for shortcut hints
+⍝⍝ at any time.
 
 ⍝ Simple Arithmetic
 
@@ -435,3 +437,107 @@ AV NUM
 )ERASE NUM
 )SAVE
 )CLEAR
+
+⎕WA
+
+⍝⍝⍝ APL Concepts
+
+⍝ Data
+
+234.98×3409÷12.4
+
+VAR ← 183.6
+
+⍝ Scalars (no dimensions)
+294
+'A'
+
+⍝ Vectors (one dimension -- length)
+23 8 0 12 3
+'ABC'
+28 3 'A' 'BC'
+
+⍝ 2D Matrices (two dimensions -- height and length)
+⍝ There is no way to write a matrix literal.
+4 4⍴7 45 2 89 16 15 10 21 8 0 13 99 83 19 4 27
+4 2⍴'WILSO' 393 'ADAMS' 7183 'CAIRN' 87 'SAMSO' 8467
+
+⍝ 3D Matrices (three dimensions)
+3 3 4⍴36?100
+
+X1 ← 23 9 144 12 5 0
+X2 ← 1 2 'A' 'B' 3 4
+2 3⍴23 9 144 12 5 0
+
+NUMS ← 36?100
+3 3 4⍴NUMS
+
+6⍴9
+
+⍝ Nested arrays
+VAR ← (2 3⍴9) (1 2 3) 'A' 'ABCD' 88 16.1
+
+X ← 1⍴22
+Y ← 22
+
+⍴X    ⍝ 1, because X is a vector
+⍴Y    ⍝ Empty response, because Y is a scalar
+
+Z ← 1 5⍴12 5 38 3 6   ⍝ When displayed, Z looks like a vector,
+⍴Z                    ⍝ but is in fact a 1×5 matrix
+
+)CLEAR
+
+X ← ⍳0   ⍝ X is a vector of zero elements
+X        ⍝ Printing X gives an empty response
+⍴X       ⍝ Asking for the shape of X gives a zero
+
+⍴45
+
+TAB ← 3 0⍴⍳0
+TAB
+⍴TAB
+
+X ← 3 4⍴⍳12
++/ X
+
++/[1] X
+
+)CLEAR
+
+⍝ Indexing in one dimension
+X ← 1 45 6 3 9 33 6 0 1 22
+X[4] + X[10]
+
+⍝ Indexing in two dimensions
+TABLE ← 3 3⍴9?100
+TABLE[3;2]         ⍝ Indexing for more than one dimension
+
+⍝ Indexing in three dimensions
+DATA ← 4 4 4⍴64?100
+DATA[2;1;4]
+
+⍝ Selecting an entire row in tree ways
+TABLE[1;1 2 3]
+TABLE[1;⍳3]
+TABLE[1;]
+
+⍝ Selecting an entire column
+TABLE[;2]
+
+⍝ Selecting from anonymous data
+(3 8 4)[1+2]
+
+⍝ Selecting from an anonymous string, based on a variable
+P ← 2
+'ABCDE'[P]
+
+'ABCDE'[4 5 1 4]
+
+'ABCDE'[2 2⍴4 5 1 4]
+
+2⌷'ABCD'
+
+)CLEAR
+
+⍝ Built-in Functions

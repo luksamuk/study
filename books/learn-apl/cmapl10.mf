@@ -1374,7 +1374,8 @@ adjust_fit(0,0); pickup light_rule.nib;
 top y1=h+2o; y2=y1; bot y3=0;
 .5[x1,x2]=x3=good.x .5w; w:=r:=2x3; lft x1=hround(.5w-u*6.25);
 draw z1--z2--z3--cycle;	% stroke
-labels(1,2,3); endchar;
+  labels(1,2,3); endchar;
+
 
 cmchar "Lattice top";
 beginchar(oct"030",14u#,asc_height#,0);
@@ -1450,26 +1451,26 @@ labels(1,2,3,4); endchar;
 %% The divide quad is built as a primary character
 %          NOT AFTER ALL
 
-%cmchar "Divide quad";
-%beginchar(oct"001",16u#,body_height#,paren_depth#);
-%adjust_fit(0,0); pickup light_rule.nib;
-%bot y1=0; y2=y1; top y3=h+2o;top y4=h+2o;
-%.5[x1,x2]=x5=good.x .5w; w:=r:=2x5; 
+% cmchar "Divide quad";
+% beginchar(oct"001",16u#,body_height#,paren_depth#);
+% adjust_fit(0,0); pickup light_rule.nib;
+% bot y1=0; y2=y1; top y3=h+2o;top y4=h+2o;
+% .5[x1,x2]=x5=good.x .5w; w:=r:=2x5; 
 % the quad box is slightly wider than Del
-%lft x1=hround(.5w-u*7);
-%x3=x1;x4=x2;
-%draw z1--z2--z4--z3--cycle;	% box
-%pickup rule.nib;
-%x8-.5dot_size=hround(.5w-.5dot_size); w:=r:=2x8;
-%
-%y8=vround(.5y3+1.75dot_size);                         %@   1 by 1.75
-%lft x6=x1; x7=x2; y6=y7=.5y3;      
-%draw z6--z7;	% bar
-%pos8(dot_size,0); pos9(dot_size,90); z8=z9;
-%pos10(dot_size,0); pos11(dot_size,90);z10=z11; 
-%x10=x8; .5[y8,y10]=.5y3;                           %@   +rule_thickness#;    
-%dot(8,9); dot(10,11);	% dots     
-%penlabels(1,2,3,4,5,6,7,8,9,10,11); endchar;
+% lft x1=hround(.5w-u*7);
+% x3=x1;x4=x2;
+% draw z1--z2--z4--z3--cycle;	% box
+% pickup rule.nib;
+% x8-.5dot_size=hround(.5w-.5dot_size); w:=r:=2x8;
+
+% y8=vround(.5y3+1.75dot_size);                         %@   1 by 1.75
+% lft x6=x1; x7=x2; y6=y7=.5y3;      
+% draw z6--z7;	% bar
+% pos8(dot_size,0); pos9(dot_size,90); z8=z9;
+% pos10(dot_size,0); pos11(dot_size,90);z10=z11; 
+% x10=x8; .5[y8,y10]=.5y3;                           %@   +rule_thickness#;    
+% dot(8,9); dot(10,11);	% dots     
+% penlabels(1,2,3,4,5,6,7,8,9,10,11); endchar;
 
 
                  

@@ -30,9 +30,11 @@ Oh, and just so you know, use a unicode font which supports this stuff.
 Use =⍝= at the beginning of any comment.
 
 #+begin_src gnu-apl
-⍝ This is a comment.
-⍝ Check the GNU APL keyboard for shortcut hints
-⍝ at any time.
+⍝⍝⍝ Getting started
+
+⍝⍝ This is a comment.
+⍝⍝ Check the GNU APL keyboard for shortcut hints
+⍝⍝ at any time.
 
 ⍝ Simple Arithmetic
 #+end_src
@@ -719,7 +721,7 @@ one-argument form.
 
 ** Setting up tables
 
-When entering tables, we use diadic for of the rho (=⍴=) function, also
+When entering tables, we use dyadic for of the rho (=⍴=) function, also
 called Shape or Reshape. The list before =⍴= states the order of the
 table; the following elements are its rows, element by element.
 
@@ -959,7 +961,7 @@ SALES[2;;]             ⍝ Plane 2
 
 ** Enquiring about the size of data
 
-While the diadic usage of =⍴= involves creating arrays, the monadic
+While the dyadic usage of =⍴= involves creating arrays, the monadic
 usage of =⍴= allows one to enquire about the size (or shape) of existing
 tables, variables, etc.
 
@@ -1438,9 +1440,9 @@ NUM ← ⍳5
 AV NUM
 #+end_src
 
-*** Diadic
+*** Dyadic
 
-A diadic function should be declared with arguments to its left and
+A dyadic function should be declared with arguments to its left and
 its right:
 
 #+begin_src gnu-apl
@@ -1466,7 +1468,7 @@ An example of usage:
 ¯3 + AV 3 8 1 4
 #+end_src
 
-The same can be done to diadic functions.
+The same can be done to dyadic functions.
 
 #+begin_src gnu-apl
 ∇R←A SUM B
@@ -1551,3 +1553,481 @@ APL provides facilities for error trapping and diagnostics.
 
 * APL Concepts: The Workspace
 
+Workspaces are containers for functions and data, and can be saved on
+disk by using commands.
+
+APL also makes it easy to create test data for functions. Since
+prototyping can be done so quickly, APL is sometimes referred to as a
+"tool of thought".
+
+** Functions, operators, classes
+
+/Functions/ can take 0, 1 or 2 arguments; arguments to functions are
+always arrays.
+
+/Operators/ look like functions, but takes either one or two operands,
+which can be functions (e.g. the Each operator =¨=). They can also be
+defined.
+
+/Classes/ are a collection of functions, operators and data (named
+properties). Acts as a template to create objects. Classes are
+supported in Dyalog, but not in GNU APL.
+
+** Workspace size
+
+Some APLS allow changing the size of your workspace with =)CLEAR 50MB=,
+for example.
+
+To check the amount of free space on your workspace, use the system
+function Workspace Available:
+
+#+begin_src gnu-apl
+⎕WA
+#+end_src
+
+** Managing the workspace
+
+*** Internal workspace commands
+
+These have already been discussed.
+
+- =)CLEAR=: Clear workspace. Erases all variables, functions, operators
+  and classes.
+- =)ERASE=: Erases individual classes.
+- =)VARS=: Lists all user-defined variables in the workspace.
+- =)FNS=: Lists all user-defined functions in the workspace.
+- =)OPS=: Lists all user-defined operators in the workspace.
+- =)CLASSES=: Lists all user-defined classes in the workspace. Can be
+  used in Dyalog.
+
+*** External workspace commands
+
+Some of these have already been discussed.
+
+- =)SAVE myWorkspace= saves a workspace to disk. Append =.xml= if you're
+  using GNU APL.
+- =)LOAD myWorkspace= loads an entire workspace back into memory; the
+  workspace in memory is overwritten.
+- =)COPY= can be used to copy a function from a workspace in disk, but
+  does not overwrite the current workspace.
+- =)DROP= deletes a workspace on disk.
+- =)LIB= shows the names of the workspaces stored on disk.
+
+Save locations vary due to APL implementations.
+
+** System variables
+
+Here are some useful system variables which you may use.
+
+- =⎕WA=: Workspace Available. Number of available bytes for use in
+  workspace.
+- =⎕PP=: Print Precision. Number of digits displayed in numeric output.
+- =⎕PW=: Print Width. Max number of characters in each printed line.
+- =⎕LX=: Latent Expression. This variable contains an expression or
+  user-defined function which is executed when the workspace is
+  loaded; effectively, a setup function for the current
+  workspace. Empty by default.
+- =⎕IO=: Index Origin. Stores the value where indexes start. GNU APL
+  starts at 1, but can be changed to 0.
+
+** System functions
+
+These vary from vendor to vendor, so there is no guarantee that these
+will work in your APL. For example:
+
+- =⎕NL=: Name List. Produces a list of variables, functions, operators
+  or classes.
+- =⎕EX=: Expunge. Expunges individual APL objects.
+
+System functions are designed to be used in user-defined commands,
+whereas system commands are designed for direct usage.
+
+* APL Concepts: Data
+
+#+begin_src gnu-apl
+⍝⍝⍝ APL Concepts
+
+⍝ Data
+#+end_src
+
+** Variables
+
+Data can be directly quoted...
+
+#+begin_src gnu-apl
+234.98×3409÷12.4
+#+end_src
+
+...or assigned to a name.
+
+#+begin_src gnu-apl
+VAR ← 183.6
+#+end_src
+
+** Names
+
+APL allows uppercase and lowercase characters, some APLs also allows
+symbols too.
+
+** Types of data
+
+Data can be numbers, characters or a mixture of those. GNU APL in
+particular also allows complex numbers; Dyalog allows classes.
+
+** Size, shape and depth
+
+From now on, unless there is something new, only some examples will be
+typed.
+
+#+begin_src gnu-apl
+⍝ Scalars (no dimensions)
+294
+'A'
+
+⍝ Vectors (one dimension -- length)
+23 8 0 12 3
+'ABC'
+28 3 'A' 'BC'
+
+⍝ 2D Matrices (two dimensions -- height and length)
+⍝ There is no way to write a matrix literal.
+4 4⍴7 45 2 89 16 15 10 21 8 0 13 99 83 19 4 27
+4 2⍴'WILSO' 393 'ADAMS' 7183 'CAIRN' 87 'SAMSO' 8467
+
+⍝ 3D Matrices (three dimensions)
+3 3 4⍴36?100
+#+end_src
+
+Arrays are data structures of any dimension -- obviously, scalars do
+not apply.
+
+** Setting up data structures
+
+#+begin_src gnu-apl
+X1 ← 23 9 144 12 5 0
+X2 ← 1 2 'A' 'B' 3 4
+2 3⍴23 9 144 12 5 0
+
+NUMS ← 36?100
+3 3 4⍴NUMS
+
+6⍴9
+
+⍝ Nested arrays
+VAR ← (2 3⍴9) (1 2 3) 'A' 'ABCD' 88 16.1
+#+end_src
+
+** Data structure /versus/ data value
+
+#+begin_src gnu-apl
+X ← 1⍴22
+Y ← 22
+
+⍴X    ⍝ 1, because X is a vector
+⍴Y    ⍝ Empty response, because Y is a scalar
+
+Z ← 1 5⍴12 5 38 3 6   ⍝ When displayed, Z looks like a vector,
+⍴Z                    ⍝ but is in fact a 1×5 matrix
+
+)CLEAR
+#+end_src
+
+** Empty data structures
+
+Useful for some things, for example flor predefined storage areas,
+where elements can be added.
+
+#+begin_src gnu-apl
+X ← ⍳0   ⍝ X is a vector of zero elements
+X        ⍝ Printing X gives an empty response
+⍴X       ⍝ Asking for the shape of X gives a zero
+#+end_src
+
+This is fundamentally different than a scalar, which does not have
+/zero elements/: a scalar has /zero dimensions/ instead.
+
+#+begin_src gnu-apl
+⍴45
+#+end_src
+
+We can also create empty matrices. For example, a matrix of two rows
+and no columns:
+
+#+begin_src gnu-apl
+TAB ← 3 0⍴⍳0
+TAB
+⍴TAB
+#+end_src
+
+** Dimension ordering
+
+General rule when applying an operation to data (e.g. a reduce =/=):
+
+*Unless specified otherwise, the operation takes place on the last
+ dimension.*
+
+For example, consider a 3×4 matrix.
+
+#+begin_src gnu-apl
+X ← 3 4⍴⍳12
++/ X
+#+end_src
+
+Applying a reduction to it yields a list of three elements. Each
+element of the list is the sum of a *row*. This is because a column is
+the *last* dimension of a 2D matrix (3 rows, 4 columns).
+
+In other words, since we're performing the reduction on the last
+dimension (columns), then each result is the sum of all *columns*
+belonging to that row.
+
+You can change that by using the axis (=[]=) operator:
+
+#+begin_src gnu-apl
++/[1] X
+#+end_src
+
+This carries the reduction on the first axis (rows), therefore the
+resulting list of four numbers is the sum of each *column*.
+
+Now each result is the sum of all *rows* belonging to that column.
+
+#+begin_src gnu-apl
+)CLEAR
+#+end_src
+
+** Indexing
+
+There is something that remains to be discussed. Last section talked
+about the rows in index 1. This seems to mean that in APL indexes
+start at 1, but that might not be always true. This is true for GNU
+APL, to say the least.
+
+If you wish to change indexing, just change the Index Origin system
+variable (this bit is not tangled):
+
+#+begin_src gnu-apl :tangle no
+⎕IO ← 0
+#+end_src
+
+From here on, we'll consider Index Origin to be =1=.
+
+Selecting elements is easy. Just use the brackets (=[]=), and separate
+variable indexes with =;=.
+
+#+begin_src gnu-apl
+⍝ Indexing in one dimension
+X ← 1 45 6 3 9 33 6 0 1 22
+X[4] + X[10]
+
+⍝ Indexing in two dimensions
+TABLE ← 3 3⍴9?100
+TABLE[3;2]         ⍝ Indexing for more than one dimension
+
+⍝ Indexing in three dimensions
+DATA ← 4 4 4⍴64?100
+DATA[2;1;4]
+
+⍝ Selecting an entire row in tree ways
+TABLE[1;1 2 3]
+TABLE[1;⍳3]
+TABLE[1;]
+
+⍝ Selecting an entire column
+TABLE[;2]
+
+⍝ Selecting from anonymous data
+(3 8 4)[1+2]
+
+⍝ Selecting from an anonymous string, based on a variable
+P ← 2
+'ABCDE'[P]
+#+end_src
+
+Some useful stuff that has not been discussed yet:
+
+Indexing can also be used to rearrange elements on a matrix!
+
+#+begin_src gnu-apl
+'ABCDE'[4 5 1 4]
+#+end_src
+
+We can also do indexing with variables of a higher dimension. This
+pretty much collects stuff and stores it in the created shape:
+
+#+begin_src gnu-apl
+'ABCDE'[2 2⍴4 5 1 4]
+#+end_src
+
+Indexing can also be done with the squad (=⌷=) symbol (notice that this
+is different from the quad =⎕=, since it is narrower):
+
+#+begin_src gnu-apl
+2⌷'ABCD'
+#+end_src
+
+#+begin_src gnu-apl
+)CLEAR
+#+end_src
+
+* APL Concepts: Built-in functions
+
+APL has 50 useful built-in functions in general, and 5 operators to
+modify and extend how functions work.
+
+#+begin_src gnu-apl
+⍝ Built-in Functions
+#+end_src
+
+** Arguments
+
+Most functions have two behaviours depending on how you place their
+arguments. For example:
+
+#+begin_src gnu-apl
+⌈12.625         ⍝ Ceiling
+2⌈8             ⍝ Select greatest number
+
+÷1 2 3 4 5      ⍝ Reciprocal
+100÷1 2 3 4 5   ⍝ Divide 100 by each
+#+end_src
+
+** Execution order
+
+Expressions are evaluated from right to left. The results of one
+function become the argument of the next function.
+
+** Numbers or text
+
+Some functions work on numbers only. Some work on either numbers or
+text data. Using a function which does not work on a data type yields
+a =DOMAIN ERROR=.
+
+Some functions also work only on a subset of the number domain, such
+as logical functions (=∨=, =∧= etc.) Thiis means that they only recognize
+the states of TRUTH (=1=) and FALSITY (=0=).
+
+** Shape and size of data
+
+Some functions can be used only on data of a certain shape. The
+following example (not tangled) yields a =LENGTH ERROR=, because data on
+both sides do not have the same shape:
+
+#+begin_src gnu-apl :tangle no
+29 51 60 27÷3 11
+#+end_src
+
+** Groups of functions
+
+Following there will be some examples of functions, which I'll store
+in tables as given in the tutorial, for further consulting.
+
+Unless there is a new function with non-obvious usage, there will be
+some examples.
+
+*** Arithmetic functions
+
+|----------+--------------+-------------|
+| Function | Monadic form | Dyadic form |
+|----------+--------------+-------------|
+| +        | Numeric      | Add         |
+| -        | Negation     | Subtract    |
+| ×        | Sign         | Multiply    |
+| ÷        | Reciprocal   | Divide      |
+| ⌈        | Ceiling      | Biggest     |
+| ⌊        | Floor        | Smallest    |
+| \vert        | Modulo       | Remainder   |
+|----------+--------------+-------------|
+
+*** Algebraic functions
+
+Functions for advanced arithmetic.
+
+|----------+------------------+---------------------|
+| Function | Monadic form     | Dyadic form         |
+|----------+------------------+---------------------|
+| ⍳        | Index generator  |                     |
+| ?        | Random number    | Random deal         |
+| ⋆ or *   | 'e' to the power | Number to the power |
+| ⍟        | Log to base 'e'  | Log to any base     |
+| ○        | \pi times          | Sine, cosine, etc   |
+| !        | Factorial        | Combinations        |
+| ⌹        | Matrix inversion | Matrix division     |
+|----------+------------------+---------------------|
+
+**** Circle operator
+
+The circle operator (=○=) does not have an obvious operation on its
+dyadic form. Here is a table of values of \alpha on the case \alpha ○
+\omega, taken from TryAPL:
+
+|--------+-------------------+--------+---------------------|
+| \alpha | \alpha ○ \omega   | \alpha | \alpha ○ \omega     |
+|--------+-------------------+--------+---------------------|
+| 0      | (1-\omega⋆2)⋆0.5  |        |                     |
+| ¯1     | Arcsin \omega     |      1 | Sin \omega          |
+| ¯2     | Arccos \omega     |      2 | Cos \omega          |
+| ¯3     | Arctan \omega     |      3 | Tan \omega          |
+| ¯4     | (¯1+\omega⋆2)⋆0.5 |      4 | (1+\omega⋆2)≠0.5    |
+| ¯5     | Arcsinh \omega    |      5 | Sinh \omega         |
+| ¯6     | Arccosh \omega    |      6 | Cosh \omega         |
+| ¯7     | Arctanh \omega    |      7 | Tanh \omega         |
+| ¯8     | -8○\omega         |      8 | (¯1+\omega⋆2)⋆0.5   |
+| ¯9     | \omega            |      9 | Real part of \omega |
+| ¯10    | +\omega           |     10 | \vert \omega        |
+| ¯11    | \omega × =0J1=      |     11 | Imag part of \omega |
+| ¯12    | ⋆\omega           |     12 | Phase of \omega     |
+|--------+-------------------+--------+---------------------|
+
+Also notice that =0J1= is a complex number of real part =0= and imaginary
+part =1=.
+
+**** Domino operator
+
+The Domino operator (=⌹=) generates the inverse of a matrix in its
+monadic form, and divides a matrix by another in its dyadic form:
+
+#+begin_src gnu-apl
+MAT ← 2 2⍴⍳4
+⌹MAT
+5 6⌹MAT
+#+end_src
+
+*** Comparative functions
+
+|----------+--------------+-----------------------|
+| Function | Monadic form | Dyadic form           |
+|----------+--------------+-----------------------|
+| <        |              | Less than             |
+| ≤        |              | Less than or equal    |
+| =        |              | Equal                 |
+| ≥        |              | Greater than or equal |
+| >        |              | Greater than          |
+| ≠        |              | Not equal             |
+| ≡        | Depth        | Match                 |
+| ≢        | Tally        | Not match             |
+| ∊        | Enlist       | Membership            |
+| ⍳        | Iota         | Index of              |
+| ⍷        |              | Find                  |
+|----------+--------------+-----------------------|
+
+
+**** Equal underbar
+
+The Equal underbar (=≡=) is
+
+**** Equal underbar slash
+
+The Equal underbar slash (=≢=) is
+
+**** Epsilon
+
+The Epsilon (=∊=) is
+
+**** Iota
+
+The Iota (=⍳=) is
+
+**** Epsilon underbar
+
+The Epsilon underbar (=⍷=) is
