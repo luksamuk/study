@@ -541,3 +541,125 @@ P ← 2
 )CLEAR
 
 ⍝ Built-in Functions
+
+⌈12.625         ⍝ Ceiling
+2⌈8             ⍝ Select greatest number
+
+÷1 2 3 4 5      ⍝ Reciprocal
+100÷1 2 3 4 5   ⍝ Divide 100 by each
+
+MAT ← 2 2⍴⍳4
+⌹MAT
+5 6⌹MAT
+
+TABLE ← 3 3⍴25-9?50
+TABLE < 0
+
+≡2 2⍴1 (2 3) (4 5 6 7) (8 (9 10) 11)
+
+'t' 'e' 's' 't'≡'test'
+
+≢2 2⍴1 (2 3) (4 5 6 7) (8 (9 10) 11)
+
+('t' 'e') ('s' 't')≢'test'
+
+2∊1 2 3
+
+∊3 3 3⍴⍳27
+
+'ana' ⍷ 'banana'
+
+⍳9
+3 3⍴⍳9
+
+X ← 0 0 5 3
+X[(0≠0 0 5 3)⍳1] ⍝ Get first non-null element of X
+
+~1 0 1
+1 0 1∨0 0 1
+1 0 1∧0 0 1
+1 0 1⍱0 0 1
+1 0 1⍲0 0 1
+
+(5 > 4) ∧ 1 < 3
+
+X ← 3 3 3⍴⍳27 ⍝ A cube
+,X
+
+,[1 2]X
+
+(3 3⍴⍳9),(3 3⍴9+⍳9)
+
+⌽0 0 5 7
+
+2⌽3 3⍴⍳9
+¯2⌽3 3⍴⍳9
+
+⍉3 3⍴⍳9
+
+2 1 3⍉3 3 3⍴⍳27    ⍝ Swap axes 1 and 2
+
+↑3 1 2
+
+2↑⌽⍳4
+¯7↑⌽⍳4
+
+⊂2 2⍴⍳4
+⍴⊂2 2⍴⍳4
+
+0 1 1 0⊂⍳4
+
+⊃(⍳4) 2 3
+
+X ← 4⍴⊂(4 4⍴16?100)   ⍝ List of four enclosed 4x4 matrices
+2 (2 2)⊃X             ⍝ Pick 2nd matrix, then pick element [2;2]
+
+2 3⊢4 5
+⊢/ 6 7 8 9
+
+2 3⊣4 5
+⊣/ 6 7 8 9
+
+LIST ← 10?100
+LIST[⍋LIST]
+
+TEXT ← 'Banana'
+TEXT['an'⍋TEXT]
+
+LIST ← 10?100
+TEXT ← 'Banana'
+
+LIST[⍒LIST]
+TEXT['an'⍒TEXT]
+
+2⊥0 0 1 0 1
+16⊥2 1
+24 60 60⊥2 46 40  ⍝ Time conversion! 2h46m40s into total seconds
+
+2 2 2 2⊤5 7 12
+24 60 60⊤10000   ⍝ Mixed radix; convert 10000 seconds to h m s
+
+LIST ← 25-(5?50) ◊ (÷LIST)
+
+⍎'X ← 10×3 3⍴⍳9 ◊ ÷X'
+
+⍕1 2 3
+
+6 2⍕3.25 3.002
+⍝ 8 2⍕1234   ⍝ Not wide enough
+
+TABLE ← 3 4⍴⍳12
+
+2 3⌷TABLE
+2⌷[1] TABLE
+2⌷[2] TABLE
+
+⍝ These are a match, since they are numeric vectors.
+⍬≡⍳0
+⍬≡0⍴0
+
+⍝ These do not match.
+⍬≡0 0⍴0  ⍝ Not a vector
+⍬≡''     ⍝ Not numeric
+
+⍝ Built-in Operators
