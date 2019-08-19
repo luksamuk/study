@@ -663,3 +663,94 @@ TABLE ← 3 4⍴⍳12
 ⍬≡''     ⍝ Not numeric
 
 ⍝ Built-in Operators
+
+⍝ These two operations are equivalent
+22 + 93 + 4.6 + 10 + 3.3
++/22 93 4.6 10 3.3        ⍝ Reduce using plus
+
++\22 93 4.6 10 3.3        ⍝ Scan using plus
+22 (22+93) (115+4.6) (119.6+10) (129.6+3.3) ⍝ Equivalent calculation
+
+TABLE ← 3 5⍴15?30
++⌿ TABLE
+
++⍀ TABLE
+
+1 0 1 1 0 1 / 'ABCDEF'
+
+TABLE ← 2 3⍴⍳6
+⍝ Insert new columns (axis 2).
+⍝ New columns indicated by zeroes.
+1 0 1 0 1\[2]TABLE
+
+TABLE ← 3 4⍴⍳12
+1 0 2⌿TABLE      ⍝ Remove 2nd row, duplicate 3rd row
+
+TABLE ← 3 4⍴⍳12
+1 0 1 0 1 0 0⍀TABLE
+
+1 2 3∘.+4 5 6
+
+(⍳4)∘.*⍳4
+
+X←3 3⍴9?100
+Y←3 3⍴9?100
+
+⍝ 1. Each row of X is multiplied by each column of Y;
+⍝ 2. The result is reduced through a sum.
+X+.×Y
+
+⍴¨(⍳3)(⍳2)(⍳5)   ⍝ Find the length of each vector
+
+TABLE ← 2 3⍴⍳6  ⍝ A matrix of 2×3 (two dimensions)
+
+⍝ Reduce with + on the second dimension. This gives a
+⍝ list of two numbers, each being the sum of numbers
+⍝ along the COLUMNS (dimension 2, last one) of each
+⍝ row of the matrix.
++/TABLE
+
+⍝ This reduction specifies that the sum should occur
+⍝ along the ROWS (dimension 1) of a column of the
+⍝ matrix, therefore it gives a list of three numbers.
++/[1]TABLE
+
+⍝ User-defined functions
+
+∇SD X
+  SUM ← +/X
+  AVG ← SUM÷⍴X
+  DIFF ← AVG-X
+  SQDIFF ← DIFF⋆2
+  SQAVG ← (+/SQDIFF)÷⍴SQDIFF
+  RESULT ← SQAVG⋆0.5
+∇
+
+SD 12 45 20 68 92 108
+
+∇R ← SD X
+  SUM ← +/X
+  AVG ← SUM÷⍴X
+  DIFF ← AVG-X
+  SQDIFF ← DIFF⋆2
+  SQAVG ← (+/SQDIFF)÷⍴SQDIFF
+  R ← SQAVG⋆0.5
+∇
+
+∇R ← X (LOP OPERATE ROP) Y
+
+)CLEAR   ⍝ Clear the workspace
+
+∇R ← SD X;SUM;AVG;DIFF;SQDIFF;SQAVG
+  SUM ← +/X
+  AVG ← SUM÷⍴X
+  DIFF ← AVG-X
+  SQDIFF ← DIFF⋆2
+  SQAVG ← (+/SQDIFF)÷⍴SQDIFF
+  R ← SQAVG⋆0.5
+∇
+
+∇R ← SD X;SQDIFF
+  SQDIFF ← (X-(+/X)÷⍴X)⋆2
+  R ← ((+/SQDIFF)÷⍴SQDIFF)⋆0.5
+∇
