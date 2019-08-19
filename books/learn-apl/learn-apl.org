@@ -2830,4 +2830,176 @@ little more compact so we have fewer local variables.
 
 *** Branching
 
+Inside the body of a function or operator, the symbol Goto (=→)= is used
+to determine a jump. The symbol should then be followed by some data;
+if the data is a scalar, the function jumps to the given line. If it
+is a vector, the function jumps to the first element of the vector and
+ignores the rest of it.
+
+Here is an example of that in action, with numbering on the body for
+better understanding.
+
+#+begin_example
+    ∇R←TEST X
+[1]  →(X≥0)/4
+[2]  R←0
+[3]  →5
+[4]  R←1
+    ∇
+#+end_example
+
+The function starts by testing whether =X= is greater or equal to
+zero. If so, the result is =1=, therefore the Compress (=/=) operator
+selects the sole number at the right, which is =4=. The =→= symbol then
+instructs the function to jump to the line -- that is, the fourth one.
+
+Line =[2]= puts a =0= on the result variable. Then line =[3]= instructs the
+program to make an unconditional jump to the line =5=, which does not
+exist -- thus ending the function.
+
+Line =[4]= attributes the number =1= to the result variable, and then
+exits gracefully, as there are no more jumps.
+
+**** Looping
+
+One can also perform loops very easily by using the Goto symbol
+(=→=). For example, consider the following function.
+
+#+begin_src gnu-apl
+⍝ Calculate factorial of a scalar N.
+⍝ Has a return variable and a local scalar I.
+∇R←FACTORIAL N;I
+  →(N≤0)/0       ⍝ 1: If N is lower or eq to 0, end function
+  I←1            ⍝ 2: Initialize iterator to 1
+  R←1            ⍝ 3: Initialize result to 1
+  R←R×I          ⍝ 4: Let result be the mult. of result and iter
+  →(I=N)/0       ⍝ 5: If iterator is equal to N, end function
+  I←I+1          ⍝ 6: Increment iterator
+  →4             ⍝ 7: Jump to multiplication
+∇
+#+end_src
+
+Jumping to =0= will be explained below; it ends the function.
+
+**** Labels
+
+It is not necessary to count lines on most modern APLs. We can just
+use labels. This is also useful when adding lines and whatnot.
+
+#+begin_src gnu-apl
+∇R ← TEST X
+  →(X≥0)/GREATEQ
+  R←0
+  →0
+GREATEQ: R←1
+∇
+#+end_src
+
+Here is the factorial function, rewritten using labels:
+
+#+begin_src gnu-apl
+∇R←FACTORIAL N;I
+  →(N≤0)/0
+  (I R)←1       ⍝ Multiple definition at once
+  LOOP: R←R×I
+  →(I=N)/0
+  I←I+1
+  →LOOP
+∇
+#+end_src
+
+**** Ending execution of a function
+
+A function stops naturally when the last line of its body is
+executed. However, one can go to a line number which doesn't exist to
+end the function immediately. For example:
+
+#+begin_example
+→(X<1)/0
+→0
+→7  ⍝ Suppose this line is in a function with six lines
+#+end_example
+
+**** Structured control keywords
+
+Some APLs support /structured-control keywords/ for flow control. This
+makes APL more readable. (GNU APL, however, does not support them)
+
+Here is a table of keywords. These keywords are not part of the APL
+ISO, but they are supported in many implementations.
+
+|-----------------------+----------------------------------------------|
+| Function              | Keyword                                      |
+|-----------------------+----------------------------------------------|
+| Conditional execution | =:If=, =:ElseIf=, =:Else=, =:EndIf=                  |
+| For loop              | =:For=, =:EndFor=                                |
+| While loop            | =:While=, =:EndWhile=                            |
+| Repeat loop           | =:Repeat=, =:EndRepeat=                          |
+| Case selection        | =:Select=, =:Case=, =:CaseList=, =:Else=, =:EndSelect= |
+| Branch                | =:GoTo=                                        |
+| Terminate function    | =:Return= (same as =→0=)                         |
+|-----------------------+----------------------------------------------|
+
+**** Comments in functions
+
+Just use the Lamp (=⍝=) symbol.
+
+**** Ambivalent Functions
+
+In APL2, dyadic functions may be used monodically. This happens when
+the left argument is undefined. This means that its Name
+Classification (=⎕NC=) is =0=. This can be compared:
+
+#+begin_src gnu-apl
+∇R←A AMBIVALENT B
+  →(0=⎕NC 'A')/MONADIC
+  →DYADIC
+MONADIC: A←5
+DYADIC: R←A+B
+∇
+
+1 AMBIVALENT 2  ⍝ Dyadic usage; yields 3
+AMBIVALENT 2    ⍝ Monadic usage; yields 7
+#+end_src
+
+Some APLs like NARS2000 and Dyalog use a particular syntax which
+distinguishes ambivalent and dyadic functions. See these function
+headers:
+
+#+begin_example
+∇R←A NOMADIC B    ⍝ Dyadic     ∇
+∇R←{A} NOMADIB B  ⍝ Ambivalent ∇
+#+end_example
+
+*** Extra: Lambdas
+
+GNU APL has limited support for lambda expressions. Those are
+functions which are defined inline, and can even be named.
+
+In lambdas, Alpha (=⍺=) is the symbol used for the left argument, and
+Omega (=⍵=) is the symbol used for the right argument. All lambdas are
+one-line functions, enclosed in Curly Brackets (={}=), which can be
+monadic or dyadic depending on argument usage, and their single line
+always return a value.
+
+#+begin_src gnu-apl
+AVERAGE ← {(+/⍵)÷⍴⍵}   ⍝ Named lambda
+2 {⍺+⍵} 3              ⍝ Unnamed lambda, applied immediately
+#+end_src
+
+Here is an example lambda function which finds all the prime numbers
+below the second argument (=⍵=) of the monadic function /(ACHARYA and
+PEREIRA)/:
+
+#+begin_src gnu-apl
+PRIMES ← {(~⍵∊⍵∘.×⍵)/⍵←1↓⍳⍵}
+PRIMES 100
+#+end_src
+
+** Error Handling
+
+#+begin_src gnu-apl
+⍝ Error handling
+#+end_src
+
 To-do.

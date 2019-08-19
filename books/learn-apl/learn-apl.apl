@@ -752,3 +752,47 @@ SD 12 45 20 68 92 108
   SQDIFF ← (X-(+/X)÷⍴X)⋆2
   R ← ((+/SQDIFF)÷⍴SQDIFF)⋆0.5
 ∇
+
+⍝ Calculate factorial of a scalar N.
+⍝ Has a return variable and a local scalar I.
+∇R←FACTORIAL N;I
+  →(N≤0)/0       ⍝ 1: If N is lower or eq to 0, end function
+  I←1            ⍝ 2: Initialize iterator to 1
+  R←1            ⍝ 3: Initialize result to 1
+  R←R×I          ⍝ 4: Let result be the mult. of result and iter
+  →(I=N)/0       ⍝ 5: If iterator is equal to N, end function
+  I←I+1          ⍝ 6: Increment iterator
+  →4             ⍝ 7: Jump to multiplication
+∇
+
+∇R ← TEST X
+  →(X≥0)/GREATEQ
+  R←0
+  →0
+GREATEQ: R←1
+∇
+
+∇R←FACTORIAL N;I
+  →(N≤0)/0
+  (I R)←1       ⍝ Multiple definition at once
+  LOOP: R←R×I
+  →(I=N)/0
+  I←I+1
+  →LOOP
+∇
+
+∇R←A AMBIVALENT B
+  →(0=⎕NC 'A')/MONADIC
+  →DYADIC
+MONADIC: A←5
+DYADIC: R←A+B
+∇
+
+1 AMBIVALENT 2  ⍝ Dyadic usage; yields 3
+AMBIVALENT 2    ⍝ Monadic usage; yields 7
+
+AVERAGE ← {(+/⍵)÷⍴⍵}   ⍝ Named lambda
+2 {⍺+⍵} 3              ⍝ Unnamed lambda, applied immediately
+
+PRIMES ← {(~⍵∊⍵∘.×⍵)/⍵←1↓⍳⍵}
+PRIMES 100
