@@ -2784,7 +2784,7 @@ Here is the header of a monadic operator:
 
 And the header of a dyadic operator:
 
-#+begin_src gnu-apl
+#+begin_src gnu-apl :tangle no
 ∇R ← X (LOP OPERATE ROP) Y
 #+end_src
 

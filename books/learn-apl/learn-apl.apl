@@ -737,8 +737,6 @@ SD 12 45 20 68 92 108
   R ← SQAVG⋆0.5
 ∇
 
-∇R ← X (LOP OPERATE ROP) Y
-
 )CLEAR   ⍝ Clear the workspace
 
 ∇R ← SD X;SUM;AVG;DIFF;SQDIFF;SQAVG
