@@ -3002,4 +3002,672 @@ PRIMES 100
 ⍝ Error handling
 #+end_src
 
+*** Errors in calculator mode
+
+APL prints errors when you type a statement containing an error in
+calculator mode. For example, this yields a =DOMAIN ERROR=:
+
+#+begin_src gnu-apl :tangle no
+1 1 0 'a'∨1 1 0 0
+#+end_src
+
+To correct an error in calculator mode, simply retype the statement
+correctly, or use the the implementation's line-editing facilities.
+
+*** Errors in user-defined functions or operators
+
+When executing a user-defined function or operator, if an error
+happens, the execution stops at that point. Modern APLs have a Debug
+window where you can examine and correct errors in the function or
+operator.
+
+*** The state indicator
+
+When the halted function was called by other function, one can inspect
+the call stack using the State Indicator. This can be done with the
+system function =)SI= or, in some APLs, by inspecting the variable =⎕SI=.
+
+Here is an example taken from implementation APLX (deprecated):
+
+#+begin_example
+      )SI
+C[2] *
+B[8]
+A[5]
+#+end_example
+
+In the example above, the problem happened at function =C=, at line
+=2=. This function was called by function =B= at line =8=, which was then
+called by function =A= on line =5=.
+
+The asterisk means that the execution of line =2= of function =C= is still
+pending. If another function were executed at this point and also
+yielded an error, this would happen:
+
+#+begin_example
+E[3] *
+D[6]
+C[2] *
+B[8]
+A[5]
+#+end_example
+
+So now function =E= at line =3= is pendent, and was called from function =D=
+at line =6=.
+
+This top level can be cleared by using the Goto symbol (=→=). Another
+=→=, in this case, would clear the State Indicator completely.
+
+#+begin_example
+      →
+      )SI
+C[2] *
+B[8]
+A[5]
+#+end_example
+
+There are also system functions to clear the State Indicator. In GNU
+APL, this can be done with =)RESET=.
+
+*** Action after suspended execution
+
+One can resume the suspended execution where it stopped. To do so,
+just type Goto (=→=) followed by the line number.
+
+#+begin_src gnu-apl :tangle no
+→3   ⍝ Suppose execution halted at line 3 of the function
+#+end_src
+
+It is not mandatory to continue execution where the function
+halted. For example, suppose you want to restart at the next line:
+
+#+begin_src gnu-apl :tangle no
+→4
+#+end_src
+
+Another way to do this is by using the niladic system function
+=⎕LC=. This yields a vector containing all current line numbers of
+functions in the State Indicator. All we need to do is to jump to the
+first number of such vector:
+
+#+begin_src gnu-apl :tangle no
+→⌷LC
+#+end_src
+
+Or, if we want to resume at the next line, we can also exploit the
+vector:
+
+#+begin_src gnu-apl :tangle no
+→1+⎕LC
+#+end_src
+
+*** Error trapping and tracing
+
+It is possible to specify in advance what to do if an error occurs on
+execution; APL allows error trapping at runtime.
+
+- Dyalog has the keywords =:Trap=, =:EndTrap=, =:Case= and =:Else=, and the
+  system variable =⎕TRAP= which allows precise control;
+- APL2 has the system variables =⎕EA= (Execute Alternate; executes the
+  right argument and, if it fails, executes the left one) and =⌷EC=
+  (Execute Controlled; Executes the argument and returns the result,
+  if any. Also returns additional information on errors).
+- APL+Win has the keywords =:Try=, =:Catch= and =:Finally=; and the =⎕ELX=
+  system variable executes the argument passed on its right, whenever
+  an error occurs.
+- NARS2000 has =⎕ELX= like APL+Win, and =⎕EA= and =⌷EC=, like APL2.
+
+It seems like GNU APL does not have error trapping facilities.
+
+** Formatting
+
+#+begin_src gnu-apl
+⍝ Formatting
+#+end_src
+
+*** The "Format" primitive
+
+Useful variable: =⎕PP= (Print Precision).
+
+When the left argument is not specified, the data is converted into
+plain text with no specific format, using only display defaults.
+
+#+begin_src gnu-apl
+⍕ 0.0000003 3.0123456789
+#+end_src
+
+With two arguments, the left argument is always a list of two
+elements: Field width and number of decimal places.
+
+#+begin_src gnu-apl
+6 2⍕341.82921
+#+end_src
+
+Note that, before the number was truncated, it was rounded.
+
+*** The system function =⎕FMT=
+
+Some APL implementations (except APL2 and GNU APL) have a =⎕FMT= system
+function:
+
+#+begin_example
+      'B K2 G< ZZ9 DOLLARS AND 99 CENTS>' ⎕FMT 8.23 12.86 0 2.52
+   8 DOLLARS AND 23 CENTS
+  12 DOLLARS AND 86 CENTS
+   2 DOLLARS AND 52 CENTS
+#+end_example
+
+** End of Tutorial
+
+#+begin_src gnu-apl
+)CLEAR
+#+end_src
+
+* Further Topics in APL
+
+These are very useful topics which I will only take some notes on new
+things I find interesting. [[https://aplwiki.com/LearnMoreApl/FurtherTopics][Here is the link]] to the relevant contents.
+
+It is also useful to check the [[https://www.gnu.org/software/apl/apl.html][GNU APL Manual]] 
+
+** Displaying the Shape of an Array
+
+#+begin_src gnu-apl
+⍝⍝⍝ Further Topics in APL
+
+⍝ Displaying the shape of an array
+#+end_src
+
+Most APLS have a =DISPLAY= or =⎕DISPLAY= system function to draw boxes
+around data. GNU APL uses =⎕CR= for that. For example:
+
+#+begin_src gnu-apl
+8⎕CR 3 4⍴12?50
+
+8⎕CR 1 (⍳2) 3 4 5
+
+8⎕CR 1 'A' (2 3) (2 5⍴'HELLOWORLD')
+#+end_src
+
+Results are better seen with GNU FreeFont:
+
+#+begin_example
+┌→──────────┐
+↓40 26 30 24│
+│50 35 31 47│
+│43 45 38 11│
+└───────────┘
+
+┌→────────────┐
+│1 ┌→──┐ 3 4 5│
+│  │1 2│      │
+│  └───┘      │
+└∊────────────┘
+
+┌→────────────────┐
+│1 A ┌→──┐ ┌→────┐│
+│    │2 3│ ↓HELLO││
+│    └───┘ │WORLD││
+│          └─────┘│
+└∊────────────────┘
+#+end_example
+
+Meaning of symbols used when drawing boxes:
+
+|-----+---------------------+-----------------------------------|
+| Sym | Placement           | Meaning                           |
+|-----+---------------------+-----------------------------------|
+| -   | Beneath character   | Scalar character                  |
+| →   | Left of top edge    | Vector or higher-rank array       |
+| ~   | Left of bottom edge | Numeric data                      |
+| +   | Left of bottom edge | Mixed data                        |
+| ⊖   | Left of top edge    | Empty vector or higher-rank array |
+| ↓   | Left side of box    | Matrix or higher-rank array       |
+| ⌽   | Left side of box    | Empty matrix or higher-rank array |
+| ∊   | Left of bottom edge | Nested array                      |
+|-----+---------------------+-----------------------------------|
+
+** Array Type and Prototype
+
+#+begin_src gnu-apl
+⍝ Array type and prototype
+#+end_src
+
+Arrays of one or more dimensions of zero length are known as *empty
+array*, which can be generated with Reshape (=⍴=) or a selection of sorts
+(like with Compress, =/=). Its *type* can be /numeric/, /simple character/ or
+/nested/, depending on how it was created.
+
+Empty arrays are useful for initializing arrays where data will be
+added in the future, for creating scalars from arrays or as argument
+to Goto (=→=).
+
+*** Array Type and Prototype
+
+Arrays have a type zero for numeric elements, and blank character for
+character elements.
+
+#+begin_src gnu-apl
+⍝ Empty numeric vector and empty character vector
+8⎕CR ⍳0 ◊ 8⎕CR ''
+
+⍝ Same thing, but using ⍴
+8⎕CR 0⍴676 ◊ 8⎕CR 0⍴'PETER'
+#+end_src
+
+#+begin_example
+┌⊖┐
+│0│
+└─┘
+┌⊖┐
+│ │
+└─┘
+#+end_example
+
+Empty numeric vectors can also be created using Zilde (=⍬=).
+
+#+begin_src gnu-apl
+X←⍬
+⍴X
+X≡0⍴0
+8⎕CR ⍬
+#+end_src
+
+#+begin_example
+0
+1
+┌⊖┐
+│0│
+└─┘
+#+end_example
+
+*** Prototypes of nested arrays
+
+Complex empty arrays can be created by using a nested array to
+generate the empty array:
+
+#+begin_src gnu-apl
+⍝ A nested array containing a list of characters
+⍝ and a list of numbers; the second statement
+⍝ is an empty nested array containing another
+⍝ empty array.
+8⎕CR 'ABC' (⍳3) ◊ 8⎕CR 0⍴'ABC' (⍳3)
+#+end_src
+
+#+begin_example
+┌→────────────┐
+│┌→──┐ ┌→────┐│
+││ABC│ │1 2 3││
+│└───┘ └─────┘│
+└∊────────────┘
+┌⊖────┐
+│┌→──┐│
+││   ││
+│└───┘│
+└∊────┘
+#+end_example
+
+When the first element is numeric, we end up with a nested array of
+null elements.
+
+#+begin_src gnu-apl
+8⎕CR (2 2⍴⍳4) 'ABC' ◊ 8⎕CR 0⍴(2 2⍴⍳4) 'ABC'
+#+end_src
+
+#+begin_example
+┌→──────────┐
+│┌→──┐ ┌→──┐│
+│↓1 2│ │ABC││
+││3 4│ └───┘│
+│└───┘      │
+└∊──────────┘
+┌⊖────┐
+│┌→──┐│
+│↓0 0││
+││0 0││
+│└───┘│
+└∊────┘
+#+end_example
+
+If the first element is mixed, then we'll have an array filled with
+zeroes and empty characters.
+
+#+begin_src gnu-apl
+8⎕CR (2 2⍴1 'K' 2 'J') (⍳4) ◊ 8⎕CR 0⍴(2 2⍴1 'K' 2 'J') (⍳4)
+#+end_src
+
+#+begin_example
+┌→──────────────┐
+│┌→──┐ ┌→──────┐│
+│↓1 K│ │1 2 3 4││
+││2 J│ └───────┘│
+│└───┘          │
+└∊──────────────┘
+┌⊖────┐
+│┌→──┐│
+│↓0  ││
+││0  ││
+│└───┘│
+└∊────┘
+#+end_example
+
+Therefore, the prototype concept can be used to display the *type* of an
+array.
+
+#+begin_src gnu-apl
+8⎕CR VAR ← (2 2⍴1 'A' 'B' 2) ((⍳2) 7) 'ABC'
+#+end_src
+
+#+begin_example
+┌→────────────────────┐
+│┌→──┐ ┌→──────┐ ┌→──┐│
+│↓1 A│ │┌→──┐ 7│ │ABC││
+││B 2│ ││1 2│  │ └───┘│
+│└───┘ │└───┘  │      │
+│      └∊──────┘      │
+└∊∊───────────────────┘
+#+end_example
+
+To display the array type, we first enclose (=⊂=) the array to make it a
+scalar, then we build the empty vector with it (=0⍴=). Since building
+the empty vector creates an additional level of nesting, we use the
+First (=↑=) function to remove it:
+
+#+begin_src gnu-apl
+8⎕CR ↑0⍴⊂VAR
+#+end_src
+
+#+begin_example
+┌→────────────────────┐
+│┌→──┐ ┌→──────┐ ┌→──┐│
+│↓0  │ │┌→──┐ 0│ │   ││
+││  0│ ││0 0│  │ └───┘│
+│└───┘ │└───┘  │      │
+│      └∊──────┘      │
+└∊∊───────────────────┘
+#+end_example
+
+*** The prototype as a fill element
+
+Functions such as Take (=↑=), Expand (=\=) and Replicate (=/=) add elements
+to an existing array. A prototype can be used to determine the type
+and shape of extra elements.
+
+|---------------+----------------------------------|
+| Type of array | Fill Element                     |
+|---------------+----------------------------------|
+| Numeric       | 0                                |
+| Character     | Space                            |
+| Nested/Mixed  | Prototype of first element, with |
+|               | Numbers/Characters replaced      |
+|               | accordingly                      |
+|---------------+----------------------------------|
+
+Here are some examples.
+
+#+begin_src gnu-apl
+8⎕CR 5↑1 2 3 ◊ 8⎕CR 5↑'ABC' ⍝ Numeric and textual vectors of 5 elts
+8⎕CR 2↑0⍴⊂VAR   ⍝ Vector containing two prototypes
+8⎕CR 2↑⊂VAR     ⍝ Put VAR's prototype after VAR, in a vector
+8⎕CR ¯2↑⊂VAR    ⍝ Put VAR's prototype before VAR, in a vector
+#+end_src
+
+#+begin_example
+┌→────────┐
+│1 2 3 0 0│
+└─────────┘
+┌→────┐
+│ABC  │
+└─────┘
+┌→──────────────────────────────────────────────┐
+│┌→────────────────────┐ ┌→────────────────────┐│
+││┌→──┐ ┌→──────┐ ┌→──┐│ │┌→──┐ ┌→──────┐ ┌→──┐││
+││↓0  │ │┌→──┐ 0│ │   ││ │↓0  │ │┌→──┐ 0│ │   │││
+│││  0│ ││0 0│  │ └───┘│ ││  0│ ││0 0│  │ └───┘││
+││└───┘ │└───┘  │      │ │└───┘ │└───┘  │      ││
+││      └∊──────┘      │ │      └∊──────┘      ││
+│└∊∊───────────────────┘ └∊∊───────────────────┘│
+└∊∊∊────────────────────────────────────────────┘
+┌→──────────────────────────────────────────────┐
+│┌→────────────────────┐ ┌→────────────────────┐│
+││┌→──┐ ┌→──────┐ ┌→──┐│ │┌→──┐ ┌→──────┐ ┌→──┐││
+││↓1 A│ │┌→──┐ 7│ │ABC││ │↓0  │ │┌→──┐ 0│ │   │││
+│││B 2│ ││1 2│  │ └───┘│ ││  0│ ││0 0│  │ └───┘││
+││└───┘ │└───┘  │      │ │└───┘ │└───┘  │      ││
+││      └∊──────┘      │ │      └∊──────┘      ││
+│└∊∊───────────────────┘ └∊∊───────────────────┘│
+└∊∊∊────────────────────────────────────────────┘
+┌→──────────────────────────────────────────────┐
+│┌→────────────────────┐ ┌→────────────────────┐│
+││┌→──┐ ┌→──────┐ ┌→──┐│ │┌→──┐ ┌→──────┐ ┌→──┐││
+││↓0  │ │┌→──┐ 0│ │   ││ │↓1 A│ │┌→──┐ 7│ │ABC│││
+│││  0│ ││0 0│  │ └───┘│ ││B 2│ ││1 2│  │ └───┘││
+││└───┘ │└───┘  │      │ │└───┘ │└───┘  │      ││
+││      └∊──────┘      │ │      └∊──────┘      ││
+│└∊∊───────────────────┘ └∊∊───────────────────┘│
+└∊∊∊────────────────────────────────────────────┘
+#+end_example
+
+More info: [[https://aplwiki.com/EmptyArraysAndPrototypes][Empty Arrays and Prototypes]]
+
+** Vector Notation
+
+Nothing new here. Just pay attention to how the vectors are
+constructed:
+
+#+begin_src gnu-apl
+8⎕CR 'ABC' 'DEF'
+8⎕CR (1 2 3) 'DEF'
+⍴1 2 3 'DEF'
+⍴1 2 3 'D' 'E' 'F'
+8⎕CR ((1 2) (3 4)) 2 3
+
+X←2 2⍴⍳4
+Y←'HELLO'
+8⎕CR (X Y)  ⍝ Variables entered in vector form
+⍴X Y
+#+end_src
+
+#+begin_example
+      8⎕CR 'ABC' 'DEF'
+┌→──────────┐
+│┌→──┐ ┌→──┐│
+││ABC│ │DEF││
+│└───┘ └───┘│
+└∊──────────┘
+      8⎕CR ((1 2 3) 'DEF')
+┌→────────────┐
+│┌→────┐ ┌→──┐│
+││1 2 3│ │DEF││
+│└─────┘ └───┘│
+└∊────────────┘
+      ⍴1 2 3 'DEF'
+4
+      ⍴1 2 3 'D' 'E' 'F'
+6
+      8⎕CR ((1 2) (3 4)) 2 3
+┌→────────────────┐
+│┌→──────────┐ 2 3│
+││┌→──┐ ┌→──┐│    │
+│││1 2│ │3 4││    │
+││└───┘ └───┘│    │
+│└∊──────────┘    │
+└∊∊───────────────┘
+      X←2 2⍴⍳4
+      Y←'HELLO'
+      8⎕CR (X Y)  ⍝ Variables entered in vector form
+┌→────────────┐
+│┌→──┐ ┌→────┐│
+│↓1 2│ │HELLO││
+││3 4│ └─────┘│
+│└───┘        │
+└∊────────────┘
+      ⍴X Y
+2
+#+end_example
+
+** Variables and Indexing
+
+Nothing new too.
+
+#+begin_src gnu-apl
+LIST←12 24 36 48
+LIST[2]
+LIST[1]+LIST[4]
+
+ALF←'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+ALF[26 1 13 2 9 1]
+
+TABLE←10×2 4⍴⍳8
+TABLE[1;4]
+TABLE[1;⍳4]+TABLE[2;⍳4]
+TABLE[1;]+TABLE[2;]
+(⍴TABLE[1;2 3])=(⍴1),⍴2 3
+
+ALF[2 2⍴⍳4]
+⍴TABLE[1;]      ⍝ Rows indexed by scalar, result is vector
+⍴TABLE[,1;]     ⍝ Rows indexed by vector, result is matrix
+⍴TABLE[1 1⍴1;]  ⍝ Rows indexed by matrix, result is cube
+#+end_src
+
+*** The Index (=⌷=) function
+
+#+begin_src gnu-apl
+TABLE[1;2]=1 2⌷TABLE
+
+2⌷⍳5
+(⊂3 4)⌷⍳5    ⍝ Use a nested scalar for multiple index.
+
+TAB←2 5⍴⍳10
+8⎕CR TAB
+
+2 3⌷TAB
+2 (2 3)⌷TAB      ⍝ 2nd element of indexing vec is an enclosed vec
+⍝ Nested 2-elts vector for multiple indexes.
+⍝ Result is a submatrix of TAB located at
+⍝ rows 1 2, columns 2 3.
+(1 2) (2 3)⌷TAB
+
+⍝ An empty left argument is OK for index when
+⍝ a scalar is the right argument. This returns
+⍝ the scalar itself.
+(⍳0)⌷37
+#+end_src
+
+** Multiple Specification
+
+Nothing new here as well.
+
+#+begin_src gnu-apl
+(A B C)←1 2 3
+A ◊ B ◊ C
+
+(A B C)←5
+A ◊ B ◊ C
+
+(A B C)←'HI' 'THERE' 'FOLKS'
+⍴A   ⍝ See that A received 'HI' only
+
+(A B C)←⊂'HI' 'THERE' 'FOLKS'
+⍴A   ⍝ All three variables received a vec of the three char vecs
+8⎕CR A
+#+end_src
+
+** Selective Specification
+
+Some functions in APL can be used to select portions of an array. When
+associated with assignment, they can be used to assign values to
+portions of such array.
+
+Bracket indexing is the easiest example.
+
+#+begin_src gnu-apl
+TAB←2 3⍴⍳6
+TAB[2;1]←8
+#+end_src
+
+Let's assign the first three elements of a vector by using the Take
+(dyadic =↑=) function.
+
+#+begin_src gnu-apl
+VEC←⍳5
+(3↑VEC)←'ABC'
+8⎕CR VEC
+#+end_src
+
+#+begin_example
+┌→──────┐
+│ABC 4 5│
+└───────┘
+#+end_example
+
+Let's use the Ravel (monadic =,=) on a matrix to assign a new vector
+value to it:
+
+#+begin_src gnu-apl
+MAT←3 4⍴'ABCDEFGHIJKL'
+(,MAT)←'NEW DATAHERE'  ⍝ Ravelled matrix appears as a vector
+8⎕CR MAT               ⍝ Assignment occurs in matrix itself
+#+end_src
+
+#+begin_example
+┌→───┐
+↓NEW │
+│DATA│
+│HERE│
+└────┘
+#+end_example
+
+Now let's combine Compression (dyadic =/=) and Ravel (monadic =,=) to
+select all A's on the matrix, and replace them by asterisk:
+
+#+begin_src gnu-apl
+(('A'=,MAT)/,MAT)←'*'
+8⎕CR MAT
+#+end_src
+
+#+begin_example
+┌→───┐
+↓NEW │
+│D*T*│
+│HERE│
+└────┘
+#+end_example
+
+We can also combine Take (dyadic =↑=) and Ravel (monadic =,=) to replace
+elements at the top-left 2×2 submatrix of =MAT=:
+
+#+begin_src gnu-apl
+(,2 2↑MAT)←'⎕⎕⎕⎕'
+8⎕CR MAT
+#+end_src
+
+#+begin_example
+┌→───┐
+↓⎕⎕W │
+│⎕⎕T*│
+│HERE│
+└────┘
+#+end_example
+
+#+TODO: Finish this.
+
+** Binding Strengths
+
 To-do.
+
+** Pervasive Functions
+
+To-do.
+
+** OO, Classes and Inheritance
+
+To-do.
+
+* Finishing
+
+#+begin_src gnu-apl
+⍝ Closes the script file.
+)OFF
+#+end_src
+

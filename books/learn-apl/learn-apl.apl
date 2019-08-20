@@ -796,3 +796,137 @@ AVERAGE ← {(+/⍵)÷⍴⍵}   ⍝ Named lambda
 
 PRIMES ← {(~⍵∊⍵∘.×⍵)/⍵←1↓⍳⍵}
 PRIMES 100
+
+⍝ Error handling
+
+⍝ Formatting
+
+⍕ 0.0000003 3.0123456789
+
+6 2⍕341.82921
+
+)CLEAR
+
+⍝⍝⍝ Further Topics in APL
+
+⍝ Displaying the shape of an array
+
+8⎕CR 3 4⍴12?50
+
+8⎕CR 1 (⍳2) 3 4 5
+
+8⎕CR 1 'A' (2 3) (2 5⍴'HELLOWORLD')
+
+⍝ Array type and prototype
+
+⍝ Empty numeric vector and empty character vector
+8⎕CR ⍳0 ◊ 8⎕CR ''
+
+⍝ Same thing, but using ⍴
+8⎕CR 0⍴676 ◊ 8⎕CR 0⍴'PETER'
+
+X←⍬
+⍴X
+X≡0⍴0
+8⎕CR ⍬
+
+⍝ A nested array containing a list of characters
+⍝ and a list of numbers; the second statement
+⍝ is an empty nested array containing another
+⍝ empty array.
+8⎕CR 'ABC' (⍳3) ◊ 8⎕CR 0⍴'ABC' (⍳3)
+
+8⎕CR (2 2⍴⍳4) 'ABC' ◊ 8⎕CR 0⍴(2 2⍴⍳4) 'ABC'
+
+8⎕CR (2 2⍴1 'K' 2 'J') (⍳4) ◊ 8⎕CR 0⍴(2 2⍴1 'K' 2 'J') (⍳4)
+
+8⎕CR VAR ← (2 2⍴1 'A' 'B' 2) ((⍳2) 7) 'ABC'
+
+8⎕CR ↑0⍴⊂VAR
+
+8⎕CR 5↑1 2 3 ◊ 8⎕CR 5↑'ABC' ⍝ Numeric and textual vectors of 5 elts
+8⎕CR 2↑0⍴⊂VAR   ⍝ Vector containing two prototypes
+8⎕CR 2↑⊂VAR     ⍝ Put VAR's prototype after VAR, in a vector
+8⎕CR ¯2↑⊂VAR    ⍝ Put VAR's prototype before VAR, in a vector
+
+8⎕CR 'ABC' 'DEF'
+8⎕CR (1 2 3) 'DEF'
+⍴1 2 3 'DEF'
+⍴1 2 3 'D' 'E' 'F'
+8⎕CR ((1 2) (3 4)) 2 3
+
+X←2 2⍴⍳4
+Y←'HELLO'
+8⎕CR (X Y)  ⍝ Variables entered in vector form
+⍴X Y
+
+LIST←12 24 36 48
+LIST[2]
+LIST[1]+LIST[4]
+
+ALF←'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+ALF[26 1 13 2 9 1]
+
+TABLE←10×2 4⍴⍳8
+TABLE[1;4]
+TABLE[1;⍳4]+TABLE[2;⍳4]
+TABLE[1;]+TABLE[2;]
+(⍴TABLE[1;2 3])=(⍴1),⍴2 3
+
+ALF[2 2⍴⍳4]
+⍴TABLE[1;]      ⍝ Rows indexed by scalar, result is vector
+⍴TABLE[,1;]     ⍝ Rows indexed by vector, result is matrix
+⍴TABLE[1 1⍴1;]  ⍝ Rows indexed by matrix, result is cube
+
+TABLE[1;2]=1 2⌷TABLE
+
+2⌷⍳5
+(⊂3 4)⌷⍳5    ⍝ Use a nested scalar for multiple index.
+
+TAB←2 5⍴⍳10
+8⎕CR TAB
+
+2 3⌷TAB
+2 (2 3)⌷TAB      ⍝ 2nd element of indexing vec is an enclosed vec
+⍝ Nested 2-elts vector for multiple indexes.
+⍝ Result is a submatrix of TAB located at
+⍝ rows 1 2, columns 2 3.
+(1 2) (2 3)⌷TAB
+
+⍝ An empty left argument is OK for index when
+⍝ a scalar is the right argument. This returns
+⍝ the scalar itself.
+(⍳0)⌷37
+
+(A B C)←1 2 3
+A ◊ B ◊ C
+
+(A B C)←5
+A ◊ B ◊ C
+
+(A B C)←'HI' 'THERE' 'FOLKS'
+⍴A   ⍝ See that A received 'HI' only
+
+(A B C)←⊂'HI' 'THERE' 'FOLKS'
+⍴A   ⍝ All three variables received a vec of the three char vecs
+8⎕CR A
+
+TAB←2 3⍴⍳6
+TAB[2;1]←8
+
+VEC←⍳5
+(3↑VEC)←'ABC'
+8⎕CR VEC
+
+MAT←3 4⍴'ABCDEFGHIJKL'
+(,MAT)←'NEW DATAHERE'  ⍝ Ravelled matrix appears as a vector
+8⎕CR MAT               ⍝ Assignment occurs in matrix itself
+
+(('A'=,MAT)/,MAT)←'*'
+8⎕CR MAT
+
+(,2 2↑MAT)←'⎕⎕⎕⎕'
+8⎕CR MAT
+
+⍝ Closes the script file.
+)OFF
