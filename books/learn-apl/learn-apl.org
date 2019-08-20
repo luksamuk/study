@@ -3650,19 +3650,174 @@ elements at the top-left 2×2 submatrix of =MAT=:
 └────┘
 #+end_example
 
-#+TODO: Finish this.
+We can also use the Compression (=/=) function for selection.
+
+#+begin_src gnu-apl
+TABLE←3 4⍴⍳12
+8⎕CR TABLE
+(1 0 1 0/TABLE)←3 2⍴100
+8⎕CR TABLE
+#+end_src
+
+#+begin_example
+┌→─────────┐
+↓1  2  3  4│
+│5  6  7  8│
+│9 10 11 12│
+└──────────┘
+┌→────────────┐
+↓100  2 100  4│
+│100  6 100  8│
+│100 10 100 12│
+└─────────────┘
+#+end_example
+
+In the next example, we have a vector =X=. We want to replace the first
+=⍴X= elements of =DATA= with the contents of =X=.
+
+#+begin_src gnu-apl
+DATA←⍳13
+X←10×⍳3
+8⎕CR DATA
+((⍴X)↑DATA)←X
+8⎕CR DATA
+#+end_src
+
+#+begin_example
+┌→────────────────────────────┐
+│1 2 3 4 5 6 7 8 9 10 11 12 13│
+└─────────────────────────────┘
+┌→───────────────────────────────┐
+│10 20 30 4 5 6 7 8 9 10 11 12 13│
+└────────────────────────────────┘
+#+end_example
+
+Replace the first =X+2= elements of =Y= with the reverse of a vector
+containing numbers =1= up to =X+2:=
+
+#+begin_src gnu-apl
+Y←⍳10
+X←3
+8⎕CR Y
+
+((2+X)↑Y)←⌽⍳X+2
+8⎕CR Y
+#+end_src
+
+#+begin_example
+┌→───────────────────┐
+│1 2 3 4 5 6 7 8 9 10│
+└────────────────────┘
+┌→───────────────────┐
+│5 4 3 2 1 6 7 8 9 10│
+└────────────────────┘
+#+end_example
+
+We can use Enlist (monadic =∊=) to remove nesting from an array.
+
+#+begin_src gnu-apl
+8⎕CR NEST←(2 2⍴⍳4) 'TEXT' (3 1⍴⍳3)
+(∊NEST)←0
+8⎕CR NEST
+
+⍝ Set specific position to number
+(6⌷∊NEST)←999
+8⎕CR NEST
+
+⍝ Set specific position to character vector (text).
+⍝ For that, introduce extra nesting to the new text.
+(7⌷∊NEST)←⊂'TEXT'
+8⎕CR NEST
+#+end_src
+
+#+begin_example
+┌→───────────────┐
+│┌→──┐ ┌→───┐ ┌→┐│
+│↓1 2│ │TEXT│ ↓1││
+││3 4│ └────┘ │2││
+│└───┘        │3││
+│             └─┘│
+└∊───────────────┘
+┌→──────────────────┐
+│┌→──┐ ┌→──────┐ ┌→┐│
+│↓0 0│ │0 0 0 0│ ↓0││
+││0 0│ └───────┘ │0││
+│└───┘           │0││
+│                └─┘│
+└∊──────────────────┘
+┌→────────────────────┐
+│┌→──┐ ┌→────────┐ ┌→┐│
+│↓0 0│ │0 999 0 0│ ↓0││
+││0 0│ └─────────┘ │0││
+│└───┘             │0││
+│                  └─┘│
+└∊────────────────────┘
+┌→─────────────────────────┐
+│┌→──┐ ┌→─────────────┐ ┌→┐│
+│↓0 0│ │0 999 ┌→───┐ 0│ ↓0││
+││0 0│ │      │TEXT│  │ │0││
+│└───┘ │      └────┘  │ │0││
+│      └∊─────────────┘ └─┘│
+└∊∊────────────────────────┘
+#+end_example
+
+The function First (monadic =↑=) selects the first element of an
+array. Here, we shall replace the first 2×2 matrix of =NEST= by a
+character vector.
+
+#+begin_src gnu-apl
+(↑NEST)←'ABC'
+8⎕CR NEST
+#+end_src
+
+So, the sky is the limit. For more info, see [[https://aplwiki.com/LearnMoreApl/SelectiveSpecification][this page]].
 
 ** Binding Strengths
 
-To-do.
+In general, APL evaluates from right to left. However, some elements
+can be said to have stronger binding.
+
+Here is a descending list of binding strength.
+
+|-----------------------+--------------------------------------|
+| Binding               | Bound items                          |
+|-----------------------+--------------------------------------|
+| Brackets =[]=           | Brackets to object to the left       |
+| Specification =←= left  | =←= to object on its left              |
+| Right operand         | Dyadic operator to its right operand |
+| Vector                | Array to array                       |
+| Left operand          | Operator to its left operand         |
+| Left argument         | Function to left argument            |
+| Right argument        | Function to right argument           |
+| Specification =←= right | =←= to object on its right             |
+|-----------------------+--------------------------------------|
+
+And parentheses can override the binding strength hierarchy.
+
+For more info, see [[https://aplwiki.com/LearnMoreApl/BindingStrengths][this page]].
 
 ** Pervasive Functions
 
-To-do.
+There are Scalar and Mixed functions in APL. Scalar functions have the
+property of being /pervasive/, that is, they apply to all levels of
+nesting on the data.
+
+Here are some scalar functions:
+
+#+begin_example
++ - × ÷ | ⌈ ⌊ * ⍟ ○ ! ^ ∨ ⍲ ⍱ < ≤ = ≥ > ≠
+Monadic ~
+Monadic ?
+#+end_example
+
+For more info, see [[https://aplwiki.com/LearnMoreApl/PervasiveFunctions][this page]].
 
 ** OO, Classes and Inheritance
 
-To-do.
+GNU APL does not support object orientation, therefore I will not be
+covering it. However, Dyalog APL does.
+
+Object-oriented APL [[https://aplwiki.com/LearnMoreApl/AplClasses][information can be found on this page]].
 
 * Finishing
 

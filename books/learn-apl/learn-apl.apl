@@ -928,5 +928,39 @@ MAT←3 4⍴'ABCDEFGHIJKL'
 (,2 2↑MAT)←'⎕⎕⎕⎕'
 8⎕CR MAT
 
+TABLE←3 4⍴⍳12
+8⎕CR TABLE
+(1 0 1 0/TABLE)←3 2⍴100
+8⎕CR TABLE
+
+DATA←⍳13
+X←10×⍳3
+8⎕CR DATA
+((⍴X)↑DATA)←X
+8⎕CR DATA
+
+Y←⍳10
+X←3
+8⎕CR Y
+
+((2+X)↑Y)←⌽⍳X+2
+8⎕CR Y
+
+8⎕CR NEST←(2 2⍴⍳4) 'TEXT' (3 1⍴⍳3)
+(∊NEST)←0
+8⎕CR NEST
+
+⍝ Set specific position to number
+(6⌷∊NEST)←999
+8⎕CR NEST
+
+⍝ Set specific position to character vector (text).
+⍝ For that, introduce extra nesting to the new text.
+(7⌷∊NEST)←⊂'TEXT'
+8⎕CR NEST
+
+(↑NEST)←'ABC'
+8⎕CR NEST
+
 ⍝ Closes the script file.
 )OFF
