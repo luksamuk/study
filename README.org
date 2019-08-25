@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-08-13 ter]
+Última atualização: [2019-08-25 dom]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -145,6 +145,11 @@ eletrônico.
   sistema operacional a ser posteriormente desenvolvido. Todavia, os
   arquivos ~.vm~ gerados executam apropriadamente sob o VM Emulator
   incluído no material de apoio do livro.
+- =ch10=: Submódulo para implementação do analisador sintático do
+  compilador de Jack. Assim como no caso do Assembler e do VM
+  Translator, o projeto não foi incluído por ser grande demais e
+  demandar manutenção em outro lugar. Você pode acompanhar este
+  estágio do projeto na [[https://github.com/luksamuk/cl-jackc/tree/v0.5][tag v0.5]] do repositório.
 - ~custom-chips~: Chips extras construídos por curiosidade. A maioria envolve
   estudos avulsos a respeito de circuitos integrados.
 
