@@ -11,3 +11,6 @@
 [submodule "books/land-of-lisp"]
 	path = books/land-of-lisp
 	url = https://github.com/luksamuk/LandOfLisp.git
+[submodule "books/nand2tetris/ch10/cl-jackc"]
+	path = books/nand2tetris/ch10/cl-jackc
+	url = https://github.com/luksamuk/cl-jackc

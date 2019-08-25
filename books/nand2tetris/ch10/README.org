@@ -1,0 +1,15 @@
+#+TITLE: Chapter 10 Exercises
+
+This directory is related to the syntax analysis part of the Jack
+Compiler.
+
+There is no actual code for the compiler here. However, there is a
+separate repository on GitHub where I am developing it.
+
+The project is called ~cl-jackc~. It is entirely built using Common
+Lisp, much like the Assembler and the VM Translator. It is also built
+with extra documentation and automated testing sauce, to ensure its
+robustness, since it might be the most important piece on the
+toolchain.
+
+You can check out the repository for the Compiler [[https://github.com/luksamuk/cl-jackc/tree/v0.5][here]].
