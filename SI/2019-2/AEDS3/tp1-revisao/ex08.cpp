@@ -59,5 +59,8 @@ main(void)
            greatest(vec, vec_size),
            smallest(vec, vec_size),
            average(vec, vec_size));
+
+    free(vec);
+    
     return 0;
 }
