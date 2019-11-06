@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-08-25 dom]
+Última atualização: [2019-11-19 qua]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -64,6 +64,9 @@ completamente feitas por mim.
   - ~TC~: Exercícios de Teoria da Computação.
   - ~AEDS2~: Algoritmos e Estruturas de Dados II. Inclui notas de aulas
     e exercícios também.
+- =2019-2=: Exercícios relacionados à faculdade, no segundo semestre
+  de 2019.
+  - =AEDS3=: Algoritmos e Estruturas de Dados III.
 
 *** ~exercises~
 Exercícios variados, não necessariamente relacionados a estudo.
