@@ -1,0 +1,571 @@
+#+TITLE:    Lista de Exercícios 2: Respostas
+#+AUTHOR:   Lucas Samuel Vieira
+#+EMAIL:    lucasvieira@protonmail.com
+#+PROPERTY: header-args:C++ :main no :eval no
+#+STARTUP:  showall
+
+:ABNTEX2:
+#+OPTIONS: toc:nil title:nil
+#+LANGUAGE: pt_BR
+#+BIND: org-latex-hyperref-template "\\definecolor{blue}{RGB}{41,5,195}\n\\makeatletter\n\\hypersetup{\n    pdftitle={%t},\n    pdfauthor={%a},\n    pdfkeywords={%k},\n    pdfsubject={%d},\n    pdfcreator={%c},\n    colorlinks=true,\n    linkcolor=black,\n    citecolor=black,\n    filecolor=black,\n    urlcolor=black,\n    bookmarksdepth=4\n}\n\\makeatother"
+
+#+LATEX_CLASS: abntex2
+#+LATEX_CLASS_OPTIONS: [article,12pt,openany,oneside,a4paper,chapter=TITLE,hyphen,english,brazil,chapter=TITLE,sumario=tradicional]
+
+#+LATEX_HEADER: \usepackage{times}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage{color}
+#+LATEX_HEADER: \usepackage{microtype}
+#+LATEX_HEADER: \usepackage{titlesec}
+#+LATEX_HEADER: \usepackage[brazilian, hyperpageref]{backref}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage[alf,abnt-emphasize=bf,abnt-doi=link]{abntex2cite}
+# #+LATEX_HEADER: \usepackage{indentfirst}
+#+LATEX_HEADER: \usepackage{amssymb}
+#+LATEX_HEADER: \usepackage{amsmath}
+#+LATEx_HEADER: \usepackage{multicol}
+#+LATEx_HEADER: \usepackage{graphicx}
+
+#+LATEX_HEADER: \titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{}{0pt}{}
+#+LATEX_HEADER: \titleformat{\subsection}{\normalfont\normalsize\bfseries}{}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space}
+
+# Espaçamento
+#+LATEX_HEADER: \setlength{\parindent}{1.5cm}
+#+LATEX_HEADER: \setlrmarginsandblock{3cm}{2cm}{*}
+#+LATEX_HEADER: \setulmarginsandblock{2.5cm}{2.5cm}{*}
+#+LATEX_HEADER: \checkandfixthelayout
+
+#+LATEX_HEADER: \makeindex
+:END:
+
+# :FONTES:
+# #+LATEX_HEADER: \usepackage{ifxetex}
+# #+LATEX_HEADER: \ifxetex
+# #+LATEX_HEADER: \usepackage{mathspec}
+# #+LATEX_HEADER: \setmonofont[Scale=1.0]{APL385 Unicode}
+# #+LATEX_HEADER: \fi
+# :END:
+
+:METADADOS:
+# #+LATEX_HEADER: \titulo{Exportando Org Mode para \LaTeX}
+# #+LATEX_HEADER: \author{Lucas Vieira}
+#+LATEX_HEADER: \preambulo{Trabalho de Revisão 2 de AEDS3.\par{}Professora: Ana Carolina Rodrigues}
+#+LATEX_HEADER: \local{Diamantina}
+#+LATEX_HEADER: \instituicao{Universidade Federal dos Vales do Jequitinhonha e do Mucuri}
+#+LATEX_HEADER: \tipotrabalho{Artigo}
+# #+LATEX_HEADER: \orientador{Fulano}
+# #+LATEX_HEADER: \coorientador{Ciclano}
+:END:
+
+:PRETEXTUAL:
+# Espaçamento de 1.5 entre linhas
+#+LATEX: \OnehalfSpacing
+
+# Sinaliza início dos elementos pré-textuais
+#+LATEX: \pretextual
+
+# Capa do trabalho
+#+LATEX: \imprimircapa
+
+# Folha de rosto
+#+LATEX: \imprimirfolhaderosto
+#+LATEX: \newpage
+#+LATEX: \textual
+:END:
+
+* Exercício 1
+
+De acordo com a árvore abaixo, identifique: nó raiz, nós folhas, grau
+de cada nó, altura de cada nó, grau da árvore, altura da árvore e o
+nível da árvore.
+
+#+begin_src dot :file img/tree01.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      45:sw -- 23
+      45:se -- 69;
+
+      23:sw -- 22;
+      23:se -- 36;
+
+      69:sw -- 58;
+      69:se -- 97;
+
+      22:sw -- 18;
+
+      58:sw -- 52;
+
+      97:sw -- 88;
+      97:se -- 99;
+
+      88:sw -- 76;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.5\textwidth
+#+RESULTS[0f74af512ca7a088cbd1ecfe7e20b4e275a2c422]:
+[[file:img/tree01.png]]
+
+** Resposta
+#+LATEX: \begin{multicols}{2}
+- Nó raiz: =45=;
+- Nós folha: =18=, =36=, =52=, =76=, =99=;
+- Grau da árvore: =2=
+- Altura da árvore: =5=
+
+#+ATTR_LATEX: :placement [H]
+|----+------+--------|
+| Nó | Grau | Altura |
+|----+------+--------|
+| 45 |    2 |      4 |
+| 23 |    2 |      2 |
+| 69 |    2 |      3 |
+| 22 |    1 |      1 |
+| 36 |    0 |      0 |
+| 58 |    1 |      1 |
+| 97 |    2 |      2 |
+| 18 |    0 |      0 |
+| 52 |    0 |      0 |
+| 88 |    1 |      1 |
+| 99 |    0 |      0 |
+| 76 |    0 |      0 |
+|----+------+--------|
+#+LATEX: \end{multicols}
+
+* Exercício 2
+
+De acordo com a árvore abaixo, indique como seria a ordem de busca das
+seguintes chaves: =36=, =99=, =88=, =58=, =22=.
+
+#+ATTR_LATEX: :width 0.5\textwidth
+[[file:img/tree01.png]]
+
+** Resposta
+
+- Buscando =36=: $45 \rightarrow 23 \rightarrow 36$
+- Buscando =99=: $45 \rightarrow 69 \rightarrow 97 \rightarrow 99$
+- Buscando =88=: $45 \rightarrow 69 \rightarrow 97 \rightarrow 88$
+- Buscando =58=: $45 \rightarrow 69 \rightarrow 58$
+- Buscando =22=: $45 \rightarrow 23 \rightarrow 22$
+
+* Exercício 3
+
+Conceitue as características de uma árvore binária.
+
+** Resposta
+- Todo nó tem até dois filhos (esquerdo e direito);
+- Apenas um nó não possui pai, sendo este o /nó raiz/;
+- Nós que não possuem filhos são conhecidos como /nós-folha/;
+- Uma árvore ordenada de forma crescente tem /nós-pai/ com filhos tal
+  que o /filho esquerdo/ possui um valor /menor/ que o valor do /pai/, e o
+  /filho direito/ possui um valor /maior/ que o valor do /pai/.
+
+
+* Exercício 4
+
+Descreva a ordem de visita para um percurso em pré-ordem, em-ordem e
+pós-ordem na árvore abaixo.
+
+#+begin_src dot :file img/tree02.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      33:sw -- 15;
+      33:se -- 41;
+      41:sw -- 38;
+      41:se -- 47;
+      38:sw -- 34;
+      47:sw -- 43;
+      47:se -- 49;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.35\textwidth
+#+RESULTS[46af456b6ee5743b9ae8be453f3a77cc60aebfa6]:
+[[file:img/tree02.png]]
+
+** Resposta
+
+- Pré-ordem: $33 \rightarrow 15 \rightarrow 41 \rightarrow 38
+  \rightarrow 34 \rightarrow 47 \rightarrow 43 \rightarrow 49$.
+- Em ordem: $15 \rightarrow 33 \rightarrow 34 \rightarrow 38
+  \rightarrow 41 \rightarrow 43 \rightarrow 47 \rightarrow 49$.
+- Pós-ordem: $15 \rightarrow 34 \rightarrow 38 \rightarrow 43
+  \rightarrow 49 \rightarrow 47 \rightarrow 41 \rightarrow 33$.
+
+* Exercício 5
+
+Para cada árvore binária abaixo, diga se é uma árvore AVL (justifique).
+
+** Letra A
+
+#+LATEX: \begin{multicols}{2}
+#+begin_src dot :file img/tree03.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      57:sw -- 22
+      57:se -- 60;
+      22:sw -- 10;
+      60:se -- 88;
+      10:sw -- 0;
+      10:se -- 15;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.5\textwidth
+#+RESULTS[54a80fe3de837580c458834f96227fc0200e63b6]:
+[[file:img/tree03.png]]
+
+*** Resposta
+
+Trata-se de uma árvore AVL, pois os fatores de balanceamento
+dos nós compreendem valores no intervalo $[-1, 0, 1] \in \mathbb{Z}$.
+#+ATTR_LATEX: :placement [H]
+|----+-------|
+| Nó | Fator |
+|----+-------|
+| 57 |    +1 |
+| 22 |    +1 |
+| 60 |     0 |
+| 10 |     0 |
+| 88 |     0 |
+|  0 |     0 |
+| 15 |     0 |
+|----+-------|
+#+LATEX: \end{multicols}
+
+** Letra B
+
+#+LATEX: \begin{multicols}{2}
+#+begin_src dot :file img/tree04.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      57:sw -- 22;
+      57:se -- 60;
+
+      22:sw -- 10;
+
+      60:sw -- 58;
+      60:se -- 88;
+
+      10:sw -- 0;
+      10:se -- 15;
+      58:se -- 59;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.45\textwidth
+#+RESULTS[9c5e9719885ac10a15168c065775b134c5f88f3c]:
+[[file:img/tree04.png]]
+
+*** Resposta
+
+Trata-se de uma árvore AVL, pois os fatores de balanceamento dos nós
+compreendem valores no intervalo $[-1, 0, 1] \in \mathbb{Z}$.
+#+ATTR_LATEX: :placement [H]
+|----+-------|
+| Nó | Fator |
+|----+-------|
+| 57 |     0 |
+| 22 |    +1 |
+| 60 |    +1 |
+| 10 |     0 |
+| 58 |     0 |
+| 88 |     0 |
+|  0 |     0 |
+| 15 |     0 |
+| 59 |     0 |
+|----+-------|
+#+LATEX: \end{multicols}
+
+** Letra C
+
+#+LATEX: \begin{multicols}{2}
+#+begin_src dot :file img/tree05.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+       8:sw -- 4
+       8:se -- 12;
+
+       4:sw -- 2;
+       4:se -- 6;
+
+      12:se -- 14;
+
+       2:sw -- 1;
+       2:se -- 3;
+
+       6:sw -- 5;
+       6:se -- 7;
+
+      14:sw -- 13;
+      14:se -- 15;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.6\textwidth
+#+RESULTS[0f131b3c67c1e5ce167f160b5399a9ed8bbf8104]:
+[[file:img/tree05.png]]
+
+*** Resposta
+
+A árvore *não é uma árvore AVL*, pois os fatores de balanceamento dos
+nós não estão no intervalo $[-1, 0, 1] \in \mathbb{Z}$; a sub-árvore
+do nó problemático =12= não está balanceada.
+#+ATTR_LATEX: :placement [H]
+|----+-------|
+| Nó | Fator |
+|----+-------|
+|  8 |     0 |
+|  4 |     0 |
+| 12 |    -2 |
+|  2 |     0 |
+|  6 |     0 |
+| 14 |     0 |
+|  1 |     0 |
+|  3 |     0 |
+|  5 |     0 |
+|  7 |     0 |
+| 13 |     0 |
+| 15 |     0 |
+|----+-------|
+
+#+LATEX: \end{multicols}
+
+* Exercício 6
+
+Monte a árvore AVL para as seguintes inserções de chaves abaixo. A
+cada inserção, verifique se a árvore permanece balanceada. Caso não
+fique, realize as rotações que julgue necessárias.
+
+** Letra A
+
+Números: =50=, =30=, =20=, =70=, =40=, =35=, =37=, =38=, =10=, =32=, =45=, =42=, =25=, =47=, =36=.
+
+*** Resposta
+
+#+begin_src dot :file img/tree06a.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      35:sw -- 30;
+      35:se -- 40;
+      30:sw -- 20;
+      30:se -- 32;
+      40:sw -- 37;
+      40:se -- 50;
+      20:sw -- 10;
+      20:se -- 25;
+      37:sw -- 36;
+      37:se -- 38;
+      50:sw -- 45;
+      50:se -- 70;
+      45:sw -- 42;
+      45:se -- 47;
+}
+#+end_src
+
+#+RESULTS[7bf1d0dec908432c05241ca394031520ebacd24d]:
+[[file:img/tree06a.png]]
+
+** Letra B
+
+Números: =100=, =80=, =60=, =40=, =20=, =70=, =30=, =50=, =35=, =45=, =55=, =75=, =65=, =73=, =77=.
+
+*** Resposta
+
+#+begin_src dot :file img/tree06b.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      60:sw -- 40;
+      60:se -- 75;
+      40:sw -- 30;
+      40:se -- 50;
+      75:sw -- 70;
+      75:se -- 80;
+      30:sw -- 20;
+      30:se -- 35;
+      50:sw -- 45;
+      50:se -- 55;
+      70:sw -- 65;
+      70:se -- 73;
+      80:sw -- 77;
+      80:se -- 100;
+}
+#+end_src
+
+#+RESULTS[fc035c8cf5335b38952c20ff924935e777e1c2d0]:
+[[file:img/tree06b.png]]
+
+* Exercício 7
+
+Dadas as seguintes chaves =M=, =G=, =B=, =H=, =S=, =P=, =F=, =C= como entrada (nesta
+ordem), desenhe a respectiva árvore AVL (balanceando-a quando for
+necessário).
+
+** Resposta
+
+#+begin_src dot :file img/tree07.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      M:sw -- F;
+      M:se -- S;
+      F:sw -- B;
+      F:se -- G;
+      S:sw -- P;
+      B:se -- C;
+      G:se -- H;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.3\linewidth
+#+RESULTS[f93cde921c09b9a12b8643fb505058666acdd919]:
+[[file:img/tree07.png]]
+
+* Exercício 8
+
+Insira os números =35=, =39=, =51=, =20=, =13=, =28=, =22=, =32=, =25=, =33= (nesta ordem)
+em uma árvore AVL.
+
+*** Resposta
+
+#+begin_src dot :file img/tree08.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      28:sw -- 22;
+      28:se -- 35;
+      22:sw -- 20;
+      22:se -- 25;
+      35:sw -- 32;
+      35:se -- 39;
+      20:sw -- 13;
+      32:se -- 33;
+      39:se -- 51;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.5\linewidth
+#+NAME: fig:avl8
+#+CAPTION: Árvore de resposta da primeira parte do Exercício 8.
+#+RESULTS[39ea8c405588596e075bb852fe53f3e12255b32b]:
+[[file:img/tree08.png]]
+
+
+
+** Letra A
+
+Dê um exemplo de inserção de elementos em uma árvore AVL que cause
+rearranjo da estrutura da árvore.
+
+*** Resposta:
+
+Tomando como base a árvore AVL da Figura [[fig:avl8]], a inserção do
+elemento =40= causaria um rearranjo na árvore, uma vez que tal inserção
+ocasionaria uma rotação na sub-árvore direita do elemento =35=.
+
+** Letra B
+
+Dê um exemplo de remoção de um elemento de uma árvore AVL que cause
+rearranjo da estrutura da árvore.
+
+*** Resposta:
+
+Tomando como base a árvore AVL da Figura [[fig:avl8]], a remoção do
+elemento =35= causaria um rearranjo na árvore, uma vez que seria
+necessário realizar a dedução de qual nó substituiria o mesmo, o que
+alteraria a estrutura de ambas as sub-árvores do elemento =35=.
+
+* Exercício 9
+
+Remova sucessivamente os nós: os valores =140=, =200=. Desenhe a árvore a
+cada remoção.
+
+#+begin_src dot :file img/tree09.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      bgcolor="#00000000";
+      node [shape=square];
+
+      100:sw -- 50;
+      100:se -- 200;
+       50:sw -- 30;
+       50:se -- 70;
+      200:sw -- 140;
+      200:se -- 400;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.4\textwidth
+#+RESULTS[fc6a7722e4165e5656e327c45abb6e7d88dacead]:
+[[file:img/tree09.png]]
+
+** Resultado
+
+#+LATEX: \begin{multicols}{2}
+
+*** Remoção 1: =140=
+
+#+begin_src dot :file img/tree09a.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      bgcolor="#00000000";
+      node [shape=square];
+
+      100:sw -- 50;
+      100:se -- 200;
+       50:sw -- 30;
+       50:se -- 70;
+      200:se -- 400;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.4\textwidth
+#+RESULTS[eaa5ce35f236c373a454b980542cd290afc1740d]:
+[[file:img/tree09a.png]]
+
+
+*** Remoção 2: =200=
+
+#+begin_src dot :file img/tree09b.png :cache yes :cmdline -Kdot -Tpng
+graph G {
+      bgcolor="#00000000";
+      node [shape=square];
+
+      100:sw -- 50;
+      100:se -- 400;
+       50:sw -- 30;
+       50:se -- 70;
+}
+#+end_src
+
+#+ATTR_LATEX: :width 0.3\textwidth
+#+RESULTS[29b40891fae677f1e1760e70c4ce66d6ceb9499c]:
+[[file:img/tree09b.png]]
+
+
+#+LATEX: \end{multicols}
