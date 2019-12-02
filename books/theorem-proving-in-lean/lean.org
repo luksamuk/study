@@ -67,3 +67,5 @@ Some other examples for reduction.
 ** Introducing definitions
 
 https://leanprover.github.io/theorem_proving_in_lean/dependent_type_theory.html
+
+https://leanprover.github.io/theorem_proving_in_lean/theorem_proving_in_lean.pdf
