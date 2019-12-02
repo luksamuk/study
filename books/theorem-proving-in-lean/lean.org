@@ -61,7 +61,7 @@ Some other examples for reduction.
   reduction/.
 - Terms that /beta reduce/ to the same thing are /beta equivalent/.
 - Terms have a computational behaviour, supporting the notion of
-  /reduction, which can also be understood as /normalization/.
+  /reduction, which can also be understood as normalization/.
 - Terms that reduce to /the same value/ are /definitionally equal/.
 
 ** Introducing definitions
