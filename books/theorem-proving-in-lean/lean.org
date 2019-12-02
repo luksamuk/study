@@ -1,0 +1,69 @@
+#+TITLE: Exercises: Theorem Proving in Lean
+#+AUTHOR: Lucas S. Vieira
+#+DATE: 2019
+# #+PROPERTY: header-args:lean :tangle test.lean
+
+:LATEX_FONT_CONFIG:
+#+LATEX_HEADER: \usepackage{times}
+#+LATEX_HEADER: \usepackage{ifxetex}
+
+#+LATEX_HEADER: \ifxetex
+#+LATEX_HEADER: \usepackage{mathspec}
+#+LATEX_HEADER: \usepackage{fontspec}
+#+LATEX_HEADER: \usepackage{xunicode}
+#+LATEX_HEADER: \setmonofont{FreeMono}
+#+LATEX_HEADER: \usepackage{polyglossia}
+#+LATEX_HEADER: \setmainlanguage{brazil}
+#+LATEX_HEADER: \setotherlanguages{french,english,spanish,german,italian}  
+#+LATEX_HEADER: \else
+#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
+#+LATEX_HEADER: \usepackage{mathpazo}
+#+LATEX_HEADER: \linespread{1.05}
+#+LATEX_HEADER: \usepackage[scaled]{helvet}
+#+LATEX_HEADER: \usepackage{courier}
+#+LATEX_HEADER: \fi
+:END:
+
+* Dependent Type Theory
+
+Lean is based on a version of DTT called /Calculus of Constructions/.
+
+** Simple Type Theory
+
+Declaring objects on Lean and checking their types.
+
+We can also use unicode, e.g. =\nat= is the same as =nat=, =\to= and =\r= is
+the same as =->=, etc
+
+#+INCLUDE: ch02-01.lean src lean
+
+** Types as objects
+
+Dependent type theory extends simple type theory as types are
+first-class citizens, therefore they themselves are objects of study.
+
+#+INCLUDE: ch02-02.lean src lean
+
+** Function Abstraction and Evaluation
+
+We create functions from other expressions by using /lambda
+abstractions/.
+
+#+INCLUDE: ch02-03.lean src lean
+
+Some other examples for reduction.
+
+#+INCLUDE: ch02-03-2.lean src lean
+
+- Expressions which are equal despite the names of bound variables are
+  /alpha equivalent/.
+- Simplifying an expression by performing a substitution is a /beta
+  reduction/.
+- Terms that /beta reduce/ to the same thing are /beta equivalent/.
+- Terms have a computational behaviour, supporting the notion of
+  /reduction, which can also be understood as /normalization/.
+- Terms that reduce to /the same value/ are /definitionally equal/.
+
+** Introducing definitions
+
+https://leanprover.github.io/theorem_proving_in_lean/dependent_type_theory.html

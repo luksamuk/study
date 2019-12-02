@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2019-11-19 qua]
+Última atualização: [2019-12-01 seg]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -170,6 +170,10 @@ Relação de módulos:
 **** =practical-common-lisp=
 Relação de arquivos criados ao ler o livro /Practical Common Lisp/, de
 Peter Seibel.
+
+**** =theorem-proving-in-lean=
+Notas e códigos relacionados ao livro /Theorem Proving in Lean/, de
+Avigad, Moura e Kong (2019).
 
 * Licenciamento
 
