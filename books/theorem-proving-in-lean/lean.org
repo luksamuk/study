@@ -24,6 +24,11 @@
 #+LATEX_HEADER: \fi
 :END:
 
+* Introduction
+
+- [[https://leanprover.github.io/theorem_proving_in_lean/theorem_proving_in_lean.pdf][Link to PDF]]
+- [[https://leanprover.github.io/theorem_proving_in_lean/][Link to Online Book]]
+
 * Dependent Type Theory
 
 Lean is based on a version of DTT called /Calculus of Constructions/.
@@ -66,6 +71,113 @@ Some other examples for reduction.
 
 ** Introducing definitions
 
-https://leanprover.github.io/theorem_proving_in_lean/dependent_type_theory.html
+Constants are a good way to postulate new objects to experiment with.
 
-https://leanprover.github.io/theorem_proving_in_lean/theorem_proving_in_lean.pdf
+But most of the time we want to /define/ objects and /prove things/ about
+them. So we use the =def= command.
+
+#+INCLUDE: ch02-04.lean src lean
+
+*** Exercise: =curry= and =uncurry=
+
+#+INCLUDE: ch02-04-ex.lean src lean
+
+** Local definitions
+
+We can introduce "local" definitions by using =let=.
+
+#+INCLUDE: ch02-05.lean src lean
+
+** Variables and sections
+
+We know that
+
+- =constant= declares new objects as part of the global context. Like an
+  axiom.
+- =def= defines a mathematical object, as /declaring/ objects is somewhat
+  lazy.
+
+The =variable= and the =variables= command makes local declarations look
+global.
+
+#+INCLUDE: ch02-06.lean src lean
+
+The use of these commands determine that the variable stays in scope
+until the end of file. But we can limit the scope to a =section=.
+
+#+INCLUDE: ch02-06-2.lean src lean
+
+** Namespaces
+
+We can group definitions using nested, hierarchical =namespaces=.
+
+Namespaces cannot be declared within a section, as they have to live
+on outer levels.
+
+Namespaces organize data, and sections declare variables for insertion
+in theorems. In many respects, namespaces work like sections:
+variables within namespaces are limited to the namespace's scope.
+
+#+INCLUDE: ch02-07.lean src lean
+
+** Dependent types
+
+The "dependent" in Dependent Type Theory relates to the fact that
+types can depend on parameters.
+
+For example, =list α= depends on argument =α=; this is what distinguishes
+=list ℕ= from =list bool=.
+
+Consider also =vec α n=, the type of vectors of elements of =α=, with
+length =n=. This type depends on /two/ parameters:
+
+- =α : Type=, for the type of the elements;
+- =n : ℕ=, for the length of the vector.
+
+Suppose the function =cons=; since we have lists of many types, =cons= has
+to be polymorphic. Therefore, for every =α=, =cons α= is a function such
+as =cons α (elt : α) (lst : list α) : list α=.
+
+So the type of =cons α= should be =α → list α → list α=. But what is the
+type of =cons=? If we assume =Type → α → list α → list α=, this does not
+make sense since =α= does not refer to anything; it is not an argument
+of type =Type=.
+
+So we need a /Pi (=Π=) type/, or a /dependent function type/.
+
+Given =α : Type= and =β : α → Type=, =β= is like a family of types over =α= --
+in other words, there is a type =β a= for each =a : α=.
+
+So the type =Π x : α, β x= denotes the types of functions =f= with the
+property that, for each =a : α=, the application =f a= has a type =β a=.
+
+So the type of the value returned by =f= depends on its input.
+
+=Π x : α, β= makes sense for any =β : Type=. When the value of =β= depends
+on =x= (like in =β x=), then =Π x : α, β= denotes a /dependent function
+type/. When =β= does not depend on =x=, then =Π x : α, β= is the same as =α →
+β=.
+
+So =α → β= is just an alternative notation for =Π x : α, β= iff =β= does not
+depend on =x=, as in dependent type theory the =Π= construction is
+fundamental.
+
+#+INCLUDE: ch02-08.lean src lean
+
+There are also /Sigma (=Σ=) types/, also known as /dependent products/. They
+are companions to /Pi types/;
+
+The type =Σ x : α, β x= denotes the type of pairs =sigma.mk a b=, for all
+=a : α= and =b : β a=.
+
+Sigma types =Σ x : α, β x= generalize the cartesian product =α × β= just
+like Pi types =Π x : α, β x= do for a function type =α → β=.
+
+So in the expression =sigma.mk a b=, the type of the second element of
+the pair, =b : β a=, depends on the first element of the pair, =a : α=.
+
+#+INCLUDE: ch02-08-2.lean src lean
+
+** Implicit arguments
+
+https://leanprover.github.io/theorem_proving_in_lean/dependent_type_theory.html#local-definitions
