@@ -1,0 +1,1187 @@
+#+TITLE:       Árvore AVL
+#+AUTHOR:      Lucas S. Vieira
+#+EMAIL:       lucasvieira@protonmail.com
+#+DESCRIPTION: Implementação de uma árvore AVL em C++.
+#+KEYWORDS:    avl, cpp, documentação, algoritmos, estruturas de dados
+#+LANGUAGE:    pt_BR
+#+PROPERTY:    header-args:cpp :eval no :main no :tangle avltree.cpp
+#+PROPERTY:    header-args:dot :cache yes :cmdline -Kdot -Tsvg
+#+STARTUP:     content
+#+SETUPFILE:   ReadTheOrg.setup
+
+#+TODO: Remoção!
+
+* Introdução
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+Este documento visa implementar uma árvore AVL utilizando a linguagem
+C++, em sua especificação de 2014. A árvore é implementada utilizando
+o recurso de /template/ para sua generalização.
+
+Este código foi feito no editor Emacs através do formato Org, podendo
+ser transformado em um único arquivo de código.
+
+* Cabeçalhos e bibliotecas
+
+Começamos identificando cabeçalhos de bibliotecas úteis a serem
+utilizadas. Temos bibliotecas para Entrada e Saída e para Matemática
+em geral.
+
+Também utilizaremos as estruturas =std::queue= e =std::vector= como
+utilitários para escrita da árvore em níveis e para manipulação de
+elementos a serem adicionados na árvore, respectivamente.
+
+#+begin_src cpp
+#include <iostream>
+#include <cmath>
+#include <queue>
+#include <vector>
+#+end_src
+
+* Estilo de impressão
+<<sec:impressao_enum>>
+
+A enumeração a seguir descreve cinco estilos de impressão para uma
+árvore AVL. Estes estilos são:
+
+- /In order/: Descreve os elementos em ordem crescente. Determina a
+  impressão recursiva da sub-árvore da esquerda, do elemento atual, e
+  a impressão recursiva da árvore da direita.
+- /Preorder/: Imprime o elemento atual e em seguida imprime
+  recursivamente as sub-árvores da esquerda e da direita.
+- /Post-order/: Imprime primeiramente as sub-árvores da esquerda e da
+  direita, e então imprime o elemento atual.
+- /Level/: Imprime sequencialmente a árvore, nível a nível.
+- /Triangle/: Funciona como /level/, porém imprime cada nível em uma
+  linha. Ponteiros nulos também serão impressos por conveniência.
+
+#+begin_src cpp
+enum TreePrintStyle
+{
+    TREEPRINT_INORDER,
+    TREEPRINT_PREORDER,
+    TREEPRINT_POSTORDER,
+    TREEPRINT_LEVEL,
+    TREEPRINT_TRIANGLE
+};
+#+end_src
+
+* Início da classe AVLTree
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+A classe =AVLTree= é uma classe construída utilizando /templates/. Desta
+forma, esta classe pode ser generalizada para qualquer tipo
+comparável[fn:1].
+
+Iniciamos pela abertura do escopo da classe.
+
+#+begin_src cpp
+template<typename T>
+class AVLTree
+{
+#+end_src
+
+* Elementos privados
+
+** Início dos elementos privados
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+Os elementos após a próxima linha são acessíveis apenas /no escopo da
+classe =AVLTree=/.
+
+#+begin_src cpp
+private:
+#+end_src
+
+** Estrutura interna do nó
+
+A estrutura a seguir descreve um nó qualquer da árvore. Esta estrutura
+é acessível apenas no escopo interno da mesma. Portanto, é bom
+observar que não será possível "exportar" ponteiros de nós
+pertencentes à árvore.
+
+#+begin_src cpp
+struct node_t
+{
+    T info;
+    node_t *left;
+    node_t *right;
+};
+#+end_src
+
+** Ponteiro para a raiz
+
+Este campo privado da classe armazena um ponteiro para o nó raiz da
+árvore.
+
+#+begin_src cpp
+node_t *_root;
+#+end_src
+
+** Altura de um nó
+
+Este método calcula a altura de um nó arbitrário da árvore. Ele é
+especialmente útil para a programação do balanceamento da mesma.
+
+A altura de um nó é descrita sob as seguintes regras:
+
+- =-1= quando o nó atual é nulo;
+- =0= quando o nó atual é um /nó-folha/;
+- =1 + a=, para um valor ~a~ que seja o maior tamanho entre as alturas
+  dos nós à esquerda e à direita.
+
+Retornar /-1/ para um nó nulo não é o procedimento padrão para árvores
+AVL, mas este valor acaba não afetando no cálculo recursivo da altura
+de um certo nó, uma vez que utilizamos =std::max= para obtermos sempre o
+maior valor.
+
+#+begin_src cpp
+int _height(const node_t *node) const
+{
+    if(!node) return -1;
+        
+    if(!node->left && !node->right)
+        return 0;
+
+    return 1 + std::max(_height(node->left),
+                        _height(node->right));
+}
+#+end_src
+
+** Balanceamento
+
+Os métodos a seguir descrevem o balanceamento baseado no algoritmo
+AVL.
+
+A maioria dos métodos envolve a modificação direta de um ponteiro de
+nó, portanto recebemos este ponteiro /por referência/. Isto evita um
+eventual uso de um /ponteiro para ponteiro/ (=node_t**=).
+
+*** Cálculo de índice de balanceamento
+
+Este método calcula o índice de balanceamento para um nó
+arbitrário. Este cálculo é feito através da diferença entre /esquerda/ e
+/direita/, onde /esquerda/ é a "altura" da sub-árvore esquerda do nó, e
+/direita/ é a "altura" da sub-árvore direita do nó.
+
+Uma sub-árvore não-nula já contabiliza a soma de uma unidade no valor
+da altura daquela sub-árvore. Todavia, caso aquela sub-árvore seja
+nula, sua "altura" será zero.
+
+Este valor de "altura" é, portanto, não exatamente a altura da
+sub-árvore em si, mas sim a quantidade máxima de passos para que o nó
+atual chegue ao nó-folha mais baixo.
+
+#+begin_src cpp
+int _balance_index(const node_t *node)
+{
+    if(!node) return 0;
+        
+    int left_idx =
+        (!node->left) ? 0 : (1 + _height(node->left));
+    int right_idx =
+        (!node->right) ? 0 : (1 + _height(node->right));
+
+    return left_idx - right_idx;
+}
+#+end_src
+
+*** Rotação à esquerda
+
+Uma rotação à esquerda é realizada em um certo nó =a=, trocando-o pela
+sua sub-árvore da direita =b=. O nó =a= em questão, por conseguinte,
+torna-se o filho esquerdo do nó =b= que tomou seu lugar.
+
+A sub-árvore esquerda do nó =b= torna-se a sub-árvore direita do nó =a=.
+
+#+NAME: fig:lrot
+#+begin_src dot :file img/lrot.svg
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      subgraph cluster_0 {
+          label="Pré-rotação";
+          a0[label="a"];
+          b0[label="b"];
+          c0[label="c"];
+          
+          LA0[label="X", shape=triangle];
+          LB0[label="Y", shape=triangle];
+          LC0[label="Z", shape=triangle];
+          RC0[label="W", shape=triangle];
+
+          a0:sw -- LA0:n;
+          a0:se -- b0;
+          b0:sw -- LB0:n;
+          b0:se -- c0;
+          c0:sw -- LC0:n;
+          c0:se -- RC0:n;
+      }
+
+      subgraph cluster_1 {
+          label="Após rotação à esquerda";
+          a1[label="a"];        
+          b1[label="b"];
+          c1[label="c"];
+          
+          LA1[label="X", shape=triangle];
+          LB1[label="Y", shape=triangle];
+          LC1[label="Z", shape=triangle];
+          RC1[label="W", shape=triangle];
+          
+          b1:sw -- a1;
+          b1:se -- c1;
+          a1:sw -- LA1:n;
+          a1:se -- LB1:n;
+          c1:sw -- LC1:n;
+          c1:se -- RC1:n;
+      }
+}
+#+end_src
+
+#+RESULTS[f50c943960cdc363f65eb5d36b6ec1d1d98dcdee]: fig:lrot
+[[file:img/lrot.svg]]
+
+#+begin_src cpp
+void _lrot(node_t*& root)
+{
+    node_t *b = root->right->left;
+    root->right->left = root;
+    root = root->right;
+    root->left->right = b;
+}
+#+end_src
+
+*** Rotação à direita
+
+Uma rotação à direita é realizada em um certo nó =a=, trocando-o pela
+sua sub-árvore da esquerda =b=. O nó =a= em questão, por conseguinte,
+torna-se o filho direito do nó =b= que tomou seu lugar.
+
+A sub-árvore direita do nó =b= torna-se a sub-árvore esquerda do nó =a=.
+
+#+NAME: fig:rrot
+#+begin_src dot :file img/rrot.svg
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      subgraph cluster_0 {
+          label="Pré-rotação";
+          a0[label="a"];
+          b0[label="b"];
+          c0[label="c"];
+          
+          RA0[label="W", shape=triangle];
+          RB0[label="Z", shape=triangle];
+          LC0[label="X", shape=triangle];
+          RC0[label="Y", shape=triangle];
+
+          a0:sw -- b0;
+          a0:se -- RA0:n;
+          b0:sw -- c0;
+          b0:se -- RB0:n;
+          c0:sw -- LC0:n;
+          c0:se -- RC0:n;
+      }
+
+      subgraph cluster_1 {
+          label="Após rotação à direita";
+          a1[label="a"];        
+          b1[label="b"];
+          c1[label="c"];
+          
+          RA1[label="W", shape=triangle];
+          RB1[label="Z", shape=triangle];
+          LC1[label="X", shape=triangle];
+          RC1[label="Y", shape=triangle];
+          
+          b1:sw -- c1;
+          b1:se -- a1;
+          a1:sw -- RB1:n;
+          a1:se -- RA1:n;
+          c1:sw -- LC1:n;
+          c1:se -- RC1:n;
+      }
+}
+#+end_src
+
+#+RESULTS[69c3269a759fba08279274dfd74275216d4479b1]: fig:rrot
+[[file:img/rrot.svg]]
+
+#+begin_src cpp
+void _rrot(node_t*& root)
+{
+    node_t *b = root->left->right;
+    root->left->right = root;
+    root = root->left;
+    root->right->left = b;
+}
+#+end_src
+
+*** Rotação dupla à direita
+
+Uma rotação dupla à direita constitui-se de rotacionar um certo nó =a=
+em duas etapas. Na primeira etapa, realizamos uma rotação /à esquerda/
+no /filho esquerdo/ de =a=; em seguida, rotacionamos =a= à direita.
+
+#+NAME: fig:rrot_dbl
+#+begin_src dot :file img/rrot_dbl.svg
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      subgraph cluster_0 {
+          label="Pré-rotação";
+          a0[label="a"];
+          b0[label="b"];
+          c0[label="c"];
+          
+          RA0[label="W", shape=triangle];
+          LB0[label="X", shape=triangle];
+          LC0[label="Y", shape=triangle];
+          RC0[label="Z", shape=triangle];
+
+          a0:sw -- b0;
+          a0:se -- RA0:n;
+          b0:sw -- LB0:n;
+          b0:se -- c0;
+          c0:sw -- LC0:n;
+          c0:se -- RC0:n;
+      }
+
+      subgraph cluster_1 {
+          label="Após rotação à esquerda em b";
+          a1[label="a"];        
+          b1[label="b"];
+          c1[label="c"];
+          
+          RA1[label="W", shape=triangle];
+          LB1[label="X", shape=triangle];
+          LC1[label="Y", shape=triangle];
+          RC1[label="Z", shape=triangle];
+          
+          a1:sw -- c1;
+          a1:se -- RA1:n;
+          c1:sw -- b1;
+          c1:se -- RC1:n;
+          b1:sw -- LB1:n;
+          b1:se -- LC1:n;
+      }
+
+      subgraph cluster_2 {
+          label="Após rotação à direita em a";
+          a2[label="a"];        
+          b2[label="b"];
+          c2[label="c"];
+          
+          RA2[label="W", shape=triangle];
+          LB2[label="X", shape=triangle];
+          LC2[label="Y", shape=triangle];
+          RC2[label="Z", shape=triangle];
+
+          c2:sw -- b2;
+          c2:se -- a2;
+          b2:sw -- LB2:n;
+          b2:se -- LC2:n;
+          a2:sw -- RC2:n;
+          a2:se -- RA2:n;
+      }
+}
+#+end_src
+
+#+RESULTS[40b1bddad23b2c9136df69aaa40ab54c65aac6a1]: fig:rrot_dbl
+[[file:img/rrot_dbl.svg]]
+
+#+begin_src cpp
+void _rrot_dbl(node_t*& root)
+{
+    _lrot(root->left);
+    _rrot(root);
+}
+#+end_src
+
+*** Rotação dupla à esquerda
+
+Uma rotação dupla à esquerda constitui-se de rotacionar um certo nó =a=
+em duas etapas. Na primeira etapa, realizamos uma rotação no filho
+/direito/ de =a=; em seguida, rotacionamos =a= à direita.
+
+#+NAME: fig:lrot_dbl
+#+begin_src dot :file img/lrot_dbl.svg
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      subgraph cluster_0 {
+          label="Pré-rotação";
+          a0[label="a"];
+          b0[label="b"];
+          c0[label="c"];
+          
+          LA0[label="X", shape=triangle];
+          RB0[label="W", shape=triangle];
+          LC0[label="Y", shape=triangle];
+          RC0[label="Z", shape=triangle];
+
+          a0:sw -- LA0:n;
+          a0:se -- b0;
+          b0:sw -- c0;
+          b0:se -- RB0:n;
+          c0:sw -- LC0:n;
+          c0:se -- RC0:n;
+      }
+
+      subgraph cluster_1 {
+          label="Após rotação à direita em b";
+          a1[label="a"];        
+          b1[label="b"];
+          c1[label="c"];
+          
+          LA1[label="X", shape=triangle];
+          RB1[label="W", shape=triangle];
+          LC1[label="Y", shape=triangle];
+          RC1[label="Z", shape=triangle];
+          
+          a1:sw -- LA1:n;
+          a1:se -- c1;
+          c1:sw -- LC1:n;
+          c1:se -- b1;
+          b1:sw -- RC1:n;
+          b1:se -- RB1:n;
+      }
+
+      subgraph cluster_2 {
+          label="Após rotação à esquerda em a";
+          a2[label="a"];        
+          b2[label="b"];
+          c2[label="c"];
+          
+          LA2[label="X", shape=triangle];
+          RB2[label="W", shape=triangle];
+          LC2[label="Y", shape=triangle];
+          RC2[label="Z", shape=triangle];
+
+          c2:sw -- a2;
+          c2:se -- b2;
+          a2:sw -- LA2:n;
+          a2:se -- LC2:n;
+          b2:sw -- RC2:n;
+          b2:se -- RB2:n;
+      }
+}
+#+end_src
+
+#+RESULTS[060632f6ac1aa8f6254d02e512a9a27875570f1e]: fig:lrot_dbl
+[[file:img/lrot_dbl.svg]]
+
+#+begin_src cpp
+void _lrot_dbl(node_t*& root)
+{
+    _rrot(root->right);
+    _lrot(root);
+}
+#+end_src
+
+*** Função de balanceamento
+
+A função de balanceamento a seguir realiza, efetivamente, o
+balanceamento de uma sub-árvore cuja raiz seja passada por parâmetro.
+
+O balanceamento ocorrerá se o valor absoluto do coeficiente de
+balanceamento da árvore for igual a =2=. Caso um valor diferente deste
+for encontrado, o balanceamento ocorrerá.
+
+Esta é primariamente uma função de despacho de rotações em um nó de
+coeficiente com valor absoluto igual a =2=.
+
+Quando o nó problemático tem um coeficiente igual a =-2=, então:
+- Caso o /filho esquerdo/ do nó possua coeficiente =-1=, realizaremos uma
+  /rotação dupla à direita/.
+- Caso contrário, realizaremos uma /rotação simples à direita/.
+
+Quando o nó problemático tem um coeficiente igual a =+2=, então:
+- Caso o /filho direito/ do nó possua coeficiente =+1=, realizaremos uma
+  /rotação dupla à esquerda/.
+- Caso contrário, realizaremos uma /rotação simples à esquerda/.
+
+#+begin_src cpp
+void _balance(node_t*& node)
+{
+    int coef = _balance_index(node);
+    if(std::abs(coef) == 2) {
+        if(coef == 2) {
+            if(_balance_index(node->left) == -1)
+                _rrot_dbl(node);
+            else _rrot(node);
+        } else if(coef == -2) {
+            if(_balance_index(node->right) == 1)
+                _lrot_dbl(node);
+            else _lrot(node);
+        }
+    }
+}
+#+end_src
+
+** Inserção
+
+O método de /inserção/ retorna /verdadeiro/ se a chave ainda não existir
+na árvore, e for portanto inserida com sucesso; caso contrário,
+retorna um valor /falso/.
+
+Caso o nó seja nulo, consideramos que este seja o caso válido para
+inserção de tal no. Criamos uma nova estrutura dinâmica de um novo nó,
+atribuimos a ele a informação, e então determinamos a nulidade das
+sub-árvores do mesmo.
+
+Caso o nó não seja nulo, verificamos se a informação deverá ser
+inserida na sub-árvore esquerda ou direita, dependendo da chave
+utilizada. Se a chave for igual à chave do nó atual, o nó não será
+inserido, e a função retornará um valor de falsidade.
+
+Após a inserção do nó, caso o nó seja inserido, a função
+recursivamente realiza balanceamento na árvore. Este balanceamento
+retroativo garante que os coeficientes de balanceamento obedeçam à
+regra ~0 <= |coef| <= 2~.
+
+#+begin_src cpp
+bool _insert(T info, node_t*& node)
+{
+    if(!node) {
+        node = new node_t;
+        node->info = info;
+        node->left = nullptr;
+        node->right = nullptr;
+        return true;
+    }
+
+    bool ret_value;
+    
+    if(info < node->info)
+        ret_value = _insert(info, node->left);
+    else if(info > node->info)
+        ret_value = _insert(info, node->right);
+    else ret_value = false; // info == node->info
+
+    if(ret_value)
+        _balance(node);
+    
+    return ret_value;
+}
+#+end_src
+
+** Impressão
+
+Os métodos a seguir demonstram a implementação de várias formas de
+impressão dos elementos da árvore na tela, de acordo com o que foi
+previamente descrito na Seção [[sec:impressao_enum]].
+
+*** Impressão em ordem
+
+Imprimir um nó /em ordem/ envolve imprimir recursivamente a sub-árvore
+de seu filho esquerdo, imprimir seu próprio valor, e imprimir
+recursivamente a sub-árvore de seu filho direito.
+
+Como árvores binárias realizam inserções e remoções mantendo a
+hierarquia dos elementos, a impressão /em ordem/, para este exemplo,
+imprime os elementos da árvore em ordem crescente.
+
+#+begin_src cpp
+void _print_inorder(const node_t *node) const
+{
+    if(!node) return;
+    _print_inorder(node->left);
+    std::cout << node->info << ' ';
+    _print_inorder(node->right);
+}
+#+end_src
+
+*** Impressão em pré-ordem
+
+Imprimir um nó /em pré-ordem/ envolve imprimir primeiramente o valor do
+nó, e então imprimir recursivamente a sub-árvore dos filhos esquerdo e
+direito deste nó, respectivamente.
+
+#+begin_src cpp
+void _print_preorder(const node_t *node) const
+{
+    if(!node) return;
+    std::cout << node->info << ' ';
+    _print_inorder(node->left);
+    _print_inorder(node->right);
+}
+#+end_src
+
+*** Impressão em pós-ordem
+
+Imprimir um nó em /pós-ordem/ envolve, primeiramente, imprimir em
+recursão a sub-árvore dos filhos direito e esquerdo, e então imprimir
+o valor do nó atual.
+
+#+begin_src cpp
+void _print_postorder(const node_t *node) const
+{
+    if(!node) return;
+    _print_inorder(node->left);
+    _print_inorder(node->right);
+    std::cout << node->info << ' ';
+}
+#+end_src
+
+*** Impressão por nível
+
+Impressão /por nível/ envolve imprimir, em sequência, todos os nós
+existentes na árvore, em um formato linear. Note que esta impressão em
+nível não deixa explícito o relacionamento entre os nós impressos.
+
+Para realizar esta impressão, utilizamos uma /fila/ (=std::queue=) de
+ponteiros para nós. À medida que nós são retirados do início da fila,
+suas informações são impressas. Em seguida, os ponteiros para os
+filhos esquerdo e direito deste nó, respectivamente, são enfileirados,
+a não ser que sejam /nulos/. A impressão acaba quando não há mais nós na
+fila.
+
+#+begin_src cpp
+void _print_bylevel(const node_t *node) const
+{
+    if(!node) return;
+    std::queue<const node_t*> nodes;
+    nodes.push(node);
+
+    while(!nodes.empty()) {
+        const node_t *front = nodes.front();
+        nodes.pop();
+        if(front) {
+            nodes.push(front->left);
+            nodes.push(front->right);
+            std::cout << front->info << ' ';
+        }
+    }
+}
+#+end_src
+
+*** Impressão triangular
+
+A impressão /triangular/ é muito similar à impressão /por nível/, todavia
+utilizamos /duas filas/ (=std::queue=) para realizar a impressão.
+
+A ideia é que, ao invés de enfileirarmos os ponteiros dos nós-filhos
+em uma única fila, enfileiramo-nos em uma fila de "próximo
+nível". Quando a fila atual esvazia, quebramos uma linha na impressão,
+e trazemos todos os elementos da fila de "próximo nível" para a fila
+padrão.
+
+Também realizamos a impressão conveniente de ponteiros nulos. Com esta
+prática, passa a ser extremamente simples o ato de tomar uma saída
+triangular e desenhar uma árvore binária apropriada em papel.
+
+#+begin_src cpp
+void _print_triangle(const node_t *node) const
+{
+    if(!node) return;
+    std::queue<const node_t*> curr;
+    std::queue<const node_t*> next;
+
+    curr.push(node);
+
+    while(!curr.empty()) {
+        const node_t *front = curr.front();
+        curr.pop();
+        if(!front)
+            std::cout << '*';
+        else {
+            next.push(front->left);
+            next.push(front->right);
+            std::cout << front->info;
+        }
+
+        std::cout << ' ';
+        if(curr.empty() && !next.empty()) {
+            std::swap(curr, next);
+            std::cout << std::endl;
+        }
+    }
+}
+#+end_src
+
+*** Exemplo de uso da impressão triangular
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+Tomemos a impressão triangular a seguir:
+
+#+NAME: ex:triangle_print
+#+begin_example
+28 
+22 35 
+20 25 32 39 
+13 * * * * 33 * 51 
+,* * * * * * 
+#+end_example
+
+Sabendo que estamos tratando de uma árvore binária, podemos deduzir os
+relacionamentos:
+
+- =28= é pai de =22= e =35=;
+- =22= é pai de =20= e =25=;
+- =35= é pai de =32= e =39=;
+- =20= é pai de =13= e =*=;
+- =25= é pai de =*= e =*= (portanto, um nó folha);
+- =32= é pai de =*= e =33=;
+- =39= é pai de =*= e =51=;
+- =13= é pai de =*= e =*= (portanto, um nó folha);
+- =33= é pai de =*= e =*= (portanto, um nó folha);
+- =51= é pai de =*= e =*= (portanto, um nó folha).
+
+Assim, teremos a árvore AVL conforme desenhado a seguir.
+
+#+NAME: fig:triangle_print
+#+begin_src dot :file img/triangle_print.svg
+graph G {
+      graph[ranksep=0.3];
+      bgcolor="#00000000";
+      node [shape=circle];
+
+      28:sw -- 22;
+      28:se -- 35;
+      22:sw -- 20;
+      22:se -- 25;
+      35:sw -- 32;
+      35:se -- 39;
+      20:sw -- 13;
+      32:se -- 33;
+      39:se -- 51;
+}
+#+end_src
+
+#+RESULTS[f4ddfeb2247a769b39693f521c8fd476b1cbc04b]: fig:triangle_print
+[[file:img/triangle_print.svg]]
+
+** Limpeza de sub-árvore
+
+O método a seguir /limpa/ a sub-árvore do nó informado, incluindo o nó
+atual e removendo todos os nós abaixo do mesmo.
+
+Este não é um método de remoção propriamente dito, uma vez que o
+intuito principal é realizar liberação de memória recursivamente. Este
+método é melhor utilizado na /raiz/ da árvore; todavia, se chamado
+diretamente, é necessário também fazer com que a raiz em questão
+torne-se um ponteiro /nulo/, caso mais operações sejam esperadas.
+
+#+begin_src cpp
+void _clear(node_t* node)
+{
+    if(!node) return;
+    _clear(node->left);
+    _clear(node->right);
+    delete node;
+}
+#+end_src
+
+** Pesquisa
+
+O método a seguir realiza uma pesquisa na árvore, procurando por uma
+informação passada por referência.
+
+O método realiza a pesquisa recursivamente, direcionando-a de acordo
+com o valor da informação dada para determinar o ramo a ser
+seguido. A resposta será um valor booleano.
+
+#+begin_src cpp
+bool _search(const node_t* node, const T& info) const
+{
+    if(!node) return false;
+
+    if(node->info == info) return true;
+
+    if(info < node->info) {
+        return _search(node->left, info);
+    }
+
+    return _search(node->right, info);
+}
+#+end_src
+
+** Remoção [AINDA NÃO IMPLEMENTADO!]
+
+A implementação da remoção de um nó envolve três casos:
+
+- Nó sem filhos;
+- Nó com apenas um filho;
+- Nó com dois filhos.
+
+Um nó sem filhos constitui um caso trivial: basta removê-lo.
+
+Para um nó com apenas um filho, basta eliminar o nó em questão, e
+fazer com que seu único filho todo o seu lugar.
+
+Quando o nó possui ambos os filhos, precisamos tomar um dos elementos
+mais profundos dos filhos como substituto para tal nó. Isto pode ser
+feito buscando:
+
+- O nó-folha /mais à direita/ na sub-árvore /esquerda/;
+- O nó-folha /mais à esquerda/ na sub-árvore /direita/.
+
+Como convenção, obteremos sempre o nó /mais à direita/ na sub-árvore
+/esquerda/ do nó removido. Para tanto, tomaremos uma função que encontra
+tal nó para uma sub-árvore qualquer, retornando seu ponteiro, e também
+destacando o elemento da árvore.
+
+#+begin_src cpp
+node_t* _detach_rightmost_node(node_t*& node)
+{
+    if(!node->left && !node_right) {
+        node_t *tmp = node;
+        node = node->left;
+        return tmp;
+    }
+
+    return _detach_rightmost_node(node->right);
+}
+#+end_src
+
+#+begin_src cpp
+bool _remove(node_t*& node, const T& info)
+{
+    throw "Removal not implemented!";
+}
+#+end_src
+
+* Elementos públicos
+
+** Início dos elementos públicos
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+Os elementos após a próxima linha são acessíveis /também fora do escopo
+da classe =AVLTree=/.
+
+#+begin_src cpp
+public:
+#+end_src
+
+** Construtores
+
+A classe =AVLTree= possui dois construtores, onde ambos definem o
+ponteiro para a raiz da árvore como um valor /nulo/.
+
+O primeiro construtor realiza apenas esta atribuição padrão.
+
+#+begin_src cpp
+AVLTree() : _root(nullptr) {}
+#+end_src
+
+O segundo construtor espera por um /vetor/ de valores do tipo =T=
+informado via /template/. Após a inicialização do ponteiro para a raiz
+da árvore, o construtor insere os valores informados pelo /vetor/ na
+mesma, um a um.
+
+É interessante notar que, pos tratar-se de um =std::vector=, o parâmetro
+dos valores também pode ser fornecido como uma literal de um /vetor/
+comum.
+
+#+begin_src cpp
+AVLTree(std::vector<T> vals) : _root(nullptr)
+{
+    for(T val : vals)
+        _insert(val, _root);
+}
+#+end_src
+
+** Destrutor
+
+O destrutor da classe =AVLTree= invoca o método interno de limpeza para
+a sub-árvore. Como o destrutor é invocado como finalizador da classe,
+não é necessário atribuir nulidade à raiz da mesma.
+
+#+begin_src cpp
+~AVLTree()
+{
+    _clear(_root);
+}
+#+end_src
+
+** Métodos externos
+
+Os métodos a seguir constituem /invólucros/ para métodos internos da
+árvore.
+
+*** Inserção
+
+Insere uma certa informação na árvore. Retorna um valor booleano
+indicando o /status/ da inserção de tal informação.
+
+#+begin_src cpp
+bool insert(T info)
+{
+    return _insert(info, _root);
+}
+#+end_src
+
+*** Impressão
+
+Imprime a árvore por inteiro, de acordo com o estilo de impressão
+fornecido, segundo a enumeração demonstrada na Seção
+[[sec:impressao_enum]].
+
+Caso o programador opte por não informar o estilo de impressão, uma
+impressão /em ordem/ será feita por padrão.
+
+#+begin_src cpp
+void print(TreePrintStyle style = TREEPRINT_INORDER) const
+{
+    switch(style) {
+    case TREEPRINT_INORDER:
+        _print_inorder(_root);
+        break;
+    case TREEPRINT_PREORDER:
+        _print_preorder(_root);
+        break;
+    case TREEPRINT_POSTORDER:
+        _print_postorder(_root);
+        break;
+    case TREEPRINT_LEVEL:
+        _print_bylevel(_root);
+        break;
+    case TREEPRINT_TRIANGLE:
+        _print_triangle(_root);
+        break;
+    default: std::cout << "Unimplemented"; break;
+    }
+    std::cout << std::endl;
+}
+#+end_src
+
+*** Limpeza
+
+Limpa todos os elementos da árvore.
+
+Este método atribui apropriadamente o valor de nulidade à raiz da
+árvore, ao contrário do destrutor, pois pode ser invocado antes da
+inserção de mais elementos.
+
+#+begin_src cpp
+void clear(void)
+{
+    _clear(_root);
+    _root = nullptr;
+}
+#+end_src
+
+*** Pesquisa
+
+Pesquisa por um elemento na árvore, que será passado /por valor/ para
+este método.
+
+Retorna um valor booleano representando a existência do elemento na
+árvore.
+
+#+begin_src cpp
+bool search(const T info) const
+{
+    return _search(_root, info);
+}
+#+end_src
+
+*** Remoção
+
+Remove um elemento na árvore, que será passado /por valor/ para este
+método.
+
+Retorna um valor booleano representando o /status/ de remoção do
+elemento na árvore.
+
+#+begin_src cpp
+bool remove(const T info)
+{
+    _remove(_root, info);
+}
+#+end_src
+
+* Fim da classe AVLTree
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+Este símbolo encerra a definição da classe =AVLTree=.
+
+#+begin_src cpp
+};
+#+end_src
+
+* Testes
+
+As funções a seguir determinam testes para o instanciamento e a
+manipulação de elementos na árvore AVL.
+
+** Impressão de elementos na tela
+
+Esta função generaliza a impressão dos elementos em uma árvore passada
+/por referência/ como parâmetro. Normalmente, ela é invocada ao final de
+cada teste.
+
+Esta é uma função /inline/, portanto, no momento de compilação, seu uso
+envolve uma "substituição direta" de seu conteúdo no corpo da função
+que a invoca.
+
+#+begin_src cpp
+template<typename T>
+inline void
+test_debrief(AVLTree<T>& tree)
+{
+    std::cout << "Final tree:" << std::endl;
+    tree.print(TREEPRINT_TRIANGLE);
+    std::cout << std::endl;
+    std::cout << "In order:   ";
+    tree.print(TREEPRINT_INORDER);
+    std::cout << "Preorder:   ";
+    tree.print(TREEPRINT_PREORDER);
+    std::cout << "Post-order: ";
+    tree.print(TREEPRINT_POSTORDER);
+    std::cout << std::endl;
+}
+#+end_src
+
+** Teste de inserção
+
+Este teste insere certos elementos, um a um, em uma =AVLTree= de números
+inteiros, mostrando impressões /em ordem/ e /por nível/ após cada
+inserção.
+
+#+begin_src cpp
+void
+test_raw(void)
+{
+    std::cout << "## Insercao de elementos, um a um"
+              << std::endl;
+    AVLTree<int> tree;
+    for(const int num : {0, 3, 6, 2, 1, 4, 90, 36, 49}) {
+        tree.insert(num);
+        std::cout << "In order: ";
+        tree.print();
+        std::cout << "By level: ";
+        tree.print(TREEPRINT_LEVEL);
+        std::cout << std::endl;
+    }
+
+    test_debrief<int>(tree);
+
+    std::cout << "Clearing tree" << std::endl;
+    tree.clear();
+    std::cout << std::endl;
+}
+#+end_src
+
+** Teste de construtor
+
+Esta função testa o uso do construtor alternativo da classe =AVLTree=
+para números inteiros, através da passagem de uma literal de vetor
+numérico.
+
+#+begin_src cpp
+void
+test_ctor(void)
+{
+    std::cout << "## Insercao de elementos via ctor"
+              << std::endl;
+    AVLTree<int> tree({35, 39, 51, 20, 13, 28, 22, 32, 25, 33});
+
+    test_debrief<int>(tree);
+
+    std::cout << "Clearing tree" << std::endl;
+    tree.clear();
+    std::cout << std::endl;
+}
+#+end_src
+
+** Teste de caracteres
+
+Esta função usa o construtor alternativo da classe =AVLTree= para
+construir uma árvore AVL de /caracteres/.
+
+#+begin_src cpp
+void
+test_char(void)
+{
+    std::cout << "## Arvore de caracteres" << std::endl;
+    AVLTree<char> tree({'M', 'G', 'B', 'H', 'S', 'P', 'F', 'C'});
+
+    test_debrief<char>(tree);
+}
+#+end_src
+
+** Teste de pesquisa
+
+Esta função testa a pesquisa de alguns elementos em uma =AVLTree= de
+números inteiros.
+
+#+begin_src cpp
+void
+test_search(void)
+{
+    std::cout << "## Teste de pesquisa" << std::endl;
+    AVLTree<int> tree({5, 9, 30, 2, 20, 32});
+
+    test_debrief<int>(tree);
+
+    for(int num : {2, 5, 31, 44}) {
+        std::cout << num << " esta na arvore? "
+                  << (tree.search(num) ? 'T' : 'F')
+                  << std::endl;
+    }
+}
+#+end_src
+
+* Ponto de entrada
+
+Esta é a função principal da aplicação, constituindo o ponto de
+entrada da mesma. Utilizamos este ponto de entrada para executar testes.
+
+#+begin_src cpp
+int
+main(void)
+{
+    test_raw();
+    test_ctor();
+    test_char();
+    test_search();
+
+    return 0;
+}
+#+end_src
+
+* Compilação
+
+O código a seguir constitui um arquivo /Makefile/ para a compilação do
+arquivo em questão.
+
+#+begin_src makefile :tangle Makefile
+CXX      := clang++ --std=c++14
+CXXFLAGS := -Wall -pedantic -g
+OUTFLAG  := -o
+BINARY   := bintree
+SRC      := bintree.cpp
+
+all: $(BINARY)
+
+$(BINARY): $(SRC)
+	$(CXX) $(CXXFLAGS) $^ $(OUTFLAG) $@
+#+end_src
+
+* Footnotes
+
+[fn:1] Ou seja, o tipo dado a =T= deverá ser comparável através da
+utilização de operadores aritméticos de comparação. 
