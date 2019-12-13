@@ -37,10 +37,3 @@ def compose (α β γ : Type)
             : γ :=
     g (f x)
 
--- Exercise: Composition
-def Do_Twice : ((ℕ → ℕ) → (ℕ → ℕ)) → (ℕ → ℕ) → (ℕ → ℕ)
-  := λ f g x, (f g) x
-
-#check Do_Twice do_twice double
-#reduce Do_Twice do_twice double 2
-

@@ -78,9 +78,7 @@ them. So we use the =def= command.
 
 #+INCLUDE: ch02-04.lean src lean
 
-*** Exercise: =curry= and =uncurry=
-
-#+INCLUDE: ch02-04-ex.lean src lean
+Exercises are at the end of the chapter.
 
 ** Local definitions
 
@@ -180,4 +178,11 @@ the pair, =b : β a=, depends on the first element of the pair, =a : α=.
 
 ** Implicit arguments
 
-https://leanprover.github.io/theorem_proving_in_lean/dependent_type_theory.html#local-definitions
+Suppose the following implementation for lists.
+
+#+INCLUDE: ch02-09.lean src lean
+
+** Exercises
+
+#+INCLUDE: ch02-exercises.lean src lean
+
