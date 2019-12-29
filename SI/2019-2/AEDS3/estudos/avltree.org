@@ -213,10 +213,10 @@ graph G {
           b0[label="b"];
           c0[label="c"];
           
-          LA0[label="X", shape=triangle];
-          LB0[label="Y", shape=triangle];
-          LC0[label="Z", shape=triangle];
-          RC0[label="W", shape=triangle];
+          LA0[label="X", shape=plaintext];
+          LB0[label="Y", shape=plaintext];
+          LC0[label="Z", shape=plaintext];
+          RC0[label="W", shape=plaintext];
 
           a0:sw -- LA0:n;
           a0:se -- b0;
@@ -232,10 +232,10 @@ graph G {
           b1[label="b"];
           c1[label="c"];
           
-          LA1[label="X", shape=triangle];
-          LB1[label="Y", shape=triangle];
-          LC1[label="Z", shape=triangle];
-          RC1[label="W", shape=triangle];
+          LA1[label="X", shape=plaintext];
+          LB1[label="Y", shape=plaintext];
+          LC1[label="Z", shape=plaintext];
+          RC1[label="W", shape=plaintext];
           
           b1:sw -- a1;
           b1:se -- c1;
@@ -247,7 +247,7 @@ graph G {
 }
 #+end_src
 
-#+RESULTS[f50c943960cdc363f65eb5d36b6ec1d1d98dcdee]: fig:lrot
+#+RESULTS[06e7db351fa35d838ae59a0616c19b6d643d24f8]: fig:lrot
 [[file:img/lrot.svg]]
 
 #+begin_src cpp
@@ -281,10 +281,10 @@ graph G {
           b0[label="b"];
           c0[label="c"];
           
-          RA0[label="W", shape=triangle];
-          RB0[label="Z", shape=triangle];
-          LC0[label="X", shape=triangle];
-          RC0[label="Y", shape=triangle];
+          RA0[label="W", shape=plaintext];
+          RB0[label="Z", shape=plaintext];
+          LC0[label="X", shape=plaintext];
+          RC0[label="Y", shape=plaintext];
 
           a0:sw -- b0;
           a0:se -- RA0:n;
@@ -300,10 +300,10 @@ graph G {
           b1[label="b"];
           c1[label="c"];
           
-          RA1[label="W", shape=triangle];
-          RB1[label="Z", shape=triangle];
-          LC1[label="X", shape=triangle];
-          RC1[label="Y", shape=triangle];
+          RA1[label="W", shape=plaintext];
+          RB1[label="Z", shape=plaintext];
+          LC1[label="X", shape=plaintext];
+          RC1[label="Y", shape=plaintext];
           
           b1:sw -- c1;
           b1:se -- a1;
@@ -315,7 +315,7 @@ graph G {
 }
 #+end_src
 
-#+RESULTS[69c3269a759fba08279274dfd74275216d4479b1]: fig:rrot
+#+RESULTS[0583ebbfde6a0004ff5f68cb086dc1723f4e5044]: fig:rrot
 [[file:img/rrot.svg]]
 
 #+begin_src cpp
