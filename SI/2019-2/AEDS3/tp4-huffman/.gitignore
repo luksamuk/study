@@ -1,0 +1,10 @@
+*.out
+*.huffman
+*.bbl
+*.brf
+*.ilg
+*.ind
+*.tex
+huffman
+_minted-*/
+*.txt
