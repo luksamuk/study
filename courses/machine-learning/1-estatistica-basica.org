@@ -1,0 +1,34 @@
+#+TITLE:  Aula 1: Estatística Básica
+#+AUTHOR: Lucas S. Vieira
+#+STARTUP: inlineimages latexpreview
+
+Os elementos a seguir são triviais.
+
+* Média aritmética
+
+\begin{equation*}
+        \frac{\sum_i^n{x_i}}{n}
+\end{equation*}
+
+* Média ponderada
+
+Multiplique cada valor por seu peso ao realizar a média, e divida pela
+soma dos pesos.
+
+\begin{equation*}
+        \frac{\sum_i^n{p_i x_i}}{\sum_i^n{p_i}}
+\end{equation*}
+
+* Moda
+
+Elemento de maior frequência em uma lista.
+
+* Mediana
+
+Primeiramente, garanta que a lista esteja ordenada.
+
+Se a lista contém uma quantidade ímpar de valores, tome o valor no
+meio da lista ordenada.
+
+Se a lista contém uma quantidade par de valores, tome a *média
+aritmética dos dois valores ao meio*.

@@ -1,0 +1,83 @@
+#+TITLE:  Aula 2: Apresentando Anaconda e Spyder
+#+AUTHOR: Lucas S. Vieira
+#+STARTUP: inlineimages latexpreview
+#+PROPERTY: header-args:ein-python :session localhost :results raw drawer
+
+* Treinando uso do ob-ein
+
+O curso instrui a utilizar Anaconda e a IDE Spyder.
+
+Isso aqui foi feito por minha conta, porque prefiro Emacs a outras
+IDEs. Vamos ver se funciona.
+
+** Inicialização
+
+#+NAME: 920ee070-194b-4881-a4c8-e6b5b78575d8
+#+begin_src ein-python
+import numpy, math, matplotlib.pyplot as plt
+import pandas as pd
+%matplotlib inline
+#+end_src
+
+#+RESULTS: 920ee070-194b-4881-a4c8-e6b5b78575d8
+:results:
+:end:
+
+** Testando uma senóide
+
+#+NAME: d619613b-52a4-44f9-9fb2-01efd1722846
+#+begin_src ein-python
+x = numpy.linspace(0, 2 * math.pi)
+plt.plot(x, numpy.sin(x))
+#+end_src
+
+#+RESULTS: d619613b-52a4-44f9-9fb2-01efd1722846
+:results:
+[<matplotlib.lines.Line2D at 0x7fc38565f240>]
+[[file:ein-images/ob-ein-748dd11b640022b9a4e52776339e4b92.png]]
+:end:
+
+** Testando com dados de uma tabela externa
+
+#+TBLNAME: data_table
+|--------------+----+---|
+| date         |  x | y |
+|--------------+----+---|
+| <2016-06-15> |  1 | 1 |
+| <2016-06-16> |  2 | 2 |
+| <2016-06-17> |  4 | 3 |
+| <2016-06-18> |  8 | 4 |
+| <2016-06-19> | 16 | 5 |
+| <2016-06-20> | 32 | 6 |
+|--------------+----+---|
+
+#+NAME: 1198bd5c-5f24-488b-a01c-a27166064a86
+#+begin_src ein-python :var table=data_table :exports both 
+# Using Pandas
+df = pd.DataFrame(table[1:], columns=table[0])
+df.plot()
+#+end_src
+
+#+RESULTS: 1198bd5c-5f24-488b-a01c-a27166064a86
+:results:
+<matplotlib.axes._subplots.AxesSubplot at 0x7fc37eae3f28>
+[[file:ein-images/ob-ein-7f8197904de06f9cbe75560952a39c75.png]]
+:end:
+
+** Pontos aleatórios
+
+#+NAME: efc6bab1-bb1d-4556-86bf-ba0695b3ab5b
+#+begin_src ein-python
+from pylab import plot, randn
+
+def plotnormal():
+    return plot(randn(1000), randn(1000), 'o', alpha=0.3)
+
+plotnormal()
+#+end_src
+
+#+RESULTS: efc6bab1-bb1d-4556-86bf-ba0695b3ab5b
+:results:
+[<matplotlib.lines.Line2D at 0x7fc37ea41710>]
+[[file:ein-images/ob-ein-a3e561c4dc46603765aa57e2b397d0c1.png]]
+:end:

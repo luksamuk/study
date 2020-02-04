@@ -1,0 +1,447 @@
+#+TITLE:  Aulas 3-4-5: Pandas
+#+AUTHOR: Lucas S. Vieira
+#+STARTUP: inlineimages latexpreview
+#+PROPERTY: header-args:ein-python :session localhost :results raw drawer
+
+* Preparação
+
+#+NAME: f2eab264-4a89-49d0-b095-88ceffa37486
+#+begin_src ein-python
+import pandas as pd
+#+end_src
+
+#+RESULTS: f2eab264-4a89-49d0-b095-88ceffa37486
+
+* Aula 3 - Criando o DataFrame
+** Default: Gerando a partir de um dicionário
+*** Dicionário
+
+Criamos um dicionário com os dados.
+
+#+NAME: 8433f85d-1043-4a3b-ae49-753b927ed61c
+#+begin_src ein-python
+data = {
+    'Alunos': ['caio', 'jorge', 'marcos', 'sophia'],
+    'Idade':  [16, 15, 16, 16],
+    'Nota':   [8, 9, 7, 10]
+    }
+#+end_src
+
+#+RESULTS: 8433f85d-1043-4a3b-ae49-753b927ed61c
+
+*** Geração do DataFrame
+
+Agora, geramos um DataFrame do Pandas.
+
+#+NAME: efe78aa2-70cb-4f9e-8d56-a4b313b432f6
+#+begin_src ein-python
+df = pd.DataFrame(data, columns=['Alunos', 'Idade', 'Nota'])
+#+end_src
+
+#+RESULTS: efe78aa2-70cb-4f9e-8d56-a4b313b432f6
+
+** Emacs: Gerando o DataFrame a partir de uma tabela
+
+*** Tabela
+
+Como somos seres civilizados, nada mais justo que gerar uma tabela em
+Org e criar o DataFrame a partir dela, certo?
+
+#+TBLNAME: data_table
+|--------+-------+------|
+| Alunos | Idade | Nota |
+|--------+-------+------|
+| caio   |    16 |    8 |
+| jorge  |    15 |    9 |
+| marcos |    16 |    7 |
+| sophia |    16 |   10 |
+|--------+-------+------|
+
+*** Geração do DataFrame
+
+Veja que os dados em si compreendem uma matriz sem a primeira linha,
+que configura os nomes das colunas. Estes nomes são repassados no
+argumento =columns=.
+
+#+NAME: 41079498-23fc-400a-aad8-c85c452305f5
+#+begin_src ein-python :var org_data=data_table
+df = pd.DataFrame(org_data[1:], columns=org_data[0])
+#+end_src
+
+#+RESULTS: 41079498-23fc-400a-aad8-c85c452305f5
+
+** Manipulando o DataFrame
+
+Podemos gerar uma descrição rápida dos dados com o método =describe=.
+
+#+NAME: c02c1de9-b576-4882-9c7d-c199f9e7ba23
+#+begin_src ein-python :results output
+df.describe()
+#+end_src
+
+#+RESULTS: c02c1de9-b576-4882-9c7d-c199f9e7ba23
+:        Idade       Nota
+: count   4.00   4.000000
+: mean   15.75   8.500000
+: std     0.50   1.290994
+: min    15.00   7.000000
+: 25%    15.75   7.750000
+: 50%    16.00   8.500000
+: 75%    16.00   9.250000
+: max    16.00  10.000000
+
+** Apagando dados do DataFrame
+
+O comando drop gera um novo dataframe sem as linhas requisitadas.
+
+#+NAME: 867195c0-de8d-40ed-aa0f-e27c315acf4f
+#+begin_src ein-python :results output
+df.drop([0, 1])
+#+end_src
+
+#+RESULTS: 867195c0-de8d-40ed-aa0f-e27c315acf4f
+:    Alunos  Idade  Nota
+: 2  marcos     16     7
+: 3  sophia     16    10
+
+Veja que este comando não é destrutivo -- poderíamos fazer uma
+atribuição para garantir isto.
+
+#+NAME: a7cb3e2b-fbf4-4a43-8d29-05c361e5fee5
+#+begin_src ein-python :results output
+df
+#+end_src
+
+#+RESULTS: a7cb3e2b-fbf4-4a43-8d29-05c361e5fee5
+:    Alunos  Idade  Nota
+: 0    caio     16     8
+: 1   jorge     15     9
+: 2  marcos     16     7
+: 3  sophia     16    10
+
+Também podemos deletar colunas em específico.
+
+#+NAME: d604ff82-c56e-467b-b591-50be13e1acdf
+#+begin_src ein-python :results output
+df.drop('Idade', axis=1)
+#+end_src
+
+#+RESULTS: d604ff82-c56e-467b-b591-50be13e1acdf
+:    Alunos  Nota
+: 0    caio     8
+: 1   jorge     9
+: 2  marcos     7
+: 3  sophia    10
+
+* Aula 4 - Extraindo valores do DataFrame
+:PROPERTIES:
+:header-args:ein-python: :results output
+:END:
+
+** Contagem de elementos
+
+#+NAME: 7c508147-1b4b-4afd-a328-29df64adb03e
+#+begin_src ein-python
+df.count()
+#+end_src
+
+#+RESULTS: 7c508147-1b4b-4afd-a328-29df64adb03e
+: Alunos    4
+: Idade     4
+: Nota      4
+: dtype: int64
+
+** Nomes das colunas
+
+A lista padrão de colunas não mostra a coluna de índices mostrada pelo
+Pandas.
+
+#+NAME: 6d912972-dac5-4328-8ffd-39e4f5e548e0
+#+begin_src ein-python
+df.columns
+#+end_src
+
+#+RESULTS: 6d912972-dac5-4328-8ffd-39e4f5e548e0
+: Index(['Alunos', 'Idade', 'Nota'], dtype='object')
+
+** Forma dos dados
+
+Podemos recuperar a forma (/shape/) dos dados[fn:1]:
+
+#+NAME: 8af548a4-382a-416e-a939-cdcb658e22fe
+#+begin_src ein-python
+df.shape
+#+end_src
+
+#+RESULTS: 8af548a4-382a-416e-a939-cdcb658e22fe
+: (4, 3)
+
+* Aula 5 - Dados Estatísticos do DataFrame
+:PROPERTIES:
+:header-args:ein-python: :results output
+:END:
+
+** Valores máximo e mínimo no DataFrame
+
+Este método mostra os maiores valores para cada coluna.
+
+#+NAME: 2e186235-59ed-4e3f-901c-9cb274b9de85
+#+begin_src ein-python
+df.max()
+#+end_src
+
+#+RESULTS: 2e186235-59ed-4e3f-901c-9cb274b9de85
+: Alunos    sophia
+: Idade         16
+: Nota          10
+: dtype: object
+
+Podemos limitar a busca por coluna:
+
+#+NAME: 5dc9cc5e-5301-41a6-87b7-b5d2d4a58a76
+#+begin_src ein-python
+df['Idade'].max()
+#+end_src
+
+#+RESULTS: 5dc9cc5e-5301-41a6-87b7-b5d2d4a58a76
+: 16
+
+O mesmo vale para valores mínimos.
+
+#+NAME: 45a853c0-9876-4c03-b027-736bb7a19f1f
+#+begin_src ein-python
+df.min()
+#+end_src
+
+#+RESULTS: 45a853c0-9876-4c03-b027-736bb7a19f1f
+: Alunos    caio
+: Idade       15
+: Nota         7
+: dtype: object
+
+#+NAME: 988d8d1e-7109-4f4b-a661-5e11a0f240ae
+#+begin_src ein-python
+df['Nota'].min()
+#+end_src
+
+#+RESULTS: 988d8d1e-7109-4f4b-a661-5e11a0f240ae
+: 7
+
+** Média aritmética
+
+Veja que a coluna ='Nomes'= é descartada, uma vez que médias aritméticas
+de strings não fazem sentido.
+
+#+NAME: bc536ce1-ab31-4825-8904-8c0c607fc0cc
+#+begin_src ein-python
+df.mean()
+#+end_src
+
+#+RESULTS: bc536ce1-ab31-4825-8904-8c0c607fc0cc
+: Idade    15.75
+: Nota      8.50
+: dtype: float64
+
+** Mediana
+
+O mesmo princípio para strings também vale aqui.
+
+#+NAME: e9033178-ee86-42a6-b86d-a5e2417a4901
+#+begin_src ein-python
+df.median()
+#+end_src
+
+#+RESULTS: e9033178-ee86-42a6-b86d-a5e2417a4901
+: Idade    16.0
+: Nota      8.5
+: dtype: float64
+
+** Soma
+
+Neste caso, somar strings em Python significa concatená-las.
+
+#+NAME: f03fc1a7-46b7-4741-910a-98e34cf47123
+#+begin_src ein-python
+df.sum()
+#+end_src
+
+#+RESULTS: f03fc1a7-46b7-4741-910a-98e34cf47123
+: Alunos    caiojorgemarcossophia
+: Idade                        63
+: Nota                         34
+: dtype: object
+
+* Aula 6 - Operações com DataFrame
+:PROPERTIES:
+:header-args:ein-python: :results output
+:END:
+
+** Somas
+
+Podemos somar um único valor a todas as linhas de um DataFrame.
+
+#+NAME: dffa2ccf-d9b0-40c8-b54c-846cfaadc2af
+#+begin_src ein-python
+df['Nota'].add(10)
+#+end_src
+
+#+RESULTS: dffa2ccf-d9b0-40c8-b54c-846cfaadc2af
+: 0    18
+: 1    19
+: 2    17
+: 3    20
+: Name: Nota, dtype: int64
+
+#+NAME: 06c5997c-30de-4930-af2e-6a0bba9fc80f
+#+begin_src ein-python
+df['Idade'].add(10)
+#+end_src
+
+#+RESULTS: 06c5997c-30de-4930-af2e-6a0bba9fc80f
+: 0    26
+: 1    25
+: 2    26
+: 3    26
+: Name: Idade, dtype: int64
+
+** Subtrações
+
+Similar às adições.
+
+#+NAME: af9f003c-724b-46ec-bc7a-f6d0583ec8ae
+#+begin_src ein-python
+df['Idade'].sub(3)
+#+end_src
+
+#+RESULTS: af9f003c-724b-46ec-bc7a-f6d0583ec8ae
+: 0    13
+: 1    12
+: 2    13
+: 3    13
+: Name: Idade, dtype: int64
+
+** Multiplicações e divisões
+
+#+NAME: 48b7f0df-6559-4510-b117-2259d1b4104a
+#+begin_src ein-python
+df['Idade'].mul(10)
+#+end_src
+
+#+RESULTS: 48b7f0df-6559-4510-b117-2259d1b4104a
+: 0    160
+: 1    150
+: 2    160
+: 3    160
+: Name: Idade, dtype: int64
+
+#+NAME: 0ea199d5-ceb6-45ce-851e-9cfd2a2fce6b
+#+begin_src ein-python
+df['Idade'].div(10)
+#+end_src
+
+#+RESULTS: 0ea199d5-ceb6-45ce-851e-9cfd2a2fce6b
+: 0    1.6
+: 1    1.5
+: 2    1.6
+: 3    1.6
+: Name: Idade, dtype: float64
+
+** Valores únicos
+
+#+NAME: 860ddce7-4c63-45ea-9a57-e6f0a4d4e701
+#+begin_src ein-python
+nota_do_ciclano = df['Nota'][0]
+nota_do_ciclano
+#+end_src
+
+#+RESULTS: 860ddce7-4c63-45ea-9a57-e6f0a4d4e701
+: 8
+
+* Aula 7 - Limitando Buscas no DataFrame
+:PROPERTIES:
+:header-args:ein-python: :results output
+:END:
+
+** Recriando DataFrame
+
+Vamos recriar nosso DataFrame com mais algumas entradas, apenas para
+mostrarmos mais exemplos de métodos.
+
+#+TBLNAME: data_table_2
+|-----------+-------+------|
+| Alunos    | Idade | Nota |
+|-----------+-------+------|
+| caio      |    16 |    8 |
+| jorge     |    15 |    9 |
+| marcos    |    16 |    7 |
+| sophia    |    16 |   10 |
+| valentina |    15 |    7 |
+| helena    |    16 |    3 |
+| gustavo   |    17 |    4 |
+| miguel    |    16 |    5 |
+| laura     |    17 |    7 |
+| theo      |    15 |    6 |
+| julia     |    17 |    5 |
+| luiza     |    16 |    8 |
+| lucas     |    16 |    9 |
+|-----------+-------+------|
+
+#+NAME: 41079498-23fc-400a-aad8-c85c452305f5
+#+begin_src ein-python :var org_data=data_table_2
+df = pd.DataFrame(org_data[1:], columns=org_data[0])
+#+end_src
+
+** Cinco primeiras linhas do DataFrame
+
+#+NAME: 2a472b60-0576-4288-bffa-b1304123ca32
+#+begin_src ein-python
+df.head()
+#+end_src
+
+#+RESULTS: 2a472b60-0576-4288-bffa-b1304123ca32
+:       Alunos  Idade  Nota
+: 0       caio     16     8
+: 1      jorge     15     9
+: 2     marcos     16     7
+: 3     sophia     16    10
+: 4  valentina     15     7
+
+** Cinco últimas linhas do DataFrame
+
+#+NAME: fe3e7414-6be9-4a8c-b3e8-862259b7faaf
+#+begin_src ein-python
+df.tail()
+#+end_src
+
+#+RESULTS: fe3e7414-6be9-4a8c-b3e8-862259b7faaf
+:    Alunos  Idade  Nota
+: 8   laura     17     7
+: 9    theo     15     6
+: 10  julia     17     5
+: 11  luiza     16     8
+: 12  lucas     16     9
+
+** Limitar dados mostrados
+
+O campo =loc= é um indexador; para ele, passamos uma expressão para
+limitar os dados a serem apresentados de acordo com alguma lógica.
+
+#+NAME: 9eb9e14b-e786-4a1c-ae39-ef991bb3cb48
+#+begin_src ein-python
+df.loc[df['Nota'] <= 5]
+#+end_src
+
+#+RESULTS: 9eb9e14b-e786-4a1c-ae39-ef991bb3cb48
+:      Alunos  Idade  Nota
+: 5    helena     16     3
+: 6   gustavo     17     4
+: 7    miguel     16     5
+: 10    julia     17     5
+
+* Aula 8 - Lendo arquivos .CSV
+
+
+
+* Footnotes
+
+[fn:1] Lembra bastante a nomenclatura de APL.
