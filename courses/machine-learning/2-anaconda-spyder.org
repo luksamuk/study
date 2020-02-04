@@ -33,7 +33,7 @@ plt.plot(x, numpy.sin(x))
 
 #+RESULTS: d619613b-52a4-44f9-9fb2-01efd1722846
 :results:
-[<matplotlib.lines.Line2D at 0x7fc38565f240>]
+[<matplotlib.lines.Line2D at 0x7ff0145b69e8>]
 [[file:ein-images/ob-ein-748dd11b640022b9a4e52776339e4b92.png]]
 :end:
 
@@ -78,6 +78,6 @@ plotnormal()
 
 #+RESULTS: efc6bab1-bb1d-4556-86bf-ba0695b3ab5b
 :results:
-[<matplotlib.lines.Line2D at 0x7fc37ea41710>]
-[[file:ein-images/ob-ein-a3e561c4dc46603765aa57e2b397d0c1.png]]
+[<matplotlib.lines.Line2D at 0x7ff014c70940>]
+[[file:ein-images/ob-ein-2b006511169b80ffb2f7cc5c495b0f6f.png]]
 :end:
