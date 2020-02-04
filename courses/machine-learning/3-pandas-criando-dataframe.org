@@ -1,4 +1,4 @@
-#+TITLE:  Aulas 3-4-5: Pandas
+#+TITLE:  Aulas 3 a 8: Pandas
 #+AUTHOR: Lucas S. Vieira
 #+STARTUP: inlineimages latexpreview
 #+PROPERTY: header-args:ein-python :session localhost :results raw drawer
@@ -439,9 +439,167 @@ df.loc[df['Nota'] <= 5]
 : 10    julia     17     5
 
 * Aula 8 - Lendo arquivos .CSV
+:PROPERTIES:
+:header-args:ein-python: :results output
+:END:
 
+** Download dos dados
 
+Os dados são grandes, então o script a seguir deve possibilitar o
+download dos mesmos, a extração e a preparação para manipulação.
+
+*** Serviços do Governo
+
+Os dados foram encontrados [[http://dados.gov.br/dataset/compras-publicas-do-governo-federal/resource/66bf9288-a54c-4f1f-b552-6603a10a3b2e][neste site]], e recuperados em CSV. Aqui
+temos um script que baixa este arquivo CSV diretamente.
+
+#+NAME: 664f67db-6144-493a-8338-c9c69ea7c79d
+#+begin_src ein-python
+import requests
+
+url = "http://compras.dados.gov.br/servicos/v1/servicos.csv"
+
+file = requests.get(url)
+
+open('servicos.csv', 'wb').write(file.content)
+#+end_src
+
+#+RESULTS: 664f67db-6144-493a-8338-c9c69ea7c79d
+: 301691
+
+*** COMMENT Outros dados
+
+*(Estes dados não foram utilizados)*
+
+O que fazemos é baixar os dados da [[http://plataformamaisbrasil.gov.br/download-de-dados][Plataforma +BRASIL]] como um arquivo
+zip, descompactamos, e então excluimos o zip e deixamos apenas o CSV.
+
+#+NAME: 625ac170-115a-4cca-8342-af51a4afbf48
+#+begin_src ein-python
+import os
+import requests
+from zipfile import ZipFile
+
+url = "http://plataformamaisbrasil.gov.br/images/docs/CGSIS/csv/siconv_desembolso.csv.zip"
+
+file = requests.get(url)
+
+open('siconv_desembolso.csv.zip', 'wb').write(file.content)
+
+with ZipFile('siconv_desembolso.csv.zip', 'r') as zipObj:
+    zipObj.extractall()
+
+os.remove('siconv_desembolso.csv.zip')
+#+end_src
+
+#+RESULTS: 625ac170-115a-4cca-8342-af51a4afbf48
+
+Este arquivo possui nove colunas, na data de hoje[fn:2].
+
+** Lendo o CSV
+
+Leremos o CSV para dentro de um DataFrame usando o Pandas.
+
+#+NAME: c7f8b9a7-5bd3-45f9-8018-b0f7caadd428
+#+begin_src ein-python
+df = pd.read_csv('servicos.csv')
+#+end_src
+
+#+RESULTS: c7f8b9a7-5bd3-45f9-8018-b0f7caadd428
+
+** Manipulações
+
+Vamos manipular um pouco mais estes dados. Vejamos a natureza deles.
+
+#+NAME: 83dbe5f7-4573-446e-90b4-54646fbc6f4b
+#+begin_src ein-python
+df.describe()
+#+end_src
+
+#+RESULTS: 83dbe5f7-4573-446e-90b4-54646fbc6f4b
+:             Código           CPC
+: count   500.000000    481.000000
+: mean   2509.780000  10948.887734
+: std    1445.987758  21632.225927
+: min      19.000000    541.000000
+: 25%    1258.000000    871.000000
+: 50%    2509.000000   5459.000000
+: 75%    3753.250000   8599.000000
+: max    5061.000000  97990.000000
+
+Temos menos elementos na coluna =CPC=, pois esta coluna possui alguns
+elementos nulos. Mas isto não significa que ela possua menos linhas; a
+matriz ainda é quadrada.
+
+Vejamos a contagem de elementos para cada coluna a seguir:
+
+#+NAME: 92a3b905-9c2a-4462-9ae8-3f870d9aec76
+#+begin_src ein-python
+df.count()
+#+end_src
+
+#+RESULTS: 92a3b905-9c2a-4462-9ae8-3f870d9aec76
+#+begin_example
+Código            500
+Descrição         500
+Unidade medida    481
+CPC               481
+Seção             481
+Divisão           481
+Grupo             481
+Classe            288
+Subclasse          39
+dtype: int64
+#+end_example
+
+A coluna =CPC= não é interessante para nós, então vamos removê-la.
+
+#+NAME: 1c3cac17-3c4e-43a0-b1b0-6ad51d2af909
+#+begin_src ein-python
+df = df.drop('CPC', axis=1)
+df.count()
+#+end_src
+
+#+RESULTS: 1c3cac17-3c4e-43a0-b1b0-6ad51d2af909
+: Código            500
+: Descrição         500
+: Unidade medida    481
+: Seção             481
+: Divisão           481
+: Grupo             481
+: Classe            288
+: Subclasse          39
+: dtype: int64
+
+A subclasse também não é interessante para nós.
+
+#+NAME: eca8d6e4-6308-446a-830f-d3fd8aa1e6a4
+#+begin_src ein-python
+df = df.drop('Subclasse', axis=1)
+df.count()
+#+end_src
+
+#+RESULTS: eca8d6e4-6308-446a-830f-d3fd8aa1e6a4
+: Código            500
+: Descrição         500
+: Unidade medida    481
+: Seção             481
+: Divisão           481
+: Grupo             481
+: Classe            288
+: dtype: int64
+
+** Arquivos em XLS/XLSX
+
+É possível ler arquivos do Excel também:
+
+#+begin_src ein-python :eval no
+xlsx = pd.ExcelFile('arquivo.xlsx')
+df   = pd.read_excel(xlsx, 'planilha 1')
+#+end_src
 
 * Footnotes
+
+[fn:2] Acesso em <2020-02-04 ter 02:05:37>.
 
 [fn:1] Lembra bastante a nomenclatura de APL.
