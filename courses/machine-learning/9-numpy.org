@@ -1,0 +1,315 @@
+#+TITLE:  Aulas 9 e 10 - NumPy
+#+AUTHOR: Lucas S. Vieira
+#+STARTUP: inlineimages latexpreview
+#+PROPERTY: header-args:ein-python :session localhost :results output :eval yes
+
+* Preparação
+
+#+NAME: 56fea489-49de-45c6-85f4-84c3eb78b1d5
+#+begin_src ein-python
+import numpy as np
+#+end_src
+
+#+RESULTS: 56fea489-49de-45c6-85f4-84c3eb78b1d5
+
+* Arrays e Matrizes
+
+** Criando arrays
+
+Arrays populadas por conteúdo da lista:
+
+#+NAME: 8804fe21-0971-4898-9f77-40182e3e783d
+#+begin_src ein-python
+np.array([1, 2, 3])
+#+end_src
+
+#+RESULTS: 8804fe21-0971-4898-9f77-40182e3e783d
+: array([1, 2, 3])
+
+Arrays são diferentes de listas, pois não são dinâmicos.
+
+#+NAME: 4fe20f28-61a6-4f4e-85cf-8f1985e4c9ef
+#+begin_src ein-python
+# Exemplo de dinamicidade de uma lista
+y = [1, 2, 3]
+y.append(2)
+y
+#+end_src
+
+#+RESULTS: 4fe20f28-61a6-4f4e-85cf-8f1985e4c9ef
+: [1, 2, 3, 2]
+
+Listas também permitem misturar tipos de dados; arrays não.
+
+#+NAME: c55b69b2-262b-4d41-85e2-acfe9ca3adb5
+#+begin_src ein-python
+# Todos os elementos são convertidos em string
+np.array([1, 'caio', 2])
+#+end_src
+
+#+RESULTS: c55b69b2-262b-4d41-85e2-acfe9ca3adb5
+: array(['1', 'caio', '2'], dtype='<U21')
+
+** Operando arrays
+
+Listas são apenas concatenadas:
+
+#+NAME: 74588528-ab18-4669-8c17-46db31040c04
+#+begin_src ein-python
+x = [1, 2, 3]
+y = [1, 2, 3]
+x + y
+#+end_src
+
+#+RESULTS: 74588528-ab18-4669-8c17-46db31040c04
+: [1, 2, 3, 1, 2, 3]
+
+Arrays, porém, somam índice a índice (a la APL):
+
+#+NAME: 0512e331-572b-422e-bf51-de7285871bb2
+#+begin_src ein-python
+x = np.array([1, 2, 3])
+y = np.array([1, 2, 3])
+x + y
+#+end_src
+
+#+RESULTS: 0512e331-572b-422e-bf51-de7285871bb2
+: array([2, 4, 6])
+
+** Iniciando vetores
+
+Inicialização com zeros:
+
+#+NAME: 6d735292-b74c-4e55-bb30-ba328c051bbd
+#+begin_src ein-python
+np.zeros([5])
+#+end_src
+
+#+RESULTS: 6d735292-b74c-4e55-bb30-ba328c051bbd
+: array([0., 0., 0., 0., 0.])
+
+Inicialização com "uns":
+
+#+NAME: 4d698ff2-78b8-4360-b605-93927207b83c
+#+begin_src ein-python
+np.ones([5])
+#+end_src
+
+#+RESULTS: 4d698ff2-78b8-4360-b605-93927207b83c
+: array([1., 1., 1., 1., 1.])
+
+** Sub-arrays
+
+#+NAME: 84ad025d-01aa-43e9-b479-26f2514d736e
+#+begin_src ein-python
+x = np.array([1, 2, 3, 4, 5, 6, 7])
+x[2:]
+#+end_src
+
+#+RESULTS: 84ad025d-01aa-43e9-b479-26f2514d736e
+: array([3, 4, 5, 6, 7])
+
+#+NAME: 97e63413-27c7-4c35-b57e-b04ff50067fa
+#+begin_src ein-python
+x[2:5]
+#+end_src
+
+#+RESULTS: 97e63413-27c7-4c35-b57e-b04ff50067fa
+: array([3, 4, 5])
+
+** Matrizes
+
+#+NAME: 9196ce69-683d-4306-9bd2-3a50b507658b
+#+begin_src ein-python
+x = np.array([[1, 2, 3], [1, 2, 3]])
+x
+#+end_src
+
+#+RESULTS: 9196ce69-683d-4306-9bd2-3a50b507658b
+: array([[1, 2, 3],
+:        [1, 2, 3]])
+
+Consultando uma linha:
+
+#+NAME: 2db87776-b854-4a35-8a29-b96b667b9576
+#+begin_src ein-python
+x[0]
+#+end_src
+
+#+RESULTS: 2db87776-b854-4a35-8a29-b96b667b9576
+: array([1, 2, 3])
+
+Consultando um elemento:
+
+#+NAME: d802a8fa-6b7b-40d4-9398-690652a31967
+#+begin_src ein-python
+x[0][1]
+#+end_src
+
+#+RESULTS: d802a8fa-6b7b-40d4-9398-690652a31967
+: 2
+
+Criando uma matriz com dez linhas repetidas:
+
+#+NAME: a2fe07c2-b526-4bd9-8141-a88f1351af64
+#+begin_src ein-python
+np.array([[1, 2, 3]] * 10)
+#+end_src
+
+#+RESULTS: a2fe07c2-b526-4bd9-8141-a88f1351af64
+#+begin_example
+array([[1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3],
+       [1, 2, 3]])
+#+end_example
+
+Criando uma matriz através de dimensões:
+
+Ao invés de um array, passe uma tupla com o /shape/ da matriz para
+=np.zeros= ou =np.ones=, por exemplo.
+
+#+NAME: fdff033c-0fdd-40da-be88-a304c46decdd
+#+begin_src ein-python
+np.zeros((5, 5)) # Matriz 5x5 de zeros
+#+end_src
+
+#+RESULTS: fdff033c-0fdd-40da-be88-a304c46decdd
+: array([[0., 0., 0., 0., 0.],
+:        [0., 0., 0., 0., 0.],
+:        [0., 0., 0., 0., 0.],
+:        [0., 0., 0., 0., 0.],
+:        [0., 0., 0., 0., 0.]])
+
+Criando uma matriz-identidade:
+
+#+NAME: b7a04a6a-ccdc-458b-bfaa-9b6d59d9770d
+#+begin_src ein-python
+np.eye(4)
+#+end_src
+
+#+RESULTS: b7a04a6a-ccdc-458b-bfaa-9b6d59d9770d
+: array([[1., 0., 0., 0.],
+:        [0., 1., 0., 0.],
+:        [0., 0., 1., 0.],
+:        [0., 0., 0., 1.]])
+
+Criando uma matriz de números sequenciais (iota):
+
+#+NAME: c3366137-1bbb-4eb2-bcd8-c1041cb8681a
+#+begin_src ein-python
+np.arange(5)
+#+end_src
+
+#+RESULTS: c3366137-1bbb-4eb2-bcd8-c1041cb8681a
+: array([0, 1, 2, 3, 4])
+
+=np.arange= também pode ser executado com três parâmetros: um início, um
+limite e uma quantidade de saltos.
+
+#+NAME: ea0a21f1-f1a1-4756-a84a-408fd37d106a
+#+begin_src ein-python
+np.arange(5, 10, 2) # De 5 inc a 10 exc, passos de 2 em 2
+#+end_src
+
+#+RESULTS: ea0a21f1-f1a1-4756-a84a-408fd37d106a
+: array([5, 7, 9])
+
+* Operações com matrizes
+
+** Criando testes
+
+#+NAME: 61a5e504-b3a7-4fc6-8dcb-066af93d53c1
+#+begin_src ein-python
+x = np.array([[1, 2, 3]] * 5)
+x
+#+end_src
+
+#+RESULTS: 61a5e504-b3a7-4fc6-8dcb-066af93d53c1
+: array([[1, 2, 3],
+:        [1, 2, 3],
+:        [1, 2, 3],
+:        [1, 2, 3],
+:        [1, 2, 3]])
+
+#+NAME: 54647934-2156-4c3a-821a-d955b678bdb2
+#+begin_src ein-python
+y = np.array([[2, 2, 2]] * 5)
+y
+#+end_src
+
+#+RESULTS: 54647934-2156-4c3a-821a-d955b678bdb2
+: array([[2, 2, 2],
+:        [2, 2, 2],
+:        [2, 2, 2],
+:        [2, 2, 2],
+:        [2, 2, 2]])
+
+** Somando matrizes
+
+#+NAME: 65b217d5-331f-482d-8499-dce8c179b563
+#+begin_src ein-python
+x + y
+#+end_src
+
+#+RESULTS: 65b217d5-331f-482d-8499-dce8c179b563
+: array([[3, 4, 5],
+:        [3, 4, 5],
+:        [3, 4, 5],
+:        [3, 4, 5],
+:        [3, 4, 5]])
+
+** Subtraindo matrizes
+
+#+NAME: 27ec4204-0b88-4c41-92fa-ef6c3b817179
+#+begin_src ein-python
+x - y
+#+end_src
+
+#+RESULTS: 27ec4204-0b88-4c41-92fa-ef6c3b817179
+: array([[-1,  0,  1],
+:        [-1,  0,  1],
+:        [-1,  0,  1],
+:        [-1,  0,  1],
+:        [-1,  0,  1]])
+
+** Dividindo matrizes
+
+A divisão é feita elemento a elemento.
+
+#+NAME: 91b3ab22-1023-40b8-b33a-19a7049dae57
+#+begin_src ein-python
+x / y
+#+end_src
+
+#+RESULTS: 91b3ab22-1023-40b8-b33a-19a7049dae57
+: array([[0.5, 1. , 1.5],
+:        [0.5, 1. , 1.5],
+:        [0.5, 1. , 1.5],
+:        [0.5, 1. , 1.5],
+:        [0.5, 1. , 1.5]])
+
+** "Multiplicando" matrizes
+
+Esta multiplicação é feita elemento a elemento.
+
+Não se trata de uma multiplicação entre matrizes, ou de matriz por
+escalar, e sim uma multiplicação $(a_{ij} \in A) \cdot (b_{ij} \in B)$.
+
+#+NAME: 4017c9de-0346-4297-a4b3-9ed685499572
+#+begin_src ein-python
+x * y
+#+end_src
+
+#+RESULTS: 4017c9de-0346-4297-a4b3-9ed685499572
+: array([[2, 4, 6],
+:        [2, 4, 6],
+:        [2, 4, 6],
+:        [2, 4, 6],
+:        [2, 4, 6]])

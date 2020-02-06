@@ -1,0 +1,5 @@
+ltximg/
+.ein-python.ipynb
+.ipynb_checkpoints/
+*.zip
+*.csv
