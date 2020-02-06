@@ -1,0 +1,613 @@
+#+TITLE:  Aulas 11 a 16 - Matplotlib
+#+AUTHOR: Lucas S. Vieira
+#+STARTUP: inlineimages latexpreview showall
+#+PROPERTY: header-args:ein-python :session localhost :results raw drawer :eval yes :exports both :cache yes
+
+* Preparação
+
+Essencial para o Emacs.
+
+#+NAME: e75b5b10-11f5-49c7-8467-d35496468f17
+#+begin_src ein-python
+import matplotlib.pyplot as plt
+%matplotlib inline
+#+end_src
+
+#+RESULTS: e75b5b10-11f5-49c7-8467-d35496468f17
+:results:
+:end:
+
+* Retas no plano
+
+** Linhas simples
+
+#+NAME: 7e6400e4-4d15-4668-ace4-e85b1a17d59f
+#+begin_src ein-python
+plt.plot([1, 2, 3, 4])
+plt.show()
+#+end_src
+
+#+RESULTS: 7e6400e4-4d15-4668-ace4-e85b1a17d59f
+:results:
+[[file:ein-images/ob-ein-3bd83b09117d23cd639f4828b23e4e97.png]]
+:end:
+
+#+NAME: d3edee21-b260-4c81-b720-267ce08741d6
+#+begin_src ein-python
+plt.plot([1, 2, 6, 4])
+plt.show()
+#+end_src
+
+#+RESULTS: d3edee21-b260-4c81-b720-267ce08741d6
+:results:
+[[file:ein-images/ob-ein-b3c344652b5d5b4e5df36c08b29ea0d0.png]]
+:end:
+
+** Valores específicos em X
+
+A primeira lista determina os pontos em X, e a segunda lista determina
+seus respectivos valores em Y.
+
+#+NAME: b33eb94d-96be-4f07-b8e2-7b3dd802cadb
+#+begin_src ein-python
+plt.plot([1, 2, 3, 4], [1, 10, 7, 8])
+#+end_src
+
+#+RESULTS: b33eb94d-96be-4f07-b8e2-7b3dd802cadb
+:results:
+[<matplotlib.lines.Line2D at 0x7f8db03997b8>]
+[[file:ein-images/ob-ein-83380c5cae459bf1fef61fb38f44f406.png]]
+:end:
+
+Mais um exemplo.
+
+#+NAME: 4f9c312a-4ed0-44a2-8d7a-3f0d4992d2ad
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40], [1, 10, 7, 8])
+#+end_src
+
+#+RESULTS: 4f9c312a-4ed0-44a2-8d7a-3f0d4992d2ad
+:results:
+[<matplotlib.lines.Line2D at 0x7f8db0483eb8>]
+[[file:ein-images/ob-ein-41a649a8e655845d96e8729f368bc8a3.png]]
+:end:
+
+** Rótulos para eixos e título
+
+Um exemplo vazio:
+
+#+NAME: 85fa65df-f163-4ba6-8efd-b21ddb049709
+#+begin_src ein-python
+plt.ylabel('ylabel')
+#+end_src
+
+#+RESULTS: 85fa65df-f163-4ba6-8efd-b21ddb049709
+:results:
+Text(0, 0.5, 'ylabel')
+[[file:ein-images/ob-ein-96e5b8aa45a25eab73eb9589c567def0.png]]
+:end:
+
+Misturando um gráfico com a diretiva anterior:
+
+#+NAME: b8c1fb7c-8c63-4df1-aa86-9e1b1eaa75a3
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40], [1, 10, 7, 8])
+plt.ylabel('Alunos')
+#+end_src
+
+#+RESULTS: b8c1fb7c-8c63-4df1-aa86-9e1b1eaa75a3
+:results:
+Text(0, 0.5, 'Alunos')
+[[file:ein-images/ob-ein-7589a0b3debc80641c0b938520b9cb32.png]]
+:end:
+
+Incrementando ainda mais, podemos fazer o mesmo para o eixo X.
+
+#+NAME: e1d7925a-b09e-4b8e-8192-2d205791345b
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40], [1, 10, 7, 8])
+plt.ylabel('Alunos')
+plt.xlabel('Notas')
+#+end_src
+
+#+RESULTS: e1d7925a-b09e-4b8e-8192-2d205791345b
+:results:
+Text(0.5, 0, 'Notas')
+[[file:ein-images/ob-ein-deb82c8ff687391953241ce94075ed81.png]]
+:end:
+
+Adicionalmente, podemos dar um título a este gráfico.
+
+#+NAME: 96066da3-454f-43a3-8277-dedb475f1160
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40], [1, 10, 7, 8])
+plt.ylabel('Alunos')
+plt.xlabel('Notas')
+plt.title('Relação entre alunos e notas')
+plt.show() # Necessário em outros locais
+#+end_src
+
+#+RESULTS: 96066da3-454f-43a3-8277-dedb475f1160
+:results:
+[[file:ein-images/ob-ein-ff415e2b660733965297aa0c5b8e0928.png]]
+:end:
+
+* Estilizando o gráfico
+
+** Inserindo labels
+
+Criaremos duas linhas no mesmo gráfico.
+
+#+NAME: d205dfb0-417a-4a0d-99b3-a9af7d1d92c9
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40], [1, 10, 7, 8])
+plt.plot([10, 20, 35, 45], [1, 15, 9, 12]) # Novo
+plt.ylabel('Alunos')
+plt.xlabel('Notas')
+plt.title('Relação entre alunos e notas')
+plt.show()
+#+end_src
+
+#+RESULTS: d205dfb0-417a-4a0d-99b3-a9af7d1d92c9
+:results:
+[[file:ein-images/ob-ein-210449dd084466cd518b0e0dec26d53a.png]]
+:end:
+
+Queremos que cada linha seja referente a uma turma.
+
+#+NAME: ce7b5f36-1a7a-4eef-8802-6ca12d18ba0b
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40], [1, 10, 7, 8], label='Sala 1')
+plt.plot([10, 20, 35, 45], [1, 15, 9, 12], label='Sala 2')
+plt.ylabel('Alunos')
+plt.xlabel('Notas')
+plt.title('Relação entre alunos e notas')
+plt.legend() # Insere a legenda das labels
+plt.show()
+#+end_src
+
+#+RESULTS: ce7b5f36-1a7a-4eef-8802-6ca12d18ba0b
+:results:
+[[file:ein-images/ob-ein-84c93897c0b95410d916f3e0a754c885.png]]
+:end:
+
+Podemos definir cores específicas para linhas também.
+
+Também é possível informar cores na notação HTML.
+
+#+NAME: 1894f486-2b0c-4c8e-abcd-4a5e6e7a2713
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40],
+         [1, 10, 7, 8],
+         label='Sala 1',
+         color='red')
+plt.plot([10, 20, 35, 45],
+         [1, 15, 9, 12],
+         label='Sala 2',
+         color='blue')
+plt.ylabel('Alunos')
+plt.xlabel('Notas')
+plt.title('Relação entre alunos e notas')
+plt.legend() # Insere a legenda das labels
+plt.show()
+#+end_src
+
+#+RESULTS: 1894f486-2b0c-4c8e-abcd-4a5e6e7a2713
+:results:
+[[file:ein-images/ob-ein-0e6a3a98e5eb7813493efab7b81c6d1b.png]]
+:end:
+
+Finalmente, podemos mudar o estilo da linha.
+
+Valores possíveis:
+
+- ='solid'= (padrão);
+- ='dotted'=;
+- ='--'= ou ='dashed'=;
+- ='dashdot'=;
+- etc.
+
+#+NAME: b1488c6c-9947-4b9b-8ee3-4028e6c46776
+#+begin_src ein-python
+plt.plot([10, 20, 30, 40],
+         [1, 10, 7, 8],
+         label='Sala 1',
+         color='red',
+         linestyle='--')
+plt.plot([10, 20, 35, 45],
+         [1, 15, 9, 12],
+         label='Sala 2',
+         color='blue',
+         linestyle='dotted')
+plt.plot([10, 20, 35, 45],
+         [1, 6, 4, 5],
+         label='Sala 3',
+         color='green',
+         linestyle='dashdot')
+plt.plot([10, 20, 35, 45],
+         [1, 7, 10, 14],
+         label='Sala 4',
+         color='orange',
+         linestyle='solid')
+plt.ylabel('Alunos')
+plt.xlabel('Notas')
+plt.title('Relação entre alunos e notas')
+plt.legend() # Insere a legenda das labels
+plt.show()
+#+end_src
+
+#+RESULTS: b1488c6c-9947-4b9b-8ee3-4028e6c46776
+:results:
+[[file:ein-images/ob-ein-9c1506835d89ec7a8e115241cbd12700.png]]
+:end:
+
+* Gráfico de barras
+
+** Plotando um gráfico simples
+
+O gráfico se ajusta à quantidade informada de barras.
+
+#+NAME: a79a5347-a9b5-4504-aeae-15e72a1e434f
+#+begin_src ein-python
+x = [1, 2, 3, 4, 5, 6, 7, 8, 9]  # Números das barras
+y = [2, 3, 6, 10, 11, 12, 14, 13, 12] # Valores por barra
+plt.bar(x, y)
+plt.show()
+#+end_src
+
+#+RESULTS: a79a5347-a9b5-4504-aeae-15e72a1e434f
+:results:
+[[file:ein-images/ob-ein-a4d6f989635719850a4d9d2da371a9af.png]]
+:end:
+
+** Adicionando labels
+
+#+NAME: a7ddd237-d878-4b08-ad16-3b93c44c156a
+#+begin_src ein-python
+x = [1, 2, 3, 4, 5, 6, 7, 8, 9]  # Números das barras
+y = [2, 3, 6, 10, 11, 12, 14, 13, 12] # Valores por barra
+plt.bar(x, y)
+plt.ylabel('Altura média')
+plt.xlabel('Idade')
+plt.title('Relação de altura por idade')
+plt.show()
+#+end_src
+
+#+RESULTS: a7ddd237-d878-4b08-ad16-3b93c44c156a
+:results:
+[[file:ein-images/ob-ein-191abff4683c379526dbd2b2f3b118ac.png]]
+:end:
+
+** Colorização, rótulos e legendas
+
+#+NAME: 0f6db25d-1b65-4fa9-b058-9ea0f17d7b30
+#+begin_src ein-python
+x = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+y = [2, 3, 6, 10, 11, 12, 14, 13, 12]
+
+plt.bar(x, y, color='blue', label='Turma 1')
+plt.ylabel('Altura média')
+plt.xlabel('Idade')
+plt.title('Relação de altura por idade')
+plt.legend()
+plt.show()
+#+end_src
+
+#+RESULTS: 0f6db25d-1b65-4fa9-b058-9ea0f17d7b30
+:results:
+[[file:ein-images/ob-ein-66e723b816325facc7cbe4b8de6ffd9a.png]]
+:end:
+
+** Adicionando um gráfico extra
+
+#+NAME: 6eb0d8ac-ecfd-4037-bc1d-738f4887368d
+#+begin_src ein-python
+x = [1, 3, 5, 7]
+y = [2, 3, 6, 10]
+
+x2 = [2, 4, 6, 8]
+y2 = [5, 6, 7, 10]
+
+plt.bar(x, y, color='blue', label='Turma 1')
+plt.bar(x2, y2, color='green', label='Turma 2')
+
+plt.ylabel('Altura média')
+plt.xlabel('Idade')
+plt.title('Relação de altura por idade')
+plt.legend()
+plt.show()
+#+end_src
+
+#+RESULTS: 6eb0d8ac-ecfd-4037-bc1d-738f4887368d
+:results:
+[[file:ein-images/ob-ein-a53125c67235cf9de539bb0541c99b0a.png]]
+:end:
+
+* Gráfico de dispersão
+
+** Criando um gráfico simples
+
+#+NAME: 1d7c80bb-64d7-442a-b667-974e1e956701
+#+begin_src ein-python
+x = [1, 1, 1.5, 2, 2]
+y = [3, 3.5, 4, 4.5, 5]
+
+plt.scatter(x, y)
+plt.show()
+#+end_src
+
+#+RESULTS: 1d7c80bb-64d7-442a-b667-974e1e956701
+:results:
+[[file:ein-images/ob-ein-97a6356d75b0d8d3dbee1ce6ee48048e.png]]
+:end:
+
+Podemos traçar uma linha entre esses pontos adicionando um comando de
+plotagem comum:
+
+#+NAME: 51ddefa0-ded7-4492-9677-e765f65c8c1b
+#+begin_src ein-python
+x = [1, 1, 1.5, 2, 2]
+y = [3, 3.5, 4, 4.5, 5]
+
+plt.scatter(x, y)
+plt.plot(x, y)
+plt.show()
+#+end_src
+
+#+RESULTS: 51ddefa0-ded7-4492-9677-e765f65c8c1b
+:results:
+[[file:ein-images/ob-ein-555d771b1d72551908e99a5cf36366c7.png]]
+:end:
+
+** Cores dos pontos
+
+Modificando cores apenas dos pontos:
+
+#+NAME: 1a5e1a12-957f-4d87-9029-641fe1bce2fb
+#+begin_src ein-python
+x = [1, 1, 1.5, 2, 2]
+y = [3, 3.5, 4, 4.5, 5]
+
+plt.scatter(x, y, color='red')
+plt.plot(x, y)
+plt.show()
+#+end_src
+
+#+RESULTS: 1a5e1a12-957f-4d87-9029-641fe1bce2fb
+:results:
+[[file:ein-images/ob-ein-287c9ec611906f49b5f5eacdf5ddc870.png]]
+:end:
+
+** Formas dos pontos
+
+Estrela:
+
+#+NAME: 18c14cd6-df32-4baa-a7b7-4738001adb39
+#+begin_src ein-python
+x = [1, 1, 1.5, 2, 2]
+y = [3, 3.5, 4, 4.5, 5]
+
+plt.scatter(x, y, color='red', marker='*')
+plt.plot(x, y)
+plt.show()
+#+end_src
+
+#+RESULTS: 18c14cd6-df32-4baa-a7b7-4738001adb39
+:results:
+[[file:ein-images/ob-ein-35f1f36343702c42cc46eb50d5f2b609.png]]
+:end:
+
+Triângulo:
+
+#+NAME: a421fdfd-4e6c-485d-90ce-b1d4d3f4bb1a
+#+begin_src ein-python
+x = [1, 1, 1.5, 2, 2]
+y = [3, 3.5, 4, 4.5, 5]
+
+plt.scatter(x, y, color='red', marker='v')
+plt.plot(x, y)
+plt.show()
+#+end_src
+
+#+RESULTS: a421fdfd-4e6c-485d-90ce-b1d4d3f4bb1a
+:results:
+[[file:ein-images/ob-ein-018fd09290aeb819521e811a738357c9.png]]
+:end:
+
+Mais formas em [[https://matplotlib.org/3.1.1/api/markers_api.html]].
+
+** Linha de divisão do gráfico
+
+Particularmente útil para /machine learning/.
+
+#+NAME: 5c1f6875-1139-40ed-905b-24523767b7a7
+#+begin_src ein-python
+xp  = [1, 1, 1.5, 2, 2]
+yp  = [3, 3.5, 4, 4.5, 5]
+xp1 = [3, 3, 3.5, 4, 2]
+yp1 = [2, 2.5, 3, 3.5, 2]
+x   = [1, 2, 3, 4]
+y   = [2, 3, 4, 5]
+
+# plotando a reta
+plt.plot(x, y)
+
+# Plotando pontos acima da reta
+plt.scatter(xp, yp) 
+
+# Plotando pontos abaixo da reta
+plt.scatter(xp1, yp1)
+
+plt.show()
+#+end_src
+
+#+RESULTS: 5c1f6875-1139-40ed-905b-24523767b7a7
+:results:
+[[file:ein-images/ob-ein-6a2b387846d67ed2b27ba35324614595.png]]
+:end:
+
+* Gráfico de setores (pizza)
+
+** Sobre o uso
+
+Não é recomendado este tipo de gráfico quando o /dataframe/ possui
+valores nulos, negativos ou em grande quantidade.
+
+** Gráfico simples
+
+#+NAME: cef916c0-13ee-4447-a7fd-bde0324118f4
+#+begin_src ein-python
+label = ['Floresta', 'Deserto']
+dados = [40, 60]
+
+fig, ax = plt.subplots()
+
+ax.pie(dados, labels=label)
+plt.show()
+#+end_src
+
+#+RESULTS: cef916c0-13ee-4447-a7fd-bde0324118f4
+:results:
+[[file:ein-images/ob-ein-10e92079c34dc6924322b4a9a8328069.png]]
+:end:
+
+** Mostrando porcentagens através de um formato
+
+#+NAME: 0d1dc7eb-f13f-4127-9235-c5d79f062d55
+#+begin_src ein-python
+label = ['Floresta', 'Deserto']
+dados = [40, 60]
+
+fig, ax = plt.subplots()
+
+ax.pie(dados, labels=label, autopct='%1.1f%%')
+plt.show()
+#+end_src
+
+#+RESULTS: 0d1dc7eb-f13f-4127-9235-c5d79f062d55
+:results:
+[[file:ein-images/ob-ein-4f2677e19ae259052dc81e5f9a1616ba.png]]
+:end:
+
+Matplotlib faz a conversão automática das porcentagens de acordo com
+os dados informados, mantendo as proporções. Previamente os dados
+completavam 100%, porém neste caso o máximo é 70 (que torna-se o valor
+para 100%):
+
+#+NAME: 0aaffd92-f0b8-4eac-9f1b-8e0358ffed2f
+#+begin_src ein-python
+label = ['Floresta', 'Deserto']
+dados = [10, 60]
+
+fig, ax = plt.subplots()
+
+ax.pie(dados, labels=label, autopct='%1.1f%%')
+plt.show()
+#+end_src
+
+#+RESULTS: 0aaffd92-f0b8-4eac-9f1b-8e0358ffed2f
+:results:
+[[file:ein-images/ob-ein-8c053fecbbe981bb2979362f808703e9.png]]
+:end:
+
+* Gráficos 3D
+
+** Preparação
+
+Aqui usaremos =mplot3d= e =numpy= como complementos.
+
+#+NAME: 009e254b-453e-4bed-8a00-b89fa00ed5b5
+#+begin_src ein-python :results output
+from mpl_toolkits.mplot3d import axes3d
+import numpy as np
+#+end_src
+
+#+RESULTS: 009e254b-453e-4bed-8a00-b89fa00ed5b5
+:results:
+:end:
+
+** Gerando o gráfico
+
+Este processo gera um gráfico interativo no PyCharm.
+
+#+NAME: c9ec6584-1e54-423c-82db-abcea3f8ac05
+#+begin_src ein-python
+fig = plt.figure()
+
+ax = fig.gca(projection='3d')
+
+# Dados de teste do axes3d
+x, y, z = axes3d.get_test_data(0.10)
+
+graf = ax.contourf(x, y, z)
+
+plt.show()
+#+end_src
+
+#+RESULTS: c9ec6584-1e54-423c-82db-abcea3f8ac05
+:results:
+[[file:ein-images/ob-ein-a9cd2657ad08e7389a659e9157b8da1c.png]]
+:end:
+
+** Gerando wireframe
+
+#+NAME: 51e158a8-9ae8-4e08-a933-85aebb80bcb9
+#+begin_src ein-python
+fig = plt.figure()
+
+ax = fig.gca(projection='3d')
+
+# Dados de teste do axes3d
+x, y, z = axes3d.get_test_data(0.10)
+
+graf = ax.plot_wireframe(x, y, z)
+
+plt.show()
+#+end_src
+
+#+RESULTS: 51e158a8-9ae8-4e08-a933-85aebb80bcb9
+:results:
+[[file:ein-images/ob-ein-0016467ea61c743ebad2d98a7609287d.png]]
+:end:
+
+Menor número de pontos:
+
+#+NAME: 1ccdbd0a-db05-435f-9770-75059d6275e5
+#+begin_src ein-python
+fig = plt.figure()
+
+ax = fig.gca(projection='3d')
+
+# Dados de teste do axes3d
+x, y, z = axes3d.get_test_data(0.9)
+
+graf = ax.plot_wireframe(x, y, z)
+
+plt.show()
+#+end_src
+
+#+RESULTS: 1ccdbd0a-db05-435f-9770-75059d6275e5
+:results:
+[[file:ein-images/ob-ein-45edf5dca7608b41d5df362331d6d007.png]]
+:end:
+
+Maior número de pontos:
+
+#+NAME: 7205d3e6-b390-4a3d-bbf2-e22ca8321508
+#+begin_src ein-python
+fig = plt.figure()
+
+ax = fig.gca(projection='3d')
+
+# Dados de teste do axes3d
+x, y, z = axes3d.get_test_data(0.01)
+
+graf = ax.plot_wireframe(x, y, z)
+
+plt.show()
+#+end_src
+
+#+RESULTS: 7205d3e6-b390-4a3d-bbf2-e22ca8321508
+:results:
+[[file:ein-images/ob-ein-74cef330161c45abc9d2bdd619970ecb.png]]
+:end:

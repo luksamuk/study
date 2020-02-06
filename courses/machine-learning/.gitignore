@@ -3,3 +3,11 @@ ltximg/
 .ipynb_checkpoints/
 *.zip
 *.csv
+*.aux
+*.fls
+*.log
+*.pyg
+*.tex
+*.toc
+_minted-*
+*.fdb_latexmk
