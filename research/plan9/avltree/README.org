@@ -3,6 +3,10 @@
 #+startup: showall
 #+property: header-args:C :main no :tangle avl.c
 
+#+attr_org: :width 300
+[[file:./plan9acme.png]]
+
+
 * Basico
 
 #+begin_src C
