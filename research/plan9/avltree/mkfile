@@ -1,0 +1,10 @@
+</$objtype/mkfile
+
+TARG=avltree
+CFILES=avl.c
+OFILES=${CFILES:%.c=%.$O}
+BIN=/$objtype/bin
+</sys/src/cmd/mkone
+
+clean nuke:V:
+	rm -f *.[$OS] [$OS].out $TARG
