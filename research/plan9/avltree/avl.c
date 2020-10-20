@@ -107,12 +107,12 @@ avl_balance_index(avl_node_t *node)
 	if(node == nil) {
 		return 0;
 	}
-	leftidx = (node->left == nil)
-				? 0
-				: (1 + avl_node_height(node->left));
-	rightidx = (node->right == nil)
-				? 0
-				: (1 + avl_node_height(node->right));
+	leftidx = !(node->left == nil)
+		? (1 + avl_node_height(node->left))
+		: 0;
+	rightidx = !(node->right == nil)
+		? (1 + avl_node_height(node->right))
+		: 0;
 	return leftidx - rightidx;
 }
 
@@ -266,8 +266,10 @@ avl_print_level(avl_tree_t tree, print_fn_t p)
 		avl_node_t *n = dequeue(&q);
 		if(n != nil) {
 			p(n->info);
-			enqueue(&q, n->left);
-			enqueue(&q, n->right);
+			if(n->left != nil)
+				enqueue(&q, n->left);
+			if(n->right != nil)
+				enqueue(&q, n->right);
 		}
 	}
 	destroyqueue(&q);

@@ -1,9 +1,9 @@
-#+title: AVL Tree, feito com Plan 9
+#+title: Arvore AVL, feita no Plan 9
 #+author: Lucas S. Vieira
-#+startup: showall
+#+startup: showall inlineimages
 #+property: header-args:C :main no :tangle avl.c
 
-#+attr_org: :width 300
+#+attr_org: :width 500
 [[file:./plan9acme.png]]
 
 
@@ -157,12 +157,12 @@ avl_balance_index(avl_node_t *node)
 	if(node == nil) {
 		return 0;
 	}
-	leftidx = (node->left == nil)
-				? 0
-				: (1 + avl_node_height(node->left));
-	rightidx = (node->right == nil)
-				? 0
-				: (1 + avl_node_height(node->right));
+	leftidx = !(node->left == nil)
+		? (1 + avl_node_height(node->left))
+		: 0;
+	rightidx = !(node->right == nil)
+		? (1 + avl_node_height(node->right))
+		: 0;
 	return leftidx - rightidx;
 }
 #+end_src
@@ -371,8 +371,10 @@ avl_print_level(avl_tree_t tree, print_fn_t p)
 		avl_node_t *n = dequeue(&q);
 		if(n != nil) {
 			p(n->info);
-			enqueue(&q, n->left);
-			enqueue(&q, n->right);
+			if(n->left != nil)
+				enqueue(&q, n->left);
+			if(n->right != nil)
+				enqueue(&q, n->right);
 		}
 	}
 	destroyqueue(&q);
