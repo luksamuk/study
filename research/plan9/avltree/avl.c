@@ -1,5 +1,6 @@
 #include <u.h>
 #include <libc.h>
+#include <bio.h>
 
 int
 max(int a, int b)
@@ -22,6 +23,19 @@ struct AVL_TREE_T
 };
 
 typedef struct AVL_TREE_T avl_tree_t;
+
+enum AVL_PRINT_TYPE
+{
+	AVL_PRINT_NONE,
+	AVL_PRINT_INORDER,
+	AVL_PRINT_PREORDER,
+	AVL_PRINT_POSTORDER,
+	AVL_PRINT_LEVEL,
+	AVL_PRINT_TRIANGLE,
+	AVL_PRINT_GRAPHVIZ
+};
+
+typedef enum AVL_PRINT_TYPE avl_print_type;
 
 struct QUEUE_T
 {
@@ -80,6 +94,8 @@ destroyqueue(queue_t *q)
 typedef int(*compare_fn_t)(void*, void*);
 
 typedef void(*print_fn_t)(void*);
+
+typedef void(*bprint_fn_t)(Biobuf*, void*);
 
 int
 avl_node_height(avl_node_t *node)
@@ -313,6 +329,44 @@ avl_print_triangle(avl_tree_t tree, print_fn_t p)
 }
 
 void
+avl_emit_graphviz(avl_tree_t tree, Biobuf *buf, bprint_fn_t bp)
+{
+	queue_t q;
+
+	initqueue(&q);
+	Bprint(buf,
+	      "graph G {\n"
+	      "graph[ranksep=0.3, color=black, fontcolor=black];\n"
+	      "bgcolor=\"#00000000\";\n"
+	      "node [shape=circle, color=black, fontcolor=black];\n"
+	      "edge [color=black];\n");
+
+	enqueue(&q, tree.root);
+	while(q.elems != 0) {
+		avl_node_t *n = dequeue(&q);
+		if(n != nil) {
+			/* node[label="node->info"]; */
+			Bprint(buf, "n%p[label=\"", n);
+			bp(buf, n->info);
+			Bprint(buf, "\"];\n");
+			if(n->left != nil) {
+				/* node:sw -- node->left:n */
+				Bprint(buf, "n%p:sw -- n%p:n;\n", n, n->left);
+				enqueue(&q, n->left);
+			}
+			if(n->right != nil) {
+				/* node:se -- node->right:n */
+				Bprint(buf, "n%p:se -- n%p:n;\n", n, n->right);
+				enqueue(&q, n->right);
+			}
+		}
+	}
+	destroyqueue(&q);
+	
+	Bprint(buf, "}\n");
+}
+
+void
 avl_node_clear(avl_node_t *node)
 {
 	if(node == nil)
@@ -341,7 +395,7 @@ compare_nums(void *a, void *b)
 }
 
 void
-print_num(void* n)
+print_num(void *n)
 {
 	int *num;
 	num = (int*)n;
@@ -349,36 +403,86 @@ print_num(void* n)
 }
 
 void
-main()
+bprint_num(Biobuf *buf, void *n)
 {
-	srand(time(0));
+	int *num;
+	num = (int*)n;
+	Bprint(buf, "%d", *num);
+}
 
+void
+usage(void)
+{
+	fprint(2, "avltree -[ipoltg] numbers\n");
+}
+
+void
+main(int argc, char **argv)
+{
 	avl_tree_t tree;
+	Biobuf *stdout;
+	avl_print_type ptype;
+	int *buffer, i;
+
 	tree.root = nil;
+	stdout = Bfdopen(1, OWRITE);
+	ptype = AVL_PRINT_NONE;
 
-	int *buffer;
-	int i;
+	ARGBEGIN {
+		case 'i':
+			ptype = AVL_PRINT_INORDER;
+			break;
+		case 'p':
+			ptype = AVL_PRINT_PREORDER;
+			break;
+		case 'o':
+			ptype = AVL_PRINT_POSTORDER;
+			break;
+		case 'l':
+			ptype = AVL_PRINT_LEVEL;
+			break;
+		case 't':
+			ptype = AVL_PRINT_TRIANGLE;
+			break;
+		case 'g':
+			ptype = AVL_PRINT_GRAPHVIZ;
+			break;
+	} ARGEND;
 
-	for(i = 0; i < 20; i++) {
-		buffer = malloc(sizeof (int));
-		*buffer = rand() % 999;
-		tree = avl_tree_insert(tree, buffer, compare_nums);
+
+	while(argv[0] != nil) {
+		i = atoi(argv[0]);
+		if(i != 0) {
+			buffer = malloc(sizeof (int));
+			*buffer = i;
+			tree = avl_tree_insert(tree, buffer, compare_nums);
+		}
+		argv = argv + 1;
 	}
-
-	print("Em ordem: ");
-	avl_print_inorder(tree, print_num);
-
-	print("Pre ordem: ");
-	avl_print_preorder(tree, print_num);
-
-	print("Pos ordem: ");
-	avl_print_postorder(tree, print_num);
-
-	print("Em nivel: ");
-	avl_print_level(tree, print_num);
-
-	print("Em triangulo:\n");
-	avl_print_triangle(tree, print_num);
+	
+	switch(ptype) {
+		case AVL_PRINT_INORDER:
+			avl_print_inorder(tree, print_num);
+			break;
+		case AVL_PRINT_PREORDER:
+			avl_print_preorder(tree, print_num);
+			break;
+		case AVL_PRINT_POSTORDER:
+			avl_print_postorder(tree, print_num);
+			break;
+		case AVL_PRINT_LEVEL:
+			avl_print_level(tree, print_num);
+			break;
+		case AVL_PRINT_TRIANGLE:
+			avl_print_triangle(tree, print_num);
+			break;
+		case AVL_PRINT_GRAPHVIZ:
+			avl_emit_graphviz(tree, stdout, bprint_num);
+			break;
+		default:
+			usage();
+			break;
+	};
 
 	tree = avl_tree_clear(tree);
 

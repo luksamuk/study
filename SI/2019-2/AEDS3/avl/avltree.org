@@ -6,10 +6,8 @@
 #+LANGUAGE:    pt_BR
 #+PROPERTY:    header-args:cpp :eval no :main no :tangle avltree.cpp
 #+PROPERTY:    header-args:dot :cache yes :cmdline -Kdot -Tsvg
-#+STARTUP:     content
+#+STARTUP:     content inlineimages
 #+SETUPFILE:   ReadTheOrg.setup
-
-#+TODO: Remoção!
 
 * Introdução
 :PROPERTIES:
@@ -77,52 +75,68 @@ A classe =AVLTree= é uma classe construída utilizando /templates/. Desta
 forma, esta classe pode ser generalizada para qualquer tipo
 comparável[fn:1].
 
-Iniciamos pela abertura do escopo da classe.
+Iniciamos por  declarar a classe  propriamente dita. Os  métodos serão
+implementados de forma subsequente.
+
+Adicionalmente, aqui declaramos os seguintes elementos:
+
+- *Estrutura interna  de um  nó.* A  estrutura a  seguir descreve  um nó
+  qualquer  da árvore.  Esta estrutura  é acessível  apenas no  escopo
+  interno da  mesma. Portanto,  é bom observar  que não  será possível
+  "exportar" ponteiros de nós pertencentes à árvore.
+- *Ponteiro para o nó-raiz da  árvore.* Este atributo da classe armazena
+  um ponteiro para o nó-raiz da árvore.
 
 #+begin_src cpp
 template<typename T>
 class AVLTree
 {
-#+end_src
+public:
+    AVLTree();
+    AVLTree(std::vector<T>);
+    ~AVLTree();
 
-* Elementos privados
-
-** Início dos elementos privados
-:PROPERTIES:
-:UNNUMBERED: t
-:END:
-
-Os elementos após a próxima linha são acessíveis apenas /no escopo da
-classe =AVLTree=/.
-
-#+begin_src cpp
+    bool insert(T);
+    void print(TreePrintStyle s = TREEPRINT_INORDER) const;
+    void clear(void);
+    bool search(const T) const;
+    bool remove(const T);
 private:
-#+end_src
+    struct node_t
+    {
+        T info;
+        node_t *left;
+        node_t *right;
+    };
 
-** Estrutura interna do nó
+    node_t *_root;
 
-A estrutura a seguir descreve um nó qualquer da árvore. Esta estrutura
-é acessível apenas no escopo interno da mesma. Portanto, é bom
-observar que não será possível "exportar" ponteiros de nós
-pertencentes à árvore.
+    int _height(const node_t*) const;
+    int _balance_index(const node_t*) const;
+    void _lrot(node_t*&);
+    void _rrot(node_t*&);
+    void _rrot_dbl(node_t*&);
+    void _lrot_dbl(node_t*&);
+    void _balance(node_t*&);
 
-#+begin_src cpp
-struct node_t
-{
-    T info;
-    node_t *left;
-    node_t *right;
+    bool _insert(T, node_t*&);
+
+    void _print_inorder(const node_t*) const;
+    void _print_preorder(const node_t*) const;
+    void _print_postorder(const node_t*) const;
+    void _print_bylevel(const node_t*) const;
+    void _print_triangle(const node_t*) const;
+
+    void _clear(node_t*);
+
+    bool _search(const node_t*, const T&) const;
+
+    node_t *_detach_rightmost(node_t*&);
+    bool _remove(node_t*&, const T&);
 };
 #+end_src
 
-** Ponteiro para a raiz
-
-Este campo privado da classe armazena um ponteiro para o nó raiz da
-árvore.
-
-#+begin_src cpp
-node_t *_root;
-#+end_src
+* Elementos privados
 
 ** Altura de um nó
 
@@ -142,7 +156,8 @@ de um certo nó, uma vez que utilizamos =std::max= para obtermos sempre o
 maior valor.
 
 #+begin_src cpp
-int _height(const node_t *node) const
+template<typename T>
+int AVLTree<T>::_height(const AVLTree::node_t *node) const
 {
     if(!node) return -1;
         
@@ -179,7 +194,8 @@ sub-árvore em si, mas sim a quantidade máxima de passos para que o nó
 atual chegue ao nó-folha mais baixo.
 
 #+begin_src cpp
-int _balance_index(const node_t *node)
+template<typename T>
+int AVLTree<T>::_balance_index(const AVLTree::node_t *node) const
 {
     if(!node) return 0;
         
@@ -247,13 +263,15 @@ graph G {
 }
 #+end_src
 
+#+attr_org: :width 500
 #+RESULTS[06e7db351fa35d838ae59a0616c19b6d643d24f8]: fig:lrot
 [[file:img/lrot.svg]]
 
 #+begin_src cpp
-void _lrot(node_t*& root)
+template<typename T>
+void AVLTree<T>::_lrot(AVLTree::node_t*& root)
 {
-    node_t *b = root->right->left;
+    AVLTree::node_t *b = root->right->left;
     root->right->left = root;
     root = root->right;
     root->left->right = b;
@@ -315,13 +333,15 @@ graph G {
 }
 #+end_src
 
+#+attr_org: :width 500
 #+RESULTS[0583ebbfde6a0004ff5f68cb086dc1723f4e5044]: fig:rrot
 [[file:img/rrot.svg]]
 
 #+begin_src cpp
-void _rrot(node_t*& root)
+template<typename T>
+void AVLTree<T>::_rrot(AVLTree::node_t*& root)
 {
-    node_t *b = root->left->right;
+    AVLTree::node_t *b = root->left->right;
     root->left->right = root;
     root = root->left;
     root->right->left = b;
@@ -400,11 +420,13 @@ graph G {
 }
 #+end_src
 
+#+attr_org: :width 500
 #+RESULTS[40b1bddad23b2c9136df69aaa40ab54c65aac6a1]: fig:rrot_dbl
 [[file:img/rrot_dbl.svg]]
 
 #+begin_src cpp
-void _rrot_dbl(node_t*& root)
+template<typename T>
+void AVLTree<T>::_rrot_dbl(AVLTree::node_t*& root)
 {
     _lrot(root->left);
     _rrot(root);
@@ -478,16 +500,18 @@ graph G {
           a2:sw -- LA2:n;
           a2:se -- LC2:n;
           b2:sw -- RC2:n;
-          b2:se -- RB2:n;
+          b2:se -- RB2:n; 
       }
 }
 #+end_src
 
-#+RESULTS[060632f6ac1aa8f6254d02e512a9a27875570f1e]: fig:lrot_dbl
+#+attr_org: :width 500
+#+RESULTS[127478809b45233e6333ac589ef16b833b474f08]: fig:lrot_dbl
 [[file:img/lrot_dbl.svg]]
 
 #+begin_src cpp
-void _lrot_dbl(node_t*& root)
+template<typename T>
+void AVLTree<T>::_lrot_dbl(AVLTree::node_t*& root)
 {
     _rrot(root->right);
     _lrot(root);
@@ -506,19 +530,23 @@ for encontrado, o balanceamento ocorrerá.
 Esta é primariamente uma função de despacho de rotações em um nó de
 coeficiente com valor absoluto igual a =2=.
 
-Quando o nó problemático tem um coeficiente igual a =-2=, então:
+Quando o nó problemático tem um coeficiente igual a =+2=, então:
 - Caso o /filho esquerdo/ do nó possua coeficiente =-1=, realizaremos uma
   /rotação dupla à direita/.
 - Caso contrário, realizaremos uma /rotação simples à direita/.
 
-Quando o nó problemático tem um coeficiente igual a =+2=, então:
+Quando o nó problemático tem um coeficiente igual a =-2=, então:
 - Caso o /filho direito/ do nó possua coeficiente =+1=, realizaremos uma
   /rotação dupla à esquerda/.
 - Caso contrário, realizaremos uma /rotação simples à esquerda/.
 
+Por convenção, ignoramos nós nulos. Isso será útil durante a remoção.
+
 #+begin_src cpp
-void _balance(node_t*& node)
+template<typename T>
+void AVLTree<T>::_balance(AVLTree::node_t*& node)
 {
+    if(!node) return;
     int coef = _balance_index(node);
     if(std::abs(coef) == 2) {
         if(coef == 2) {
@@ -556,10 +584,11 @@ retroativo garante que os coeficientes de balanceamento obedeçam à
 regra ~0 <= |coef| <= 2~.
 
 #+begin_src cpp
-bool _insert(T info, node_t*& node)
+template<typename T>
+bool AVLTree<T>::_insert(T info, AVLTree::node_t*& node)
 {
     if(!node) {
-        node = new node_t;
+        node = new AVLTree::node_t;
         node->info = info;
         node->left = nullptr;
         node->right = nullptr;
@@ -598,7 +627,8 @@ hierarquia dos elementos, a impressão /em ordem/, para este exemplo,
 imprime os elementos da árvore em ordem crescente.
 
 #+begin_src cpp
-void _print_inorder(const node_t *node) const
+template<typename T>
+void AVLTree<T>::_print_inorder(const AVLTree::node_t *node) const
 {
     if(!node) return;
     _print_inorder(node->left);
@@ -614,7 +644,8 @@ nó, e então imprimir recursivamente a sub-árvore dos filhos esquerdo e
 direito deste nó, respectivamente.
 
 #+begin_src cpp
-void _print_preorder(const node_t *node) const
+template<typename T>
+void AVLTree<T>::_print_preorder(const AVLTree::node_t *node) const
 {
     if(!node) return;
     std::cout << node->info << ' ';
@@ -630,7 +661,8 @@ recursão a sub-árvore dos filhos direito e esquerdo, e então imprimir
 o valor do nó atual.
 
 #+begin_src cpp
-void _print_postorder(const node_t *node) const
+template<typename T>
+void AVLTree<T>::_print_postorder(const AVLTree::node_t *node) const
 {
     if(!node) return;
     _print_inorder(node->left);
@@ -653,14 +685,15 @@ a não ser que sejam /nulos/. A impressão acaba quando não há mais nós na
 fila.
 
 #+begin_src cpp
-void _print_bylevel(const node_t *node) const
+template<typename T>
+void AVLTree<T>::_print_bylevel(const AVLTree::node_t *node) const
 {
     if(!node) return;
-    std::queue<const node_t*> nodes;
+    std::queue<const AVLTree::node_t*> nodes;
     nodes.push(node);
 
     while(!nodes.empty()) {
-        const node_t *front = nodes.front();
+        const AVLTree::node_t *front = nodes.front();
         nodes.pop();
         if(front) {
             nodes.push(front->left);
@@ -687,16 +720,17 @@ prática, passa a ser extremamente simples o ato de tomar uma saída
 triangular e desenhar uma árvore binária apropriada em papel.
 
 #+begin_src cpp
-void _print_triangle(const node_t *node) const
+template<typename T>
+void AVLTree<T>::_print_triangle(const AVLTree::node_t *node) const
 {
     if(!node) return;
-    std::queue<const node_t*> curr;
-    std::queue<const node_t*> next;
+    std::queue<const AVLTree::node_t*> curr;
+    std::queue<const AVLTree::node_t*> next;
 
     curr.push(node);
 
     while(!curr.empty()) {
-        const node_t *front = curr.front();
+        const AVLTree::node_t *front = curr.front();
         curr.pop();
         if(!front)
             std::cout << '*';
@@ -766,6 +800,7 @@ graph G {
 }
 #+end_src
 
+#+attr_org: :width 500
 #+RESULTS[f4ddfeb2247a769b39693f521c8fd476b1cbc04b]: fig:triangle_print
 [[file:img/triangle_print.svg]]
 
@@ -781,7 +816,8 @@ diretamente, é necessário também fazer com que a raiz em questão
 torne-se um ponteiro /nulo/, caso mais operações sejam esperadas.
 
 #+begin_src cpp
-void _clear(node_t* node)
+template<typename T>
+void AVLTree<T>::_clear(AVLTree::node_t* node)
 {
     if(!node) return;
     _clear(node->left);
@@ -800,7 +836,8 @@ com o valor da informação dada para determinar o ramo a ser
 seguido. A resposta será um valor booleano.
 
 #+begin_src cpp
-bool _search(const node_t* node, const T& info) const
+template<typename T>
+bool AVLTree<T>::_search(const AVLTree::node_t* node, const T& info) const
 {
     if(!node) return false;
 
@@ -814,7 +851,7 @@ bool _search(const node_t* node, const T& info) const
 }
 #+end_src
 
-** Remoção [AINDA NÃO IMPLEMENTADO!]
+** Remoção
 
 A implementação da remoção de um nó envolve três casos:
 
@@ -825,7 +862,7 @@ A implementação da remoção de um nó envolve três casos:
 Um nó sem filhos constitui um caso trivial: basta removê-lo.
 
 Para um nó com apenas um filho, basta eliminar o nó em questão, e
-fazer com que seu único filho todo o seu lugar.
+fazer com que seu único filho tome o seu lugar.
 
 Quando o nó possui ambos os filhos, precisamos tomar um dos elementos
 mais profundos dos filhos como substituto para tal nó. Isto pode ser
@@ -835,43 +872,84 @@ feito buscando:
 - O nó-folha /mais à esquerda/ na sub-árvore /direita/.
 
 Como convenção, obteremos sempre o nó /mais à direita/ na sub-árvore
-/esquerda/ do nó removido. Para tanto, tomaremos uma função que encontra
-tal nó para uma sub-árvore qualquer, retornando seu ponteiro, e também
-destacando o elemento da árvore.
+/esquerda/ do nó /temporariamente  desafixado/, e então substituiremos tal
+nó pelo nó sendo removido; isso  fará com que esse nó desafixado ganhe
+também os filhos do nó removido.
+
+Finalmente, após a remoção, realizamos um balanceamento no novo nó que
+tomou a posição do atual, a não ser que este nó seja nulo.
 
 #+begin_src cpp
-node_t* _detach_rightmost_node(node_t*& node)
+template<typename T>
+bool AVLTree<T>::_remove(AVLTree::node_t*& node, const T& info)
 {
-    if(!node->left && !node_right) {
-        node_t *tmp = node;
+    // Not found
+    if(!node) return false;
+
+    if(node->info == info) {
+        bool no_left  = !node->left;
+        bool no_right = !node->right;
+        if(no_left && no_right) {
+            // No children; delete
+            delete node;
+            node = nullptr;
+        } else if(!no_left && !no_right) {
+            // Both children
+            AVLTree::node_t *rightmost_left;
+            rightmost_left = _detach_rightmost(node->left);
+            rightmost_left->left  = node->left;
+            rightmost_left->right = node->right;
+            delete node;
+            node = rightmost_left;
+        } else {
+            // Raise single child
+            AVLTree::node_t *tmp;
+            tmp = no_left ? node->right : node->left;
+            delete node;
+            node = tmp;
+        }
+        // Balance new node
+        _balance(node);
+        return true;
+    }
+
+    // Recursively remove
+    return _remove((info < node->info)
+                   ? node->left
+                   : node->right,
+                   info);
+}
+#+end_src
+
+No  caso  do  processo  de  desafixar  o nó  mais  à  direita  de  uma
+sub-árvore, duas situações podem ocorrer:
+
+1. O nó será uma folha;
+2. O nó possuirá um filho à esquerda.
+
+Para mitigar tal  problema, poderemos dizer que o filho  à esquerda de
+tal nó  a ser desafixado  tomará seu lugar,  sendo este filho  nulo ou
+não. Isso faz com que não  percamos uma sub-árvore nesse processo, mas
+implica em uma necessidade de balanceamento.
+
+#+begin_src cpp
+template<typename T>
+typename AVLTree<T>::node_t*
+AVLTree<T>::_detach_rightmost(AVLTree::node_t*& node)
+{
+    if(!node->right) {
+        AVLTree::node_t *tmp = node;
         node = node->left;
         return tmp;
     }
 
-    return _detach_rightmost_node(node->right);
-}
-#+end_src
-
-#+begin_src cpp
-bool _remove(node_t*& node, const T& info)
-{
-    throw "Removal not implemented!";
+    AVLTree::node_t *rightmost = _detach_rightmost(node->right);
+    _balance(node);
+    return rightmost;
 }
 #+end_src
 
 * Elementos públicos
-
-** Início dos elementos públicos
-:PROPERTIES:
-:UNNUMBERED: t
-:END:
-
-Os elementos após a próxima linha são acessíveis /também fora do escopo
-da classe =AVLTree=/.
-
-#+begin_src cpp
-public:
-#+end_src
 
 ** Construtores
 
@@ -881,7 +959,8 @@ ponteiro para a raiz da árvore como um valor /nulo/.
 O primeiro construtor realiza apenas esta atribuição padrão.
 
 #+begin_src cpp
-AVLTree() : _root(nullptr) {}
+template<typename T>
+AVLTree<T>::AVLTree() : _root(nullptr) {}
 #+end_src
 
 O segundo construtor espera por um /vetor/ de valores do tipo =T=
@@ -894,7 +973,8 @@ dos valores também pode ser fornecido como uma literal de um /vetor/
 comum.
 
 #+begin_src cpp
-AVLTree(std::vector<T> vals) : _root(nullptr)
+template<typename T>
+AVLTree<T>::AVLTree(std::vector<T> vals) : _root(nullptr)
 {
     for(T val : vals)
         _insert(val, _root);
@@ -908,7 +988,8 @@ a sub-árvore. Como o destrutor é invocado como finalizador da classe,
 não é necessário atribuir nulidade à raiz da mesma.
 
 #+begin_src cpp
-~AVLTree()
+template<typename T>
+AVLTree<T>::~AVLTree()
 {
     _clear(_root);
 }
@@ -925,7 +1006,8 @@ Insere uma certa informação na árvore. Retorna um valor booleano
 indicando o /status/ da inserção de tal informação.
 
 #+begin_src cpp
-bool insert(T info)
+template<typename T>
+bool AVLTree<T>::insert(T info)
 {
     return _insert(info, _root);
 }
@@ -941,7 +1023,8 @@ Caso o programador opte por não informar o estilo de impressão, uma
 impressão /em ordem/ será feita por padrão.
 
 #+begin_src cpp
-void print(TreePrintStyle style = TREEPRINT_INORDER) const
+template<typename T>
+void AVLTree<T>::print(TreePrintStyle style) const
 {
     switch(style) {
     case TREEPRINT_INORDER:
@@ -974,7 +1057,8 @@ Este método atribui apropriadamente o valor de nulidade à raiz da
 inserção de mais elementos.
 
 #+begin_src cpp
-void clear(void)
+template<typename T>
+void AVLTree<T>::clear(void)
 {
     _clear(_root);
     _root = nullptr;
@@ -990,7 +1074,8 @@ Retorna um valor booleano representando a existência do elemento na
 árvore.
 
 #+begin_src cpp
-bool search(const T info) const
+template<typename T>
+bool AVLTree<T>::search(const T info) const
 {
     return _search(_root, info);
 }
@@ -1005,21 +1090,11 @@ Retorna um valor booleano representando o /status/ de remoção do
 elemento na árvore.
 
 #+begin_src cpp
-bool remove(const T info)
+template<typename T>
+bool AVLTree<T>::remove(const T info)
 {
-    _remove(_root, info);
+    return _remove(_root, info);
 }
-#+end_src
-
-* Fim da classe AVLTree
-:PROPERTIES:
-:UNNUMBERED: t
-:END:
-
-Este símbolo encerra a definição da classe =AVLTree=.
-
-#+begin_src cpp
-};
 #+end_src
 
 * Testes
@@ -1101,7 +1176,7 @@ test_ctor(void)
 
     test_debrief<int>(tree);
 
-    std::cout << "Clearing tree" << std::endl;
+    std::cout << "Limpando arvore" << std::endl;
     tree.clear();
     std::cout << std::endl;
 }
@@ -1140,7 +1215,34 @@ test_search(void)
     for(int num : {2, 5, 31, 44}) {
         std::cout << num << " esta na arvore? "
                   << (tree.search(num) ? 'T' : 'F')
+                  << std::endl << std::endl;
+    }
+}
+#+end_src
+
+** Teste de remoção
+
+Esta função  testa a  remoção de  alguns elementos  de uma  ~AVLTree~ de
+números inteiros.
+
+#+begin_src cpp
+void
+test_removal(void)
+{
+    std::cout << "## Remocao de elementos"
+              << std::endl;
+    AVLTree<int> tree({35, 39, 51, 20, 13, 28, 22, 32, 25, 33});
+
+    std::cout << "# Inicial:\n";
+    tree.print(TREEPRINT_TRIANGLE);
+    std::cout << std::endl;
+
+    for(int num : {13, 39, 42, 25, 59, 28}) {
+        std::cout << "# Removendo " << num << "...\n";
+        bool ret = tree.remove(num);
+        std::cout << "Removido? " << (ret ? 'Y' : 'N')
                   << std::endl;
+        test_debrief<int>(tree);
     }
 }
 #+end_src
@@ -1158,6 +1260,7 @@ main(void)
     test_ctor();
     test_char();
     test_search();
+    test_removal();
 
     return 0;
 }
@@ -1172,8 +1275,8 @@ arquivo em questão.
 CXX      := clang++ --std=c++14
 CXXFLAGS := -Wall -pedantic -g
 OUTFLAG  := -o
-BINARY   := bintree
-SRC      := bintree.cpp
+BINARY   := avltree
+SRC      := avltree.cpp
 
 all: $(BINARY)
 
