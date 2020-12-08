@@ -1,0 +1,517 @@
+#+title: Brincando com Queries
+#+author: Lucas S. Vieira
+#+startup: showall
+#+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword root_pw :dbhost 172.17.0.2
+
+* Índice :TOC_3:
+- [[#subindo-o-mariadb-localmente][Subindo o MariaDB localmente]]
+  - [[#criando-o-contêiner][Criando o contêiner]]
+  - [[#verificando-se-o-contêiner-está-rodando][Verificando se o contêiner está rodando]]
+  - [[#conexão-via-console][Conexão via console]]
+    - [[#usando-docker][Usando Docker]]
+    - [[#usando-uma-ferramenta-externa][Usando uma ferramenta externa]]
+- [[#suporte-ao-emacs][Suporte ao Emacs]]
+- [[#criando-um-banco-de-dados][Criando um banco de dados]]
+  - [[#criando-tabelas][Criando tabelas]]
+    - [[#departamentos][Departamentos]]
+    - [[#empregados][Empregados]]
+    - [[#projetos][Projetos]]
+    - [[#relação-empregadoprojeto][Relação Empregado/Projeto]]
+  - [[#modificando-tabelas][Modificando tabelas]]
+    - [[#adicionando-uma-coluna-na-tabela-empregado][Adicionando uma coluna na tabela ~empregado~]]
+    - [[#alterar-estrutura-da-coluna-nome-em-empregado][Alterar estrutura da coluna ~nome~ em ~empregado~]]
+    - [[#remover-coluna-datanasc-em-empregado][Remover coluna ~datanasc~ em ~empregado~]]
+    - [[#modificar-novamente-nome-em-empregado][Modificar novamente ~nome~ em ~empregado~]]
+  - [[#inserindo-dados-nas-tabelas][Inserindo dados nas tabelas]]
+    - [[#adicionando-departamentos][Adicionando departamentos]]
+    - [[#adicionando-projetos][Adicionando projetos]]
+    - [[#adicionando-empregados][Adicionando empregados]]
+    - [[#adicionando-relações-empregadoprojeto][Adicionando relações Empregado/Projeto]]
+
+* Subindo o MariaDB localmente
+
+MariaDB é  um fork  opensource de MySQL.  Optei por  usá-lo localmente
+através do Docker.
+
+Por sorte, já existe uma imagem do MariaDB no DockerHub que facilita a
+minha vida.
+
+Para   começar,  o   Docker  está   adequadamente  instalado   no  meu
+Linux. Então, basta que eu puxe  a imagem Docker, crie um contêiner, e
+execute tudo localmente.
+
+Para maiores  informações, a [[https://mariadb.com/kb/en/installing-and-using-mariadb-via-docker/][documentação  do MariaDB]] é  fantástica de
+consultar.
+
+** Criando o contêiner
+
+Isso aqui instala a imagem:
+
+#+begin_src bash
+docker pull mariadb/server:10.4
+#+end_src
+
+E isso cria um contêiner:
+
+#+begin_src bash
+docker run --name dbms-bd1 -p 3306:3306 -e MYSQL_ROOT_PASSWORD="root_pw" -d mariadb/server:10.4
+#+end_src
+
+Para uso subsequente, podemos usar ~docker start dbms-bd1~ e ~docker stop
+dbms-bd1~.
+
+*NOTA:* A linha abaixo é um utilitário para remover todos os contêineres
+que estejam instalados localmente. Pode ser útil no futuro.
+
+#+begin_src bash :eval no
+docker ps -a | awk '{if (NR!=1) print $1}' | xargs docker rm
+#+end_src
+
+** Verificando se o contêiner está rodando
+
+Esse comando verifica se o  contêiner está em execução. Podemos também
+verificar se a porta está adequadamente redirecionada através dele.
+
+#+begin_src bash
+docker ps
+#+end_src
+
+** Conexão via console
+
+*** Usando Docker
+
+Para  iniciar  uma linha  de  comando  interativa  que se  conecte  ao
+MariaDB, podemos usar o comando a seguir em um terminal:
+
+#+begin_src bash :eval no
+docker exec -it dbms-bd1 mysql -uroot -proot_pw
+#+end_src
+
+*** Usando uma ferramenta externa
+
+Para  nos  conectarmos  usando   uma  ferramenta  externa,  precisamos
+encontrar o IP do contêiner.  Isso pode ser feito com esse comando:
+
+#+begin_src bash
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dbms-bd1
+#+end_src
+
+#+RESULTS:
+: 172.17.0.2
+
+Em seguida, podemos usar os binários locais normalmente.
+
+#+begin_src bash :eval no
+mysql -h 172.17.0.2 -P 3306 -uroot -proot_pw
+#+end_src
+
+* Suporte ao Emacs
+
+No Emacs, uso dois pacotes interessantes:
+
+1.  ~ob-sql-mode~: Para  interpretar  blocos de  código SQL  diretamente
+   neste arquivo de texto;
+2. ~edbi~: Solução gráfica para explorar um banco de dados.
+
+Para usar ~edbi~, use ~M-x edbi:open-db-viewer~.
+
+~edbi~ requer uma string de data source. É possível usar algo como:
+
+#+begin_example
+dbi:mysql:host=172.17.0.2;port=3306;dbname=empresa;charset=utf8mb4
+#+end_example
+
+Caso você  tenha algum problema  com o ~edbi~ reclamando  de bibliotecas
+Perl faltantes,  execute isso no  console, assumindo que você  tenha o
+~cpan~ instalado. Essa operação vai instalar drivers faltantes.
+
+Para mais informações, veja o repositório do [[https://github.com/kiwanami/emacs-edbi][Emacs DBI]].
+
+#+begin_src bash :eval no
+cpan RPC::EPC::Service DBI DBD::SQLite DBD::Pg DBD::mysql
+#+end_src
+
+Vamos testar  com um  bloco de  código. Para  tanto, é  necessário ter
+instalado o ~mysql~  ou o ~mariadb~, pois vamos usar  o comando ~mysql~ pelo
+console para nos conectarmos.
+
+#+begin_src sql
+show databases;
+#+end_src
+
+#+RESULTS:
+| Database           |
+|--------------------|
+| information_schema |
+| mysql              |
+| performance_schema |
+
+* Criando um banco de dados
+
+A operação a seguir precisa ser feita através de console interativo.
+
+Vamos criar um banco de dados para as lições:
+
+#+begin_src sql :eval no
+create database empresa;
+#+end_src
+
+#+RESULTS:
+||
+
+Caso você queira continuar no  console interativo, use o seguinte para
+ir para o banco de dados em questão:
+
+#+begin_src sql :eval no
+use empresa;
+#+end_src
+
+** Criando tabelas
+
+Vamos agora criar algumas tabelas no nosso banco de dados.
+
+*** Departamentos
+
+Primeiramente, vamos  criar uma  tabela para  os departamentos  de uma
+empresa, onde teremos:
+
+- ~numero~: Número inteiro, chave primária do departamento;
+- ~nome~: Varchar de 50 caracteres.
+
+#+header: :database empresa
+#+begin_src sql
+create table departamento(
+       numero integer primary key,
+       nome varchar(50));
+#+end_src
+
+#+RESULTS:
+||
+
+#+header: :database empresa
+#+begin_src sql
+describe departamento;
+#+end_src
+
+#+RESULTS:
+| Field  | Type        | Null | Key | Default | Extra |
+|--------+-------------+------+-----+---------+-------|
+| numero | int(11)     | NO   | PRI | NULL    |       |
+| nome   | varchar(50) | YES  |     | NULL    |       |
+
+*** Empregados
+
+Vamos criar uma tabela para os empregados. Nela, temos:
+
+- ~cpf~: Número BigInt, chave primária do empregado;
+- ~nome~: Varchar de 50 caracteres, não-nulo;
+- ~endereco~: Varchar de 50 caracteres, não-nulo;
+- ~depto_fk~: Número inteiro, referencia a chave de um departamento.
+
+Usaremos  BigInt para  o CPF,  posto  que o  CPF possui  mais de  oito
+dígitos.
+
+#+header: :database empresa
+#+begin_src sql
+create table empregado(
+       cpf bigint primary key,
+       nome varchar(50) not null,
+       endereco varchar(50) not null,
+       depto_fk integer,
+       foreign key(depto_fk) references departamento(numero));
+#+end_src
+
+#+RESULTS:
+||
+
+#+header: :database empresa
+#+begin_src sql
+describe empregado;
+#+end_src
+
+#+RESULTS:
+| Field    | Type        | Null | Key | Default | Extra |
+|----------+-------------+------+-----+---------+-------|
+| cpf      | bigint(20)  | NO   | PRI | NULL    |       |
+| nome     | varchar(50) | NO   |     | NULL    |       |
+| endereco | varchar(50) | NO   |     | NULL    |       |
+| depto_fk | int(11)     | YES  | MUL | NULL    |       |
+
+*** Projetos
+
+Vamos criar uma tabela para os projetos:
+
+- ~numero~: Número inteiro, chave primária do projeto;
+- ~nome~: Varchar de 30 caracteres, não-nulo.
+
+#+header: :database empresa
+#+begin_src sql
+create table projeto(
+       numero integer primary key,
+       nome varchar(30) not null);
+#+end_src
+
+#+RESULTS:
+||
+
+#+header: :database empresa
+#+begin_src sql
+describe projeto;
+#+end_src
+
+#+RESULTS:
+| Field  | Type        | Null | Key | Default | Extra |
+|--------+-------------+------+-----+---------+-------|
+| numero | int(11)     | NO   | PRI | NULL    |       |
+| nome   | varchar(30) | NO   |     | NULL    |       |
+
+*** Relação Empregado/Projeto
+
+Para relacionarmos empregados a determinados projetos, teremos:
+
+- ~cpf~: Número  BigInt, não-nulo, parte  da chave primária  composta da
+  relação, referência ao ~cpf~ de um empregado;
+- ~numero~: Número  inteiro, não-nulo, parte da  chave primária composta
+  da relação, referência ao ~numero~ de um projeto;
+- ~horas~: Número float.
+
+#+header: :database empresa
+#+begin_src sql
+create table emp_proj(
+       cpf bigint not null,
+       numero integer not null,
+       horas float,
+       primary key(cpf, numero),
+       foreign key(cpf) references empregado(cpf),
+       foreign key(numero) references projeto(numero));
+#+end_src
+
+#+RESULTS:
+||
+
+#+header: :database empresa
+#+begin_src sql
+describe emp_proj;
+#+end_src
+
+#+RESULTS:
+| Field  | Type       | Null | Key | Default | Extra |
+|--------+------------+------+-----+---------+-------|
+| cpf    | bigint(20) | NO   | PRI | NULL    |       |
+| numero | int(11)    | NO   | PRI | NULL    |       |
+| horas  | float      | YES  |     | NULL    |       |
+
+** Modificando tabelas
+
+*** Adicionando uma coluna na tabela ~empregado~
+
+#+header: :database empresa
+#+begin_src sql
+alter table empregado
+add column datanasc datetime;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+describe empregado;
+#+end_src
+
+#+RESULTS[aca4ab9dc1ea1ed3ef7f2cc09ab40e65678fd33c]:
+| Field    | Type        | Null | Key | Default | Extra |
+|----------+-------------+------+-----+---------+-------|
+| cpf      | bigint(20)  | NO   | PRI | NULL    |       |
+| nome     | varchar(50) | NO   |     | NULL    |       |
+| endereco | varchar(50) | NO   |     | NULL    |       |
+| depto_fk | int(11)     | YES  | MUL | NULL    |       |
+| datanasc | datetime    | YES  |     | NULL    |       |
+
+*** Alterar estrutura da coluna ~nome~ em ~empregado~
+
+#+header: :database empresa
+#+begin_src sql
+alter table empregado
+modify column nome varchar(90) not null;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+describe empregado;
+#+end_src
+
+#+RESULTS[aca4ab9dc1ea1ed3ef7f2cc09ab40e65678fd33c]:
+| Field    | Type        | Null | Key | Default | Extra |
+|----------+-------------+------+-----+---------+-------|
+| cpf      | bigint(20)  | NO   | PRI | NULL    |       |
+| nome     | varchar(90) | NO   |     | NULL    |       |
+| endereco | varchar(50) | NO   |     | NULL    |       |
+| depto_fk | int(11)     | YES  | MUL | NULL    |       |
+| datanasc | datetime    | YES  |     | NULL    |       |
+
+
+*** Remover coluna ~datanasc~ em ~empregado~
+
+#+header: :database empresa
+#+begin_src sql
+alter table empregado
+drop column datanasc;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+describe empregado;
+#+end_src
+
+#+RESULTS[aca4ab9dc1ea1ed3ef7f2cc09ab40e65678fd33c]:
+| Field    | Type        | Null | Key | Default | Extra |
+|----------+-------------+------+-----+---------+-------|
+| cpf      | bigint(20)  | NO   | PRI | NULL    |       |
+| nome     | varchar(90) | NO   |     | NULL    |       |
+| endereco | varchar(50) | NO   |     | NULL    |       |
+| depto_fk | int(11)     | YES  | MUL | NULL    |       |
+
+*** Modificar novamente ~nome~ em ~empregado~
+
+#+header: :database empresa
+#+begin_src sql
+alter table empregado
+modify column nome varchar(50) not null;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+describe empregado;
+#+end_src
+
+#+RESULTS[aca4ab9dc1ea1ed3ef7f2cc09ab40e65678fd33c]:
+| Field    | Type        | Null | Key | Default | Extra |
+|----------+-------------+------+-----+---------+-------|
+| cpf      | bigint(20)  | NO   | PRI | NULL    |       |
+| nome     | varchar(50) | NO   |     | NULL    |       |
+| endereco | varchar(50) | NO   |     | NULL    |       |
+| depto_fk | int(11)     | YES  | MUL | NULL    |       |
+
+** Inserindo dados nas tabelas
+
+Para criar relações  entre empregados e projetos,  precisamos de dados
+nessas respectivas tabelas, antes de mais nada.
+
+Os  exemplos a  seguir também  usam  queries com  ~select~, apenas  para
+visualizar os dados da tabela.
+
+*** Adicionando departamentos
+
+#+header: :database empresa
+#+begin_src sql
+insert into departamento(numero, nome)
+values(1, 'Administração'),
+      (2, 'Recursos humanos'),
+      (3, 'Operação');
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+select * from departamento;
+#+end_src
+
+#+RESULTS[83f1c43502192f03adf2e365ca8bd8d4aebe905b]:
+| numero | nome             |
+|--------+------------------|
+|      1 | Administração    |
+|      2 | Recursos humanos |
+|      3 | Operação         |
+
+*** Adicionando projetos
+
+#+header: :database empresa
+#+begin_src sql
+insert into projeto(numero, nome)
+values(1, 'Projeto A'),
+      (2, 'Projeto B'),
+      (3, 'Projeto C');
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+select * from projeto;
+#+end_src
+
+#+RESULTS[0f3ee9e0fa8d99d9feaae7c9fff484394d330582]:
+| numero | nome      |
+|--------+-----------|
+|      1 | Projeto A |
+|      2 | Projeto B |
+|      3 | Projeto C |
+
+*** Adicionando empregados
+
+#+header: :database empresa
+#+begin_src sql
+insert into empregado(cpf, nome, endereco, depto_fk)
+values(11122233344, 'José da Silva', 'Rua C, 44, Centro, Diamantina', 1),
+      (22233344455, 'Maria Rosa', 'Rua B, 22, Centro, Diamantina', 2),
+      (33344455566, 'João Jesus', 'Rua D, 15, Palha, Diamantina', 2),
+      (44455566677, 'Josuel Santos', 'Rua Domingos, 22, Centro, Diamantina', 3);
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+select * from empregado;
+#+end_src
+
+#+RESULTS[c23913a329c2ca162bdc93ca7c46c65ddd33c413]:
+|         cpf | nome          | endereco                             | depto_fk |
+|-------------+---------------+--------------------------------------+----------|
+| 11122233344 | José da Silva | Rua C, 44, Centro, Diamantina        |        1 |
+| 22233344455 | Maria Rosa    | Rua B, 22, Centro, Diamantina        |        2 |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina |        3 |
+
+*** Adicionando relações Empregado/Projeto
+
+#+header: :database empresa
+#+begin_src sql
+insert into emp_proj(cpf, numero, horas)
+values(11122233344, 1, 33),
+      (22233344455, 2, 15),
+      (33344455566,2, 20),
+      (44455566677,3, 17);
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+header: :database empresa
+#+begin_src sql :cache yes
+select * from emp_proj;
+#+end_src
+
+#+RESULTS[e7929de4e518c3635c23ec9c39a04dd07adb0ba9]:
+|         cpf | numero | horas |
+|-------------+--------+-------|
+| 11122233344 |      1 |    33 |
+| 22233344455 |      2 |    15 |
+| 33344455566 |      2 |    20 |
+| 44455566677 |      3 |    17 |
+
+
