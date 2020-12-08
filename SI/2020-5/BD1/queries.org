@@ -1,6 +1,6 @@
 #+title: Brincando com Queries
 #+author: Lucas S. Vieira
-#+startup: showall
+#+startup: content
 #+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword root_pw :dbhost 172.17.0.2
 
 * Índice :TOC_3:
@@ -11,22 +11,46 @@
     - [[#usando-docker][Usando Docker]]
     - [[#usando-uma-ferramenta-externa][Usando uma ferramenta externa]]
 - [[#suporte-ao-emacs][Suporte ao Emacs]]
-- [[#criando-um-banco-de-dados][Criando um banco de dados]]
+- [[#aula-10a-criando-um-banco-de-dados][Aula 10A: Criando um banco de dados]]
   - [[#criando-tabelas][Criando tabelas]]
     - [[#departamentos][Departamentos]]
     - [[#empregados][Empregados]]
     - [[#projetos][Projetos]]
     - [[#relação-empregadoprojeto][Relação Empregado/Projeto]]
-  - [[#modificando-tabelas][Modificando tabelas]]
-    - [[#adicionando-uma-coluna-na-tabela-empregado][Adicionando uma coluna na tabela ~empregado~]]
-    - [[#alterar-estrutura-da-coluna-nome-em-empregado][Alterar estrutura da coluna ~nome~ em ~empregado~]]
-    - [[#remover-coluna-datanasc-em-empregado][Remover coluna ~datanasc~ em ~empregado~]]
-    - [[#modificar-novamente-nome-em-empregado][Modificar novamente ~nome~ em ~empregado~]]
+- [[#aula-10b-modificando-tabelas][Aula 10B: Modificando tabelas]]
+  - [[#adicionando-uma-coluna-na-tabela-empregado][Adicionando uma coluna na tabela ~empregado~]]
+  - [[#alterar-estrutura-da-coluna-nome-em-empregado][Alterar estrutura da coluna ~nome~ em ~empregado~]]
+  - [[#remover-coluna-datanasc-em-empregado][Remover coluna ~datanasc~ em ~empregado~]]
+  - [[#modificar-novamente-nome-em-empregado][Modificar novamente ~nome~ em ~empregado~]]
+  - [[#mostrando-as-tabelas-criadas][Mostrando as tabelas criadas]]
   - [[#inserindo-dados-nas-tabelas][Inserindo dados nas tabelas]]
     - [[#adicionando-departamentos][Adicionando departamentos]]
     - [[#adicionando-projetos][Adicionando projetos]]
     - [[#adicionando-empregados][Adicionando empregados]]
     - [[#adicionando-relações-empregadoprojeto][Adicionando relações Empregado/Projeto]]
+- [[#aula-10c-parte-1-consultas-com-o-comando-select][Aula 10C, parte 1: Consultas com o comando ~SELECT~]]
+  - [[#mostrando-todos-os-dados][Mostrando todos os dados]]
+  - [[#mostrando-apenas-algumas-colunas][Mostrando apenas algumas colunas]]
+  - [[#filtrando-linhas-da-tabela][Filtrando linhas da tabela]]
+  - [[#cláusula-join][Cláusula ~JOIN~]]
+    - [[#combinando-empregados-e-departamentos][Combinando empregados e departamentos]]
+    - [[#combinando-empregados-projetos-e-horas-gastas-no-projeto][Combinando empregados, projetos, e horas gastas no projeto]]
+  - [[#cláusula-order-by][Cláusula ~ORDER BY~]]
+    - [[#ordenação-descendente][Ordenação descendente]]
+    - [[#ordenação-com-mais-de-um-critério][Ordenação com mais de um critério]]
+    - [[#ordenação-com-critérios-de-diferentes-tipos][Ordenação com critérios de diferentes tipos]]
+- [[#aula-10c-parte-2-funções-de-agregação][Aula 10C, parte 2: Funções de agregação]]
+  - [[#função-count][Função ~COUNT~]]
+    - [[#contagem-de-elementos-distintos][Contagem de elementos distintos]]
+    - [[#cláusula-de-critério-de-agrupamento-group-by][Cláusula de critério de agrupamento: ~GROUP BY~]]
+  - [[#usando-count-e-join-em-conjunto][Usando ~COUNT~ e ~JOIN~ em conjunto]]
+    - [[#usando-cláusula-where][Usando cláusula ~WHERE~]]
+    - [[#ordenando-resultado-pela-agregação][Ordenando resultado pela agregação]]
+  - [[#função-max][Função ~MAX~]]
+  - [[#função-min][Função ~MIN~]]
+  - [[#função-avg][Função ~AVG~]]
+  - [[#consulta-com-predicado-envolvendo-função-de-agregação][Consulta com predicado envolvendo função de agregação]]
+  - [[#operador-like][Operador ~LIKE~]]
 
 * Subindo o MariaDB localmente
 
@@ -57,14 +81,22 @@ E isso cria um contêiner:
 docker run --name dbms-bd1 -p 3306:3306 -e MYSQL_ROOT_PASSWORD="root_pw" -d mariadb/server:10.4
 #+end_src
 
-Para uso subsequente, podemos usar ~docker start dbms-bd1~ e ~docker stop
-dbms-bd1~.
+Este último  comando cria um  contêiner de nome ~dbms-bd1~,  que exporta
+sua porta ~3306~ para a porta ~3306~  da máquina, e define a senha de root
+como ~root_pw~,  que é  o que  usaremos para  acessar, juntamente  com o
+usuário ~root~.
 
-*NOTA:* A linha abaixo é um utilitário para remover todos os contêineres
-que estejam instalados localmente. Pode ser útil no futuro.
+Gerenciar o contêiner  é algo simples. Ao executar o  comando acima, o
+contêiner já estará em execução. Para interromper sua operação, faça:
 
 #+begin_src bash :eval no
-docker ps -a | awk '{if (NR!=1) print $1}' | xargs docker rm
+docker stop dbms-bd1
+#+end_src
+
+E, caso queira iniciar novamente o contêiner:
+
+#+begin_src bash :eval no
+docker start dbms-bd1
 #+end_src
 
 ** Verificando se o contêiner está rodando
@@ -72,8 +104,19 @@ docker ps -a | awk '{if (NR!=1) print $1}' | xargs docker rm
 Esse comando verifica se o  contêiner está em execução. Podemos também
 verificar se a porta está adequadamente redirecionada através dele.
 
-#+begin_src bash
+#+begin_src bash :cache yes
 docker ps
+#+end_src
+
+#+RESULTS[66eee57c645c74c14e45c9a4e6aa28b2b70987b1]:
+| CONTAINER    | ID                  | IMAGE                | COMMAND | CREATED | STATUS | PORTS | NAMES |       |    |      |                        |          |
+| 16f6d547ea84 | mariadb/server:10.4 | docker-entrypoint.s… | About   | an      | hour   | ago   | Up    | About | an | hour | 0.0.0.0:3306->3306/tcp | dbms-bd1 |
+
+*NOTA:* A linha abaixo é um utilitário para remover todos os contêineres
+que estejam instalados localmente. Pode ser útil no futuro.
+
+#+begin_src bash :eval no
+docker ps -a | awk '{if (NR!=1) print $1}' | xargs docker rm
 #+end_src
 
 ** Conexão via console
@@ -146,7 +189,7 @@ show databases;
 | mysql              |
 | performance_schema |
 
-* Criando um banco de dados
+* Aula 10A: Criando um banco de dados
 
 A operação a seguir precisa ser feita através de console interativo.
 
@@ -301,9 +344,9 @@ describe emp_proj;
 | numero | int(11)    | NO   | PRI | NULL    |       |
 | horas  | float      | YES  |     | NULL    |       |
 
-** Modificando tabelas
+* Aula 10B: Modificando tabelas
 
-*** Adicionando uma coluna na tabela ~empregado~
+** Adicionando uma coluna na tabela ~empregado~
 
 #+header: :database empresa
 #+begin_src sql
@@ -328,7 +371,7 @@ describe empregado;
 | depto_fk | int(11)     | YES  | MUL | NULL    |       |
 | datanasc | datetime    | YES  |     | NULL    |       |
 
-*** Alterar estrutura da coluna ~nome~ em ~empregado~
+** Alterar estrutura da coluna ~nome~ em ~empregado~
 
 #+header: :database empresa
 #+begin_src sql
@@ -353,8 +396,7 @@ describe empregado;
 | depto_fk | int(11)     | YES  | MUL | NULL    |       |
 | datanasc | datetime    | YES  |     | NULL    |       |
 
-
-*** Remover coluna ~datanasc~ em ~empregado~
+** Remover coluna ~datanasc~ em ~empregado~
 
 #+header: :database empresa
 #+begin_src sql
@@ -378,7 +420,7 @@ describe empregado;
 | endereco | varchar(50) | NO   |     | NULL    |       |
 | depto_fk | int(11)     | YES  | MUL | NULL    |       |
 
-*** Modificar novamente ~nome~ em ~empregado~
+** Modificar novamente ~nome~ em ~empregado~
 
 #+header: :database empresa
 #+begin_src sql
@@ -401,6 +443,21 @@ describe empregado;
 | nome     | varchar(50) | NO   |     | NULL    |       |
 | endereco | varchar(50) | NO   |     | NULL    |       |
 | depto_fk | int(11)     | YES  | MUL | NULL    |       |
+
+** Mostrando as tabelas criadas
+
+#+header: :database empresa
+#+begin_src sql
+show tables;
+#+end_src
+
+#+RESULTS:
+| Tables_in_empresa |
+|-------------------|
+| departamento      |
+| emp_proj          |
+| empregado         |
+| projeto           |
 
 ** Inserindo dados nas tabelas
 
@@ -514,4 +571,623 @@ select * from emp_proj;
 | 33344455566 |      2 |    20 |
 | 44455566677 |      3 |    17 |
 
+* Aula 10C, parte 1: Consultas com o comando ~SELECT~
+
+** Mostrando todos os dados
+
+Começaremos  com um  exemplo  que  recupera todas  as  colunas de  uma
+determinada tabela.
+
+#+begin_src sql :database empresa
+select * from empregado;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                             | depto_fk |
+|-------------+---------------+--------------------------------------+----------|
+| 11122233344 | José da Silva | Rua C, 44, Centro, Diamantina        |        1 |
+| 22233344455 | Maria Rosa    | Rua B, 22, Centro, Diamantina        |        2 |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina |        3 |
+
+** Mostrando apenas algumas colunas
+
+A seguir, vamos recuperar apenas as colunas ~cpf~ e ~nome~ dos empregados.
+
+#+begin_src sql :database empresa
+select cpf, nome from empregado;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          |
+|-------------+---------------|
+| 11122233344 | José da Silva |
+| 22233344455 | Maria Rosa    |
+| 33344455566 | João Jesus    |
+| 44455566677 | Josuel Santos |
+
+** Filtrando linhas da tabela
+
+Vamos filtrar as linhas de acordo com um certo predicado.
+
+#+begin_src sql :database empresa
+select * from empregado where depto_fk=1;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                      | depto_fk |
+|-------------+---------------+-------------------------------+----------|
+| 11122233344 | José da Silva | Rua C, 44, Centro, Diamantina |        1 |
+
+Podemos também usar  ~and~ e ~or~ para realizar mais  operações lógicas na
+query.
+
+As  operações  lógicas também  podem  admitir  parênteses para  melhor
+controle de sua operação.
+
+#+begin_src sql :database empresa
+select * from empregado
+where depto_fk=1 or cpf=33344455566;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                      | depto_fk |
+|-------------+---------------+-------------------------------+----------|
+| 11122233344 | José da Silva | Rua C, 44, Centro, Diamantina |        1 |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina  |        2 |
+
+** Cláusula ~JOIN~
+
+Podemos realizar consultas que reúnem registros de tabelas diferentes,
+ou que combinam registros de uma mesma tabela.
+
+*** Combinando empregados e departamentos
+
+Aqui, combinamos o CPF e o nome de  um empregado com o número e o nome
+de seu departamento.
+
+#+begin_src sql :database empresa
+select cpf, e.nome, depto_fk, d.nome
+from empregado e join departamento d
+on e.depto_fk = d.numero;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | depto_fk | nome             |
+|-------------+---------------+----------+------------------|
+| 11122233344 | José da Silva |        1 | Administração    |
+| 22233344455 | Maria Rosa    |        2 | Recursos humanos |
+| 33344455566 | João Jesus    |        2 | Recursos humanos |
+| 44455566677 | Josuel Santos |        3 | Operação         |
+
+*** Combinando empregados, projetos, e horas gastas no projeto
+
+Essa  query com  ~JOIN~ envolve  a  união de  três tabelas:  empregados,
+projetos, e a relação empregado/projeto.
+
+#+begin_src sql :database empresa
+select e.cpf, e.nome, p.nome, horas
+from empregado e
+join emp_proj pj on e.cpf = pj.cpf
+join projeto p on pj.numero = p.numero;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | nome      | horas |
+|-------------+---------------+-----------+-------|
+| 11122233344 | José da Silva | Projeto A |    33 |
+| 22233344455 | Maria Rosa    | Projeto B |    15 |
+| 33344455566 | João Jesus    | Projeto B |    20 |
+| 44455566677 | Josuel Santos | Projeto C |    17 |
+
+** Cláusula ~ORDER BY~
+
+Esta  cláusula  ordena  o  resultado  da consulta  de  acordo  com  um
+critério, relacionado ao valor de uma ou mais colunas.
+
+#+begin_src sql :database empresa
+select e.cpf, e.nome, p.nome, horas
+from empregado e
+join emp_proj pj on e.cpf = pj.cpf
+join projeto p on pj.numero = p.numero
+order by e.nome;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | nome      | horas |
+|-------------+---------------+-----------+-------|
+| 33344455566 | João Jesus    | Projeto B |    20 |
+| 11122233344 | José da Silva | Projeto A |    33 |
+| 44455566677 | Josuel Santos | Projeto C |    17 |
+| 22233344455 | Maria Rosa    | Projeto B |    15 |
+
+*** Ordenação descendente
+
+A ordenação pode ser invertida  através da utilização da palavra-chave
+~DESC~, que instrui uma ordenação descendente.
+
+#+begin_src sql :database empresa
+select e.cpf, e.nome, p.nome, horas
+from empregado e
+join emp_proj pj on e.cpf = pj.cpf
+join projeto p on pj.numero = p.numero
+order by e.nome desc;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | nome      | horas |
+|-------------+---------------+-----------+-------|
+| 22233344455 | Maria Rosa    | Projeto B |    15 |
+| 44455566677 | Josuel Santos | Projeto C |    17 |
+| 11122233344 | José da Silva | Projeto A |    33 |
+| 33344455566 | João Jesus    | Projeto B |    20 |
+
+*** Ordenação com mais de um critério
+
+/(Este exemplo é ligeiramente modificado com relação ao da aula para se
+enquadrar nos dados previamente inseridos.)/
+
+Podemos também realizar  ordenação de acordo com nomes  dos projetos e
+nomes dos empregados, de forma descendente.
+
+Dessa  forma, quando  dois  empregados "empatarem"  em  seus nomes  de
+projetos, os mesmos  serão ordenados de acordo com  a ordem alfabética
+de seus próprios nomes.
+
+#+begin_src sql :database empresa
+select p.nome, horas, e.cpf, e.nome
+from empregado e
+join emp_proj pj on e.cpf = pj.cpf
+join projeto p on pj.numero = p.numero
+order by p.nome, e.nome desc;
+#+end_src
+
+#+RESULTS:
+| nome      | horas |         cpf | nome          |
+|-----------+-------+-------------+---------------|
+| Projeto A |    33 | 11122233344 | José da Silva |
+| Projeto B |    15 | 22233344455 | Maria Rosa    |
+| Projeto B |    20 | 33344455566 | João Jesus    |
+| Projeto C |    17 | 44455566677 | Josuel Santos |
+
+*** Ordenação com critérios de diferentes tipos
+
+A consulta a  seguir usa o valor  das horas do projeto  da mesma forma
+como o exemplo anterior. Assim, o  valor das horas constitui o segundo
+critério de ordenação, após o nome do empregado.
+
+#+begin_src sql :database empresa
+select e.cpf, e.nome, p.nome, horas
+from empregado e
+join emp_proj pj on e.cpf = pj.cpf
+join projeto p on pj.numero = p.numero
+order by e.nome, horas;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | nome      | horas |
+|-------------+---------------+-----------+-------|
+| 33344455566 | João Jesus    | Projeto B |    20 |
+| 11122233344 | José da Silva | Projeto A |    33 |
+| 44455566677 | Josuel Santos | Projeto C |    17 |
+| 22233344455 | Maria Rosa    | Projeto B |    15 |
+
+* Aula 10C, parte 2: Funções de agregação
+
+Funções de  agregação analisam o  conteúdo de uma coluna,  para várias
+linhas, e retornar um determinado resultado.
+
+** Função ~COUNT~
+
+Responsável por  realizar a contagem  do número de linhas  que possuem
+conteúdo em  determinada coluna.
+
+O asterisco  analisa linhas  que têm  conteúdo em  pelo menos  uma das
+colunas -- em outras palavras, conta  a quantidade de registros em uma
+tabela, assumindo que não haja linhas  na tabela onde todas as colunas
+estejam em branco.
+
+#+begin_src sql :database empresa
+select count(*) from empregado;
+#+end_src
+
+#+RESULTS:
+| count(*) |
+|----------|
+|        4 |
+
+Entradas que possuem CPF entre os empregados:
+
+#+begin_src sql :database empresa
+select count(cpf) from empregado;
+#+end_src
+
+#+RESULTS:
+| count(cpf) |
+|------------|
+|          4 |
+
+O mesmo para valores de departamentos:
+
+#+begin_src sql :database empresa
+select count(depto_fk) from empregado;
+#+end_src
+
+#+RESULTS:
+| count(depto_fk) |
+|-----------------|
+|               4 |
+
+*** Contagem de elementos distintos
+
+A palavra-chave ~DISTINCT~  força ~COUNT~ a procurar  apenas pelos valores
+distintos de ~depto_fk~ na tabela ~empregado~.
+
+#+begin_src sql :database empresa
+select count(distinct depto_fk) from empregado;
+#+end_src
+
+#+RESULTS:
+| count(distinct depto_fk) |
+|--------------------------|
+|                        3 |
+
+*** Cláusula de critério de agrupamento: ~GROUP BY~
+
+Para cada  valor diferente  da coluna  ~depto_fk~, um  cálculo diferente
+será realizado.
+
+Como há três valores diferentes  para a coluna ~depto_fk~, então obterei
+três valores diferentes de contagem.
+
+Em  outras palavras,  estamos contando  quantos empregados  diferentes
+temos em cada departamento.
+
+#+begin_src sql :database empresa
+select count(*) from empregado
+group by depto_fk;
+#+end_src
+
+#+RESULTS:
+| count(*) |
+|----------|
+|        1 |
+|        2 |
+|        1 |
+
+
+Vamos deixar  isso  um pouco  mais  explícito, mostrando  qual
+deparatamento é qual.
+
+Ainda melhor  que isso,  renomearemos a  coluna ~count(*)~  do resultado
+como ~Total Empregados~.
+
+#+begin_src sql :database empresa
+select depto_fk, count(*) as 'Total Empregados'
+from empregado
+group by depto_fk;
+#+end_src
+
+#+RESULTS:
+| depto_fk | Total Empregados |
+|----------+------------------|
+|        1 |                1 |
+|        2 |                2 |
+|        3 |                1 |
+
+** Usando ~COUNT~ e ~JOIN~ em conjunto
+
+Vamos mostrar o número e o nome  de um departamento, bem como o número
+de empregados atualmente registrados em cada departamento.
+
+É  necessário   realizar  o   ~JOIN~,  posto   que  as   informações  de
+departamentos pertencem  à tabela ~departamento~; todavia,  as contagens
+agrupadas  de   total  de  empregados  estão   relacionadas  à  tabela
+~empregado~.
+
+#+begin_src sql :database empresa
+select depto_fk, d.nome, count(*) as 'Total Empregados'
+from empregado e
+join departamento d on e.depto_fk = d.numero
+group by depto_fk;
+#+end_src
+
+#+RESULTS:
+| depto_fk | nome             | Total Empregados |
+|----------+------------------+------------------|
+|        1 | Administração    |                1 |
+|        2 | Recursos humanos |                2 |
+|        3 | Operação         |                1 |
+
+*** Usando cláusula ~WHERE~
+
+Se quiséssemos  realizar essa consulta para  departamentos cujo número
+seja maior que  ~1~, precisaríamos entrar com a cláusula  ~WHERE~ antes do
+~GROUP BY~.
+
+#+begin_src sql :database empresa
+select depto_fk, d.nome, count(*) as 'Total Empregados'
+from empregado e
+join departamento d on e.depto_fk = d.numero
+where depto_fk > 1
+group by depto_fk;
+#+end_src
+
+#+RESULTS:
+| depto_fk | nome             | Total Empregados |
+|----------+------------------+------------------|
+|        2 | Recursos humanos |                2 |
+|        3 | Operação         |                1 |
+
+*** Ordenando resultado pela agregação
+
+Aqui, utilizaremos  um ~ORDER BY~  para ordenar os resultados  de acordo
+com o resultado do cálculo da função de agregação.
+
+Note que o nome dado à coluna com o cálculo da função de agregação tem
+que estar *entre crases*.
+
+#+begin_src sql :database empresa
+select depto_fk, d.nome, count(*) as `Total`
+from empregado e
+join departamento d on e.depto_fk = d.numero
+group by depto_fk
+order by `Total`;
+#+end_src
+
+#+RESULTS:
+| depto_fk | nome             | Total |
+|----------+------------------+-------|
+|        3 | Operação         |     1 |
+|        1 | Administração    |     1 |
+|        2 | Recursos humanos |     2 |
+
+** Função ~MAX~
+
+Responsável  por  analisar determinados  valores  e  retornar o  valor
+máximo dentre esses valores.
+
+A consulta a  seguir retorna o valor máximo de  horas que um empregado
+atua em um projeto.
+
+#+begin_src sql :database empresa
+select max(horas) from emp_proj;
+#+end_src
+
+#+RESULTS:
+| max(horas) |
+|------------|
+|         33 |
+
+** Função ~MIN~
+
+Similar  à ~MAX~,  porém retornando  o  valor mínimo  dentre os  valores
+analisados.
+
+A consulta a  seguir retorna o valor mínimo de  horas que um empregado
+atua em um projeto.
+
+#+begin_src sql :database empresa
+select min(horas) from emp_proj;
+#+end_src
+
+#+RESULTS:
+| min(horas) |
+|------------|
+|         15 |
+
+** Função ~AVG~
+
+Responsável  por  calcular  a  *média* de  um  determinado  conjunto  de
+valores,  considerando-se  as linhas  de  valores  de uma  determinada
+coluna.
+
+A consulta  a seguir retorna  o valor  médio de horas  trabalhadas por
+empregados em projetos.
+
+#+begin_src sql :database empresa
+select avg(horas) from emp_proj;
+#+end_src
+
+#+RESULTS:
+| avg(horas) |
+|------------|
+|      21.25 |
+
+Podemos dar  um resultado melhor  para a consulta anterior  através do
+arredondamento da  média das horas, o  que pode ser feito  pela função
+~ROUND~.
+
+O exemplo a seguir mostra o valor arredondado com uma casa decimal.
+
+#+begin_src sql :database empresa
+select round(avg(horas), 1) from emp_proj;
+#+end_src
+
+#+RESULTS:
+| round(avg(horas), 1) |
+|----------------------|
+|                 21.2 |
+
+Igualmente, podemos usar ~GROUP BY~ para agrupar os resultados de acordo
+com  o número  do  projeto.  Assim, teremos  o  valor  médio de  horas
+trabalhadas por empregados *em cada projeto específico*.
+
+#+begin_src sql :database empresa
+select numero, round(avg(horas), 1)
+from emp_proj
+group by numero;
+#+end_src
+
+#+RESULTS:
+| numero | round(avg(horas), 1) |
+|--------+----------------------|
+|      1 |                 33.0 |
+|      2 |                 17.5 |
+|      3 |                 17.0 |
+
+*Extra:* Vou tentar melhorar um pouco mostrando o nome do projeto.
+
+#+begin_src sql :database empresa
+select p.nome, round(avg(horas), 1) as horas_medias
+from emp_proj pj
+join projeto p on pj.numero = p.numero
+group by pj.numero;
+#+end_src
+
+#+RESULTS:
+| nome      | horas_medias |
+|-----------+--------------|
+| Projeto A |         33.0 |
+| Projeto B |         17.5 |
+| Projeto C |         17.0 |
+
+*Adaptado da aula:* Agora, vamos ordenar  isso pelo cálculo da função de
+ agregação.
+
+#+begin_src sql :database empresa
+select p.nome, round(avg(horas), 1) as horas_medias
+from emp_proj pj
+join projeto p on pj.numero = p.numero
+group by pj.numero
+order by horas_medias;
+#+end_src
+
+#+RESULTS:
+| nome      | horas_medias |
+|-----------+--------------|
+| Projeto C |         17.0 |
+| Projeto B |         17.5 |
+| Projeto A |         33.0 |
+
+*Extra:* E  para projetos com  número de projeto  maior que ~1~?  Eis onde
+ entraria a cláusura ~WHERE~.
+
+#+begin_src sql :database empresa
+select p.nome, round(avg(horas), 1) as horas_medias
+from emp_proj pj
+join projeto p on pj.numero = p.numero
+where pj.numero > 1
+group by pj.numero
+order by horas_medias;
+#+end_src
+
+#+RESULTS:
+| nome      | horas_medias |
+|-----------+--------------|
+| Projeto C |         17.0 |
+| Projeto B |         17.5 |
+
+Se fosse uma query um pouco  mais simples, teríamos o ~WHERE~ entre ~FROM~
+e ~GROUP BY~:
+
+#+begin_src sql :database empresa
+select numero, round(avg(horas), 1) from emp_proj
+where numero > 1
+group by numero
+order by round(avg(horas), 1);
+#+end_src
+
+#+RESULTS:
+| numero | round(avg(horas), 1) |
+|--------+----------------------|
+|      3 |                 17.0 |
+|      2 |                 17.5 |
+
+** Consulta com predicado envolvendo função de agregação
+
+Quando  a função  de agregação  precisa  ser usada  como predicado  na
+seleção dos  valores, onde normalmente pensaria-se  em utilizar ~WHERE~,
+utiliza-se ~HAVING~:
+
+#+begin_src sql :database empresa
+select numero, round(avg(horas), 2) from emp_proj
+group by numero
+having round(avg(horas), 2) > 17
+order by round(avg(horas), 2);
+#+end_src
+
+#+RESULTS:
+| numero | round(avg(horas), 2) |
+|--------+----------------------|
+|      2 |                17.50 |
+|      1 |                33.00 |
+
+** Operador ~LIKE~
+
+Realiza pesquisas no banco de dados através de /wildcards/.
+
+A  consulta a  seguir  retorna  todos os  resultados  onde  o nome  do
+empregado inicie-se com a letra ~M~, seja ela maiúscula ou minúscula.
+
+#+begin_src sql :database empresa
+select * from empregado
+where nome like 'm%';
+#+end_src
+
+#+RESULTS:
+|         cpf | nome       | endereco                      | depto_fk |
+|-------------+------------+-------------------------------+----------|
+| 22233344455 | Maria Rosa | Rua B, 22, Centro, Diamantina |        2 |
+
+A  próxima  consulta  retorna  todos  os resultados  onde  o  nome  do
+empregado inicie-se com  a letra ~J~ (maiúscula ou  minúscula) e termine
+com a letra ~S~ (maiúscula ou minúscula).
+
+#+begin_src sql :database empresa
+select * from empregado
+where nome like 'j%s';
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                             | depto_fk |
+|-------------+---------------+--------------------------------------+----------|
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina |        3 |
+
+Esta consulta agora compara pela quantidade de letras em um nome. Mais
+especificamente,  retorna todos  os empregados  cujo nome  utilize dez
+caracteres, incluindo espaços.
+
+#+begin_src sql :database empresa
+select * from empregado
+where nome like '__________';
+#+end_src
+
+#+RESULTS:
+|         cpf | nome       | endereco                      | depto_fk |
+|-------------+------------+-------------------------------+----------|
+| 22233344455 | Maria Rosa | Rua B, 22, Centro, Diamantina |        2 |
+| 33344455566 | João Jesus | Rua D, 15, Palha, Diamantina  |        2 |
+
+Podemos  também tentar  garantir  que  o nome  tenha  pelo menos  três
+caracteres, por exemplo:
+
+#+begin_src sql :database empresa
+select * from empregado
+where nome like '___%';
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                             | depto_fk |
+|-------------+---------------+--------------------------------------+----------|
+| 11122233344 | José da Silva | Rua C, 44, Centro, Diamantina        |        1 |
+| 22233344455 | Maria Rosa    | Rua B, 22, Centro, Diamantina        |        2 |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina |        3 |
+
+Finalmente, procuramos por  um nome que tenha a letra  ~a~ (maiúscula ou
+minúscula) como  segundo caractere, com tamanho  indefinido. Em outras
+palavras, precisamos  de pelo menos um  caractere, seguido de um  ~a~, e
+então um número arbitrário de caracteres:
+
+#+begin_src sql :database empresa
+select * from empregado
+where nome like '_a%';
+#+end_src
+
+#+RESULTS:
+|         cpf | nome       | endereco                      | depto_fk |
+|-------------+------------+-------------------------------+----------|
+| 22233344455 | Maria Rosa | Rua B, 22, Centro, Diamantina |        2 |
 
