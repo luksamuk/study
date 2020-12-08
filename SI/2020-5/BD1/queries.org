@@ -1,9 +1,11 @@
-#+title: Brincando com Queries
+#+title: Bancos de Dados I
+#+subtitle: Estudos de Queries
 #+author: Lucas S. Vieira
 #+startup: content
 #+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword root_pw :dbhost 172.17.0.2
 
 * Índice :TOC_3:
+- [[#introdução][Introdução]]
 - [[#subindo-o-mariadb-localmente][Subindo o MariaDB localmente]]
   - [[#criando-o-contêiner][Criando o contêiner]]
   - [[#verificando-se-o-contêiner-está-rodando][Verificando se o contêiner está rodando]]
@@ -51,6 +53,21 @@
   - [[#função-avg][Função ~AVG~]]
   - [[#consulta-com-predicado-envolvendo-função-de-agregação][Consulta com predicado envolvendo função de agregação]]
   - [[#operador-like][Operador ~LIKE~]]
+
+* Introdução
+
+As seções a  seguir descrevem exemplos e estudo  de queries realizados
+para  a disciplina  de Bancos  de  Dados I,  do curso  de Sistemas  de
+Informação, da UFVJM.
+
+As queries foram executadas em  uma instalação local do MariaDB, feita
+em um contêiner, através da ferramenta Docker.
+
+Este documento foi criado através do editor de texto Emacs, utilizando
+o  formato de  texto Org.  Isso significa  que foram  inseridos blocos
+individuais de código e, através de configuração especial, tais blocos
+foram executados,  de forma  que gerassem  as saídas  subsequentes aos
+mesmos.
 
 * Subindo o MariaDB localmente
 
@@ -104,13 +121,13 @@ docker start dbms-bd1
 Esse comando verifica se o  contêiner está em execução. Podemos também
 verificar se a porta está adequadamente redirecionada através dele.
 
-#+begin_src bash :cache yes
+#+begin_src bash :cache yes :results verbatim :exports both
 docker ps
 #+end_src
 
-#+RESULTS[66eee57c645c74c14e45c9a4e6aa28b2b70987b1]:
-| CONTAINER    | ID                  | IMAGE                | COMMAND | CREATED | STATUS | PORTS | NAMES |       |    |      |                        |          |
-| 16f6d547ea84 | mariadb/server:10.4 | docker-entrypoint.s… | About   | an      | hour   | ago   | Up    | About | an | hour | 0.0.0.0:3306->3306/tcp | dbms-bd1 |
+#+RESULTS[19a07da4f43b29619840b427e896765054a702cc]:
+: CONTAINER ID        IMAGE                 COMMAND                  CREATED             STATUS              PORTS                    NAMES
+: 16f6d547ea84        mariadb/server:10.4   "docker-entrypoint.s…"   3 hours ago         Up 3 hours          0.0.0.0:3306->3306/tcp   dbms-bd1
 
 *NOTA:* A linha abaixo é um utilitário para remover todos os contêineres
 que estejam instalados localmente. Pode ser útil no futuro.
@@ -135,7 +152,7 @@ docker exec -it dbms-bd1 mysql -uroot -proot_pw
 Para  nos  conectarmos  usando   uma  ferramenta  externa,  precisamos
 encontrar o IP do contêiner.  Isso pode ser feito com esse comando:
 
-#+begin_src bash
+#+begin_src bash :exports both
 docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dbms-bd1
 #+end_src
 
