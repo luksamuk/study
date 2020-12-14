@@ -2,7 +2,7 @@
 #+subtitle: Estudos de Queries
 #+author: Lucas S. Vieira
 #+startup: content
-#+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword root_pw :dbhost 172.17.0.2
+#+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword root_pw :dbhost 172.17.0.2 :exports both
 
 * Índice :TOC_3:
 - [[#introdução][Introdução]]
@@ -53,6 +53,17 @@
   - [[#função-avg][Função ~AVG~]]
   - [[#consulta-com-predicado-envolvendo-função-de-agregação][Consulta com predicado envolvendo função de agregação]]
   - [[#operador-like][Operador ~LIKE~]]
+- [[#aula-10d-atualização-e-remoção-de-informações][Aula 10D: Atualização e remoção de informações]]
+  - [[#comando-update][Comando ~UPDATE~]]
+    - [[#alterando-empregados][Alterando empregados]]
+    - [[#observação][Observação]]
+    - [[#alterando-departamentos][Alterando departamentos]]
+    - [[#alterando-relações-entre-empregados-e-projetos][Alterando relações entre empregados e projetos]]
+  - [[#comando-delete][Comando ~DELETE~]]
+    - [[#deletando-empregados][Deletando empregados]]
+    - [[#observação-1][Observação]]
+    - [[#deletando-departamentos-ou-pelo-menos-tentando][Deletando departamentos (ou pelo menos tentando)]]
+    - [[#deletando-relações-empregado-x-projeto][Deletando relações empregado x projeto]]
 
 * Introdução
 
@@ -95,7 +106,10 @@ docker pull mariadb/server:10.4
 E isso cria um contêiner:
 
 #+begin_src bash
-docker run --name dbms-bd1 -p 3306:3306 -e MYSQL_ROOT_PASSWORD="root_pw" -d mariadb/server:10.4
+docker run --name dbms-bd1 \
+       -p 3306:3306 \
+       -e MYSQL_ROOT_PASSWORD="root_pw" \
+       -d mariadb/server:10.4
 #+end_src
 
 Este último  comando cria um  contêiner de nome ~dbms-bd1~,  que exporta
@@ -665,7 +679,8 @@ de seu departamento.
 
 #+begin_src sql :database empresa
 select cpf, e.nome, depto_fk, d.nome
-from empregado e join departamento d
+from empregado as e
+join departamento as d
 on e.depto_fk = d.numero;
 #+end_src
 
@@ -684,9 +699,9 @@ projetos, e a relação empregado/projeto.
 
 #+begin_src sql :database empresa
 select e.cpf, e.nome, p.nome, horas
-from empregado e
-join emp_proj pj on e.cpf = pj.cpf
-join projeto p on pj.numero = p.numero;
+from empregado as e
+join emp_proj as pj on e.cpf = pj.cpf
+join projeto as p on pj.numero = p.numero;
 #+end_src
 
 #+RESULTS:
@@ -704,9 +719,9 @@ critério, relacionado ao valor de uma ou mais colunas.
 
 #+begin_src sql :database empresa
 select e.cpf, e.nome, p.nome, horas
-from empregado e
-join emp_proj pj on e.cpf = pj.cpf
-join projeto p on pj.numero = p.numero
+from empregado as e
+join emp_proj as pj on e.cpf = pj.cpf
+join projeto as p on pj.numero = p.numero
 order by e.nome;
 #+end_src
 
@@ -725,9 +740,9 @@ A ordenação pode ser invertida  através da utilização da palavra-chave
 
 #+begin_src sql :database empresa
 select e.cpf, e.nome, p.nome, horas
-from empregado e
-join emp_proj pj on e.cpf = pj.cpf
-join projeto p on pj.numero = p.numero
+from empregado as e
+join emp_proj as pj on e.cpf = pj.cpf
+join projeto as p on pj.numero = p.numero
 order by e.nome desc;
 #+end_src
 
@@ -753,9 +768,9 @@ de seus próprios nomes.
 
 #+begin_src sql :database empresa
 select p.nome, horas, e.cpf, e.nome
-from empregado e
-join emp_proj pj on e.cpf = pj.cpf
-join projeto p on pj.numero = p.numero
+from empregado as e
+join emp_proj as pj on e.cpf = pj.cpf
+join projeto as p on pj.numero = p.numero
 order by p.nome, e.nome desc;
 #+end_src
 
@@ -775,9 +790,9 @@ critério de ordenação, após o nome do empregado.
 
 #+begin_src sql :database empresa
 select e.cpf, e.nome, p.nome, horas
-from empregado e
-join emp_proj pj on e.cpf = pj.cpf
-join projeto p on pj.numero = p.numero
+from empregado as e
+join emp_proj as pj on e.cpf = pj.cpf
+join projeto as p on pj.numero = p.numero
 order by e.nome, horas;
 #+end_src
 
@@ -904,8 +919,8 @@ agrupadas  de   total  de  empregados  estão   relacionadas  à  tabela
 
 #+begin_src sql :database empresa
 select depto_fk, d.nome, count(*) as 'Total Empregados'
-from empregado e
-join departamento d on e.depto_fk = d.numero
+from empregado as e
+join departamento as d on e.depto_fk = d.numero
 group by depto_fk;
 #+end_src
 
@@ -924,8 +939,8 @@ seja maior que  ~1~, precisaríamos entrar com a cláusula  ~WHERE~ antes do
 
 #+begin_src sql :database empresa
 select depto_fk, d.nome, count(*) as 'Total Empregados'
-from empregado e
-join departamento d on e.depto_fk = d.numero
+from empregado as e
+join departamento as d on e.depto_fk = d.numero
 where depto_fk > 1
 group by depto_fk;
 #+end_src
@@ -946,8 +961,8 @@ que estar *entre crases*.
 
 #+begin_src sql :database empresa
 select depto_fk, d.nome, count(*) as `Total`
-from empregado e
-join departamento d on e.depto_fk = d.numero
+from empregado as e
+join departamento as d on e.depto_fk = d.numero
 group by depto_fk
 order by `Total`;
 #+end_src
@@ -1047,8 +1062,8 @@ group by numero;
 
 #+begin_src sql :database empresa
 select p.nome, round(avg(horas), 1) as horas_medias
-from emp_proj pj
-join projeto p on pj.numero = p.numero
+from emp_proj as pj
+join projeto as p on pj.numero = p.numero
 group by pj.numero;
 #+end_src
 
@@ -1064,8 +1079,8 @@ group by pj.numero;
 
 #+begin_src sql :database empresa
 select p.nome, round(avg(horas), 1) as horas_medias
-from emp_proj pj
-join projeto p on pj.numero = p.numero
+from emp_proj as pj
+join projeto as p on pj.numero = p.numero
 group by pj.numero
 order by horas_medias;
 #+end_src
@@ -1082,8 +1097,8 @@ order by horas_medias;
 
 #+begin_src sql :database empresa
 select p.nome, round(avg(horas), 1) as horas_medias
-from emp_proj pj
-join projeto p on pj.numero = p.numero
+from emp_proj as pj
+join projeto as p on pj.numero = p.numero
 where pj.numero > 1
 group by pj.numero
 order by horas_medias;
@@ -1208,3 +1223,306 @@ where nome like '_a%';
 |-------------+------------+-------------------------------+----------|
 | 22233344455 | Maria Rosa | Rua B, 22, Centro, Diamantina |        2 |
 
+* Aula 10D: Atualização e remoção de informações
+
+Esses comandos  precisam ser utilizados  com cuidado! Eles  alteram ou
+apagam informações no banco de dados.
+
+** Comando ~UPDATE~
+
+*** Alterando empregados
+
+#+begin_src sql :database empresa
+select * from empregado;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                             | depto_fk |
+|-------------+---------------+--------------------------------------+----------|
+| 11122233344 | José da Silva | Rua C, 44, Centro, Diamantina        |        1 |
+| 22233344455 | Maria Rosa    | Rua B, 22, Centro, Diamantina        |        2 |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina |        3 |
+
+Vamos mudar informações de endereço do José da Silva.
+
+#+begin_src sql :database empresa
+update empregado
+set endereco = 'Rua A, 22, Palha, Diamantina'
+where cpf = 11122233344;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+begin_src sql :database empresa
+select * from empregado where cpf = 11122233344;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                     | depto_fk |
+|-------------+---------------+------------------------------+----------|
+| 11122233344 | José da Silva | Rua A, 22, Palha, Diamantina |        1 |
+
+*** Observação
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+*CUIDADO!*  O comando  a  seguir  é um  ~UPDATE~  sem  ~WHERE~. Tal  comando
+atualizaria o  endereço de todos  os empregados, de  forma irrestrita,
+ocasionando sobrescrita não-intencional de  informações, o que implica
+em perda das mesmas.
+
+#+begin_src sql :eval no :tangle no
+update empregado
+set endereco = 'Rua A, 22, Palha, Diamantina';
+#+end_src
+
+*** Alterando departamentos
+
+#+begin_src sql :database empresa
+select * from departamento;
+#+end_src
+
+#+RESULTS:
+| numero | nome             |
+|--------+------------------|
+|      1 | Administração    |
+|      2 | Recursos humanos |
+|      3 | Operação         |
+
+Vamos mudar o nome do departamento  de Recursos Humanos para Gestão de
+Pessoas.
+
+#+begin_src sql :database empresa
+update departamento
+set nome = "Gestão de Pessoas"
+where numero = 2;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+begin_src sql :database empresa
+select * from departamento;
+#+end_src
+
+#+RESULTS:
+| numero | nome              |
+|--------+-------------------|
+|      1 | Administração     |
+|      2 | Gestão de Pessoas |
+|      3 | Operação          |
+
+*** Alterando relações entre empregados e projetos
+
+#+begin_src sql :database empresa
+select * from emp_proj;
+#+end_src
+
+#+RESULTS:
+|         cpf | numero | horas |
+|-------------+--------+-------|
+| 11122233344 |      1 |    33 |
+| 22233344455 |      2 |    15 |
+| 33344455566 |      2 |    20 |
+| 44455566677 |      3 |    17 |
+
+Vamos aumentar  o número  de horas trabalhadas  para quem  trabalha no
+projeto número 1, em 10%.
+
+#+begin_src sql :database empresa
+update emp_proj
+set horas = horas + (horas * 0.10)
+where numero = 1;
+#+end_src
+
+#+RESULTS:
+|   |
+
+
+#+begin_src sql :database empresa
+select * from emp_proj;
+#+end_src
+
+#+RESULTS:
+|         cpf | numero | horas |
+|-------------+--------+-------|
+| 11122233344 |      1 |  36.3 |
+| 22233344455 |      2 |    15 |
+| 33344455566 |      2 |    20 |
+| 44455566677 |      3 |    17 |
+
+** Comando ~DELETE~
+
+*** Deletando empregados
+
+**** Preparando o exemplo
+
+#+begin_src sql :database empresa
+select * from empregado;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                             | depto_fk |
+|-------------+---------------+--------------------------------------+----------|
+| 11122233344 | José da Silva | Rua A, 22, Palha, Diamantina         |        1 |
+| 22233344455 | Maria Rosa    | Rua B, 22, Centro, Diamantina        |        2 |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina |        3 |
+
+Vamos inserir um novo empregado.
+
+#+begin_src sql :database empresa
+insert into empregado(cpf, nome, endereco, depto_fk)
+values(99988877765, "Francisco Melo", "Rua F, 43, Centro, Diamantina", 2);
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+begin_src sql :database empresa
+select * from empregado;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome           | endereco                             | depto_fk |
+|-------------+----------------+--------------------------------------+----------|
+| 11122233344 | José da Silva  | Rua A, 22, Palha, Diamantina         |        1 |
+| 22233344455 | Maria Rosa     | Rua B, 22, Centro, Diamantina        |        2 |
+| 33344455566 | João Jesus     | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos  | Rua Domingos, 22, Centro, Diamantina |        3 |
+| 99988877765 | Francisco Melo | Rua F, 43, Centro, Diamantina        |        2 |
+
+**** Efetuando a remoção
+
+#+begin_src sql :database empresa
+delete from empregado
+where cpf = 99988877765;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+begin_src sql :database empresa
+select * from empregado;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                             | depto_fk |
+|-------------+---------------+--------------------------------------+----------|
+| 11122233344 | José da Silva | Rua A, 22, Palha, Diamantina         |        1 |
+| 22233344455 | Maria Rosa    | Rua B, 22, Centro, Diamantina        |        2 |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         |        2 |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina |        3 |
+
+*** Observação
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+
+*CUIDADO!*  O comando  a  seguir  é um  ~DELETE~  sem  ~WHERE~. Tal  comando
+ocasiona remoção de *todas as informações da tabela*.
+
+#+begin_src sql :eval no :tangle no
+delete from empregado;
+#+end_src
+
+*** Deletando departamentos (ou pelo menos tentando)
+
+Temos  três  departamentos,  e  existe  uma  relação  entre  a  tabela
+~empregado~  e  a  tabela  ~departamento~, posto  que  empregados  estejam
+organizados em departamentos.
+
+#+begin_src sql :database empresa
+select cpf, e.nome, endereco, d.nome as 'nome_depto'
+from empregado as e
+join departamento as d on e.depto_fk = d.numero;
+#+end_src
+
+#+RESULTS:
+|         cpf | nome          | endereco                             | nome_depto        |
+|-------------+---------------+--------------------------------------+-------------------|
+| 11122233344 | José da Silva | Rua A, 22, Palha, Diamantina         | Administração     |
+| 22233344455 | Maria Rosa    | Rua B, 22, Centro, Diamantina        | Gestão de Pessoas |
+| 33344455566 | João Jesus    | Rua D, 15, Palha, Diamantina         | Gestão de Pessoas |
+| 44455566677 | Josuel Santos | Rua Domingos, 22, Centro, Diamantina | Operação          |
+
+Como existe essa dependência  de empregados para departamentos, tentar
+deletar um departamento ocasionará um erro.
+
+#+begin_src sql :eval no :tangle no
+delete from departamento where numero = 1; -- Erro!
+#+end_src
+
+#+begin_example
+ERROR 1451 (23000) at line 1: Cannot delete or update a parent row: a foreign key constraint fails (`empresa`.`empregado`, CONSTRAINT `empregado_ibfk_1` FOREIGN KEY (`depto_fk`) REFERENCES `departamento` (`numero`))
+#+end_example
+
+*** Deletando relações empregado x projeto
+
+**** Preparando a tabela da relação
+
+#+begin_src sql :database empresa
+select * from emp_proj;
+#+end_src
+
+#+RESULTS:
+|         cpf | numero | horas |
+|-------------+--------+-------|
+| 11122233344 |      1 |  36.3 |
+| 22233344455 |      2 |    15 |
+| 33344455566 |      2 |    20 |
+| 44455566677 |      3 |    17 |
+
+Vamos associar o empregado de CPF ~11122233344~ ao projeto ~2~.
+
+#+begin_src sql :database empresa
+insert into emp_proj(cpf, numero, horas)
+values(11122233344, 2, 13);
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+begin_src sql :database empresa
+select * from emp_proj;
+#+end_src
+
+#+RESULTS:
+|         cpf | numero | horas |
+|-------------+--------+-------|
+| 11122233344 |      1 |  36.3 |
+| 11122233344 |      2 |    13 |
+| 22233344455 |      2 |    15 |
+| 33344455566 |      2 |    20 |
+| 44455566677 |      3 |    17 |
+
+**** Apagando o registro adicionado
+
+Fazemos  um  ~DELETE~  cuja  condição  envolva  o  CPF  e  o  número  do
+projeto.  Do contrário,  se  não informássemos  o  número do  projeto,
+acabaríamos  deletando  ambas as  relações  entre  o funcionário  e  o
+projeto!  Igualmente, informar  apenas o  número do  projeto deletaria
+todos os CPFs associados a tal projeto.
+
+#+begin_src sql :database empresa
+delete from emp_proj
+where cpf = 11122233344 and numero = 2;
+#+end_src
+
+#+RESULTS:
+|   |
+
+#+begin_src sql :database empresa
+select * from emp_proj;
+#+end_src
+
+#+RESULTS:
+|         cpf | numero | horas |
+|-------------+--------+-------|
+| 11122233344 |      1 |  36.3 |
+| 22233344455 |      2 |    15 |
+| 33344455566 |      2 |    20 |
+| 44455566677 |      3 |    17 |
