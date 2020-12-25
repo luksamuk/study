@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2020-10-29 qui]
+Última atualização: [2020-12-25 sex]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -66,7 +66,22 @@ completamente feitas por mim.
     e exercícios também.
 - =2019-2=: Exercícios relacionados à faculdade, no segundo semestre
   de 2019.
-  - =AEDS3=: Algoritmos e Estruturas de Dados III.
+  - =AEDS3=: Algoritmos e Estruturas de Dados III. Partes em destaque:
+    - ~avl~:   Implementação    de   uma   árvore   AVL    em   /literate
+      programming/. Fator de balanceamento não é armazenado nos nós.
+    - ~tp3-rbtree~: Implementação  de uma  árvore red-black  em /literate
+      programming/. Não inclui remoção de elementos.
+    - ~tp4-huffman~: Implementação  de compactação de arquivos  de texto
+      através do algoritmo  de Huffman. O arquivo  binário será gerado
+      ao final e pode ser descompactado também. Inclui ajuda via linha
+      de comando, e foi igualmente feito com /literate programming/.
+- ~2020-5~: Exercícios relacionados à faculdade, no semestre emergencial
+  de 2020, em meio à pandemia de COVID-19.
+  - ~BD1~:  Bancos de  Dados I.  Inclui notas  sobretudo relacionadas  à
+    sintaxe e ao uso de SQL.  Também  inclui uso de Docker para uso de
+    SGBDs.
+  - ~POO~:  Programação   Orientada  a  Objetos.  Inclui   trabalhos  da
+    disciplina, feitos principalmente em Java.
 
 *** ~exercises~
 Exercícios variados, não necessariamente relacionados a estudo.

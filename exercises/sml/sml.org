@@ -1,0 +1,125 @@
+#+TITLE: Standard ML
+#+SUBTITLE: Notes on studies
+#+PROPERTY: header-args:sml :session *sml* :exports both
+#+STARTUP: showall
+
+* A Crash Course on Standard ML
+
+Here is the [[https://www.cs.bu.edu/~hwxi/academic/courses/CS320/Fall06/notes/SMLintro.pdf][link to the PDF file]].
+
+** Start
+
+I  will be  using SML/NJ  along with  Emacs' ~sml-mode~,  so we  set the
+~:session~ key for all SML code blocks (see ~PROPERTY~ on file header).
+
+** Generalities
+
+#+begin_src sml
+1+2
+#+end_src
+
+#+RESULTS:
+: val it = 3 : int
+
+#+begin_src sml
+"Hello" ^ " world!"
+#+end_src
+
+#+RESULTS:
+: val it = "Hello world!" : string
+
+#+begin_src sml
+print "Hello, world!\n"
+#+end_src
+
+#+RESULTS:
+: Hello, world!
+: val it = () : unit
+
+#+begin_src sml
+fn x:int => x + 1
+#+end_src
+
+#+RESULTS:
+: val it = fn : int -> int
+
+#+begin_src sml
+1.0 + 1.0
+#+end_src
+
+#+RESULTS:
+: val it = 2.0 : real
+
+#+begin_src sml
+~(2 - 1)
+#+end_src
+
+#+RESULTS:
+: val it = ~1 : int
+
+#+begin_src sml
+6 div 3
+#+end_src
+
+#+RESULTS:
+: val it = 2 : int
+
+#+begin_src sml
+6.0 / 3.0
+#+end_src
+
+#+RESULTS:
+: val it = 2.0 : real
+
+Ill-typed:
+
+#+begin_src sml :eval no
+6 / 3
+#+end_src
+
+
+** Expressions
+
+*** let-expressions
+
+#+begin_src sml
+let
+    val x = 1
+    fun f (x:int) = x + x
+in
+    f(x) * f(x)
+end
+#+end_src
+
+#+RESULTS:
+: val it = 4 : int
+
+*** if-then-else-expressions
+
+#+begin_src sml
+let
+    val x = 1
+in
+    if x = 0 then "Null" else "Not null"
+end
+#+end_src
+
+#+RESULTS:
+: val it = "Not null" : string
+
+*** case-expressions
+
+#+begin_src sml
+let
+    val x = 5
+in
+    case x of 0 => "Zero"
+	    | 1 => "One"
+	    | 2 => "Two"
+	    | 3 => "Three"
+	    | _ => "Something else"
+end
+#+end_src
+
+#+RESULTS:
+: val it = "Something else" : string

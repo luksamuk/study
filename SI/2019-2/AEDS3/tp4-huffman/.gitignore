@@ -8,3 +8,9 @@
 huffman
 _minted-*/
 *.txt
+*.fdb_latexmk
+*.fls
+*.html
+*.idx
+*.log
+

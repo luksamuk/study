@@ -31,3 +31,6 @@ Exercícios avulsos feitos com propósito de aprendizagem.
 
 - =rpn-calculator=
   Calculadora em notação polonesa reversa, feita em F#.
+
+- ~sml~
+  Notas de leitura do PDF /A Crash Course on Standard ML/.

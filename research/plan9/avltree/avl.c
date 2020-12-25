@@ -61,9 +61,7 @@ enqueue(queue_t *q, avl_node_t *n)
 	newelems = q->elems + 1;
 	if(q->size < newelems) {
 		newsize  = q->size * 2;
-		q->nodes =
-			realloc(q->nodes,
-					newsize * sizeof (avl_node_t*));
+		q->nodes = realloc(q->nodes, newsize * sizeof (avl_node_t*));
 		q->size  = newsize;
 	}
 	q->nodes[q->elems] = n;
@@ -102,12 +100,10 @@ avl_node_height(avl_node_t *node)
 {
 	if(node == nil) {
 		return -1;
-	} else if((node->left == nil)
-			  && (node->right == nil)) {
+	} else if((node->left == nil) && (node->right == nil)) {
 		return 0;
 	}
-	return 1 + max(avl_node_height(node->left),
-				   avl_node_height(node->right));
+	return 1 + max(avl_node_height(node->left), avl_node_height(node->right));
 }
 
 int

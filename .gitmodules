@@ -14,3 +14,6 @@
 [submodule "books/nand2tetris/ch10/cl-jackc"]
 	path = books/nand2tetris/ch10/cl-jackc
 	url = https://github.com/luksamuk/cl-jackc
+[submodule "SI/2020-5/POO/projeto-final"]
+	path = SI/2020-5/POO/projeto-final
+	url = https://github.com/luksamuk/projeto-POO-2020-5
