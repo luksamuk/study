@@ -64,6 +64,10 @@
     - [[#observação-1][Observação]]
     - [[#deletando-departamentos-ou-pelo-menos-tentando][Deletando departamentos (ou pelo menos tentando)]]
     - [[#deletando-relações-empregado-x-projeto][Deletando relações empregado x projeto]]
+- [[#formas-normais][Formas normais]]
+  - [[#1fn][1FN]]
+  - [[#2fn][2FN]]
+  - [[#3fn][3FN]]
 
 * Introdução
 
@@ -1526,3 +1530,109 @@ select * from emp_proj;
 | 22233344455 |      2 |    15 |
 | 33344455566 |      2 |    20 |
 | 44455566677 |      3 |    17 |
+
+* Formas normais
+
+Auxiliam na redução de redundâncias na base de dados.
+
+** 1FN
+
+Garantir que todos os atributos sejam monovalorados.
+
+Exemplo de tabela que fere esse requisito:
+
+|------+---------+----------+-----------------------------------------|
+| CPF  | Nome    | Telefone | Endereço                                |
+|------+---------+----------+-----------------------------------------|
+| XXXX | Fulano  | 12345,   | Rua A, 25, Bairro X, Cidade Y, Estado Z |
+|      |         | 67890    |                                         |
+|------+---------+----------+-----------------------------------------|
+| YYYY | Ciclano | 98765,   | Rua B, 33, Bairro X, Cidade Y, Estado Z |
+|      |         | 76543    |                                         |
+|------+---------+----------+-----------------------------------------|
+
+- Telefone é multivalorado.
+- Poderíamos considerar endereço como multivalorado também, dependendo
+  das regras de negócio.
+
+  Solução: Adicione mais colunas na tabela.
+
+** 2FN
+
+Eliminar   dependências    funcionais   parciais,    deixando   apenas
+dependências funcionais totais.
+
+Exemplo  de tabela  que fere  esse  requisito (Considere  que a  chave
+composta ~{cod_disciplina, turno}~ e que ~carga_horaria~ depende apenas de
+~cod_disciplina~ (parte da chave):
+
+Tabela Turma
+| cod_disciplina (PK) | turno (PK) | cpf_professor | carga_horaria |
+|---------------------+------------+---------------+---------------|
+| COM015              |          1 |         12345 |            60 |
+| COM015              |          2 |           321 |            60 |
+| COM001              |          1 |          7593 |            75 |
+| COM002              |          1 |        601274 |            60 |
+
+Redundância no  armazenamento de  ~carga_horaria~, que  é funcionalmente
+dependente de ~cod_disciplina~.
+
+Solução:  Quebrar  esta  tabela  em duas;  ~cod_disciplina~  será  chave
+primária da outra tabela.
+
+Tabela Turma
+| cod_disciplina (PK) | turno (PK) | cpf_professor |
+|---------------------+------------+---------------|
+| COM015              |          1 |         12345 |
+| COM015              |          2 |           321 |
+| COM001              |          1 |          7593 |
+| COM002              |          1 |        601274 |
+
+Tabela Disciplina
+| cod_disciplina (PK) | carga_horaria |
+|---------------------+---------------|
+| COM015              |            60 |
+| COM015              |            60 |
+| COM001              |            75 |
+| COM002              |            60 |
+
+** 3FN
+
+Garantir que não existam dependências funcionais transitivas.
+
+Exemplo  de  tabela que  fere  esse  requisito (Considere  que  ~codigo~
+determina  ~tipo~ do  produto,  que portanto  determina ~icms~.  Portanto,
+~codigo~ define ~icms~ transitivamente):
+
+| codigo (PK) | nome         | quantidade | tipo        | icms |
+|-------------+--------------+------------+-------------+------|
+|         123 | Sabão em Pó  |        100 | Limpeza     | 0,02 |
+|         456 | Detergente   |        150 | Limpeza     | 0,02 |
+|         789 | Arroz        |         89 | Alimentício | 0,01 |
+|         888 | Feijão       |         22 | Alimentício | 0,01 |
+|         898 | Vinho Canção |        100 | Bebida      | 0,05 |
+
+Redundância de armazenamento  de ~icms~, que é determinado  pelo ~tipo~ do
+produto, e que é inerente ao ~codigo~ do produto (chave).
+
+Solução: Quebrar  esta tabela  em duas;  o ~tipo~ passa  a ser  chave da
+segunda tabela, e passa a ser chave estrangeira na primeira tabela.
+
+Tabela Produto
+| codigo | nome         | quantidade | tipo (FK)   |
+|--------+--------------+------------+-------------|
+|    123 | Sabão em Pó  |        100 | Limpeza     |
+|    456 | Detergente   |        150 | Limpeza     |
+|    789 | Arroz        |         89 | Alimentício |
+|    888 | Feijão       |         22 | Alimentício |
+|    898 | Vinho Canção |        100 | Bebida      |
+
+Tabela Taxa_Imposto
+| tipo (PK)   | icms |
+|-------------+------|
+| Limpeza     | 0,02 |
+| Limpeza     | 0,02 |
+| Alimentício | 0,01 |
+| Alimentício | 0,01 |
+| Bebida      | 0,05 |
+
