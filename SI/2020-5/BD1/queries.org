@@ -1555,7 +1555,25 @@ Exemplo de tabela que fere esse requisito:
 - Poderíamos considerar endereço como multivalorado também, dependendo
   das regras de negócio.
 
-  Solução: Adicione mais colunas na tabela.
+Soluções:
+
+1. Para o  telefone, crie uma nova tabela que  aceite chaves primárias
+   repetidas; associe cada telefone a um CPF.
+2. Para o endereço, crie mais colunas.
+
+   Tabela Cliente
+   | CPF  | Nome    | Rua   | Numero | Bairro   | Cidade   | Estado   |
+   |------+---------+-------+--------+----------+----------+----------|
+   | XXXX | Fulano  | Rua A |     25 | Bairro X | Cidade Y | Estado Z |
+   | YYYY | Ciclano | Rua B |     33 | Bairro X | Cidade Y | Estado Z |
+
+   Tabela Fone_Cliente
+   | CPF  | Telefone |
+   |------+----------|
+   | XXXX |    12345 |
+   | XXXX |    67890 |
+   | YYYY |    98765 |
+   | YYYY |    76543 |
 
 ** 2FN
 
@@ -1591,7 +1609,6 @@ Tabela Turma
 Tabela Disciplina
 | cod_disciplina (PK) | carga_horaria |
 |---------------------+---------------|
-| COM015              |            60 |
 | COM015              |            60 |
 | COM001              |            75 |
 | COM002              |            60 |
@@ -1631,8 +1648,6 @@ Tabela Taxa_Imposto
 | tipo (PK)   | icms |
 |-------------+------|
 | Limpeza     | 0,02 |
-| Limpeza     | 0,02 |
-| Alimentício | 0,01 |
 | Alimentício | 0,01 |
 | Bebida      | 0,05 |
 
