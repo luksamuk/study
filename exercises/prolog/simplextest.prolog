@@ -1,4 +1,4 @@
-%% :- use_module(library(simplex)).
+:- use_module(library(simplex)).
 
 %% http://eu.swi-prolog.org/pldoc/man?section=simplex
 
@@ -15,6 +15,9 @@ post_constraints -->
     constraint([x2] >= 0).
 
 % ?- radiation(S), variable_value(S, x1, Val1), variable_value(S, x2, Val2).
+%@ S = solved(tableau(row(z, [0, 0, 0, 0, 0, 0|...], 21r4), [0, 1, 2, 3, 4, 5, 6|...], [1, 0, 1, 0, 1, 0, 0|...], [row(x2, [0, 0, 0, 0, 0|...], 9r2), row(x1, [0, 0, 0, 0|...], 15r2), row(0, [1, -1, 0|...], 9r2), row(4, [0, 0|...], 3r10), row(2, [0|...], 15r2)]), [0-7, 0-6, 0-5, 0-3, 0-1], []),
+%@ Val1 = 15r2,
+%@ Val2 = 9r2.
 
 knapsack(S) :-
     knapsack_constraints(S0),
@@ -33,7 +36,13 @@ knapsack_integral(S) :-
     maximize([7*x(1), 4*x(2)], S2, S).
 
 % ?- knapsack(S), variable_value(S, x(1), X1), variable_value(S, x(2), X2).
+%@ S = solved(tableau(row(z, [0, 1, 1, 0, 0], 9), [0, 1, 2, x(1), x(2)], [1, 1, 1, 1, 1], [row(0, [1, 3r2, -1r4, 0, 0], 3r2), row(x(1), [0, 1, 0, 1|...], 1), row(x(2), [0, -3r2, 1r4|...], 1r2)]), [0-2, 0-1, 0-0], []),
+%@ X1 = 1,
+%@ X2 = 1r2.
 % ?- knapsack_integral(S), variable_value(S, x(1), X1), variable_value(S, x(2), X2).
+%@ S = solved(tableau(row(z, [7, 0, 0, 4, 0, 0|...], 8), [0, 1, 2, 3, 4, x(1), x(...)], [1, 1, 0, 1, 1, 1, 1], [row(x(1), [1, 0, 0, 0, 0|...], 0), row(x(2), [0, 0, 0, 1|...], 2), row(1, [0, 1, -1|...], 1), row(4, [-6, 0|...], 0)]), [0-4, 0-3, 0-2, 0-0], [x(1), x(2)]),
+%@ X1 = 0,
+%@ X2 = 2.
 
 
 
@@ -63,10 +72,11 @@ moedas -->
     minimize([m(1), m(5), m(20)]).
 
 % Para resolver, faça a query:
-%% ?- moedas(S),
-%%    variable_value(S, m(1), M1),
-%%    variable_value(S, m(5), M5),
-%%    variable_value(S, m(20), M20).
+%% ?- moedas(S), variable_value(S, m(1), M1), variable_value(S, m(5), M5), variable_value(S, m(20), M20).
+%@ S = solved(tableau(row(z, [-4, -19, 0, 0, 0, 0|...], 8), [0, 1, 2, 3, 4, 5, 6|...], [1, 1, 1, 0, 1, 0, 1|...], [row(4, [1, 0, 0, 0, 1|...], 2), row(2, [0, 1, 1, -1|...], 5), row(m(20), [0, 1, 0|...], 5), row(m(5), [1, 0|...], 2), row(m(1), [-5|...], 1), row(8, [...|...], 2), row(..., ..., ...)]), [0-9, 0-8, 0-7, 0-5, 0-3, 0-1, 0-0], [m(20), m(5), m(1)]),
+%@ M1 = 1,
+%@ M5 = 2,
+%@ M20 = 5.
 
 
 
@@ -85,7 +95,9 @@ ex01 -->
     maximize([4*x1, 8*x2]).
 
 % ?- ex01(S), variable_value(S, x1, X1), variable_value(S, x2, X2).
-% X1 = 0, X2 = 5.
+%@ S = solved(tableau(row(z, [0, 0, 4, -4, 0, 8|...], 40), [0, 1, 2, 3, 4, 5, 6|...], [1, 0, 1, 0, 1, 1, 1|...], [row(x2, [0, 0, 1, -1, 0|...], 5), row(x1, [0, 0, -1, 1|...], 0), row(4, [0, 0, 1|...], 4), row(0, [1, -1|...], 5), row(6, [0|...], 8)]), [0-6, 0-5, 0-4, 0-3, 0-1], []),
+%@ X1 = 0,
+%@ X2 = 5.
 
 ex02(S) :-
     gen_state(S0),
@@ -101,7 +113,10 @@ ex02 -->
     maximize([5*x1, 4*x2, 3*x3]).
 
 % ?- ex02(S), variable_value(S, x1, X1), variable_value(S, x2, X2), variable_value(S, x3, X3).
-% X1 = 2, X2 = 0, X3 = 1.
+%@ S = solved(tableau(row(z, [0, 0, 1, -1, 0, 0|...], 13), [0, 1, 2, 3, 4, 5, 6|...], [1, 0, 1, 0, 1, 0, 1|...], [row(x3, [0, 0, -5, 5, 0|...], 1), row(x2, [0, 0, -1, 1|...], 0), row(x1, [0, 0, 4|...], 2), row(0, [1, -1|...], 1), row(7, [0|...], 1), row(4, [...|...], 2)]), [0-8, 0-7, 0-6, 0-5, 0-3, 0-1], []),
+%@ X1 = 2,
+%@ X2 = 0,
+%@ X3 = 1.
 
 ex03(S) :-
     gen_state(S0),
@@ -116,4 +131,6 @@ ex03 -->
     maximize([4*x1, 8*x2]).
 
 % ?- ex03(S), variable_value(S, x1, X1), variable_value(S, x2, X2).
-% X1 = 0, X2 = 5.
+%@ S = solved(tableau(row(z, [0, 0, 4, -4, 0, 8|...], 40), [0, 1, 2, 3, 4, 5, 6|...], [1, 0, 1, 0, 1, 1, 1|...], [row(x2, [0, 0, 1, -1, 0|...], 5), row(x1, [0, 0, -1, 1|...], 0), row(4, [0, 0, 1|...], 4), row(0, [1, -1|...], 5), row(6, [0|...], 8)]), [0-6, 0-5, 0-4, 0-3, 0-1], []),
+%@ X1 = 0,
+%@ X2 = 5.

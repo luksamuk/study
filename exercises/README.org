@@ -34,3 +34,8 @@ Exercícios avulsos feitos com propósito de aprendizagem.
 
 - ~sml~
   Notas de leitura do PDF /A Crash Course on Standard ML/.
+
+- ~prolog~
+  Experimentos com a linguagem Prolog.
+
+  

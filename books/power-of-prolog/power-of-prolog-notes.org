@@ -1,0 +1,461 @@
+#+title: Notes for "The Power of Prolog"
+#+author: Lucas S. Vieira
+#+property: header-args:prolog :exports both :noweb strip-export :cache yes :results output
+#+startup: showall latexpreview
+
+Course is at https://metalevel.at/prolog.
+
+* Introduction
+
+Prolog is rooted in classical logic.
+
+A Prolog  program is  composed of  predicates, which  define relations
+between its arguments.
+
+Relations  are generalizations  of  functions and  can  often be  more
+versatile than them.
+
+* Facets of Prolog
+
+Simple,  declarative,  logic   programming,  homoiconic,  dynamic  and
+versatile.
+
+An example using CLP(FD) to solve the equation $3x+2=17$.
+
+#+begin_src prolog
+:- use_module(library(clpfd)).
+
+:- 3*X+2 #= 17,
+   format('X = ~a', X).
+#+end_src
+
+#+RESULTS[887fa45f14c3dc31251e402013f038642db3c378]:
+: X = 5
+
+** Prolog is a very simple language
+
+Prolog is composed of clauses in the form
+
+#+begin_src prolog :eval no
+Head :- Body
+#+end_src
+
+where ~(:-)/2~ is similar to the idea of $\textrm{Head}\, \leftarrow\, \textrm{Body}$.
+
+This is enough o write  useful Prolog programs; all known computations
+can  be described  in  terms  of such  clauses.  Therefore, Prolog  is
+Turing-complete.
+
+** Prolog is a declarative language
+
+We focus on starting what we're interested in.
+
+We express what /holds/ about solutions we want to find.
+
+We are less concerned about  /how/ the Prolog implementation finds these
+solutions.
+
+~list_length/2~  below expresses  the relation  between *a  list* and  *its
+length*.
+
+#+name: list_length
+#+begin_src prolog
+:- use_module(library(clpfd)).
+
+list_length([], 0).
+list_length([_|Ls], N) :-
+    N #> 0,
+    N #= N0 + 1,
+    list_length(Ls, N0).
+#+end_src
+
+#+RESULTS[d9797577276cd4be6264c0e5af4e4a01b7139178]: list_length
+
+#+begin_src prolog
+<<list_length>>
+exists([a, b, c]).
+
+?- exists(X),
+   list_length(X, L),
+   writeln(L).
+#+end_src
+
+#+RESULTS[d8b278b1a7996972fda8e326a43ab0e243f2ac70]:
+: 3
+
+Reading the above clause ~list_length~ declaratively:
+
+1. The length of the empty list ~[]~ is ~0~.
+2. If the length of the list ~Ls~ is ~N0~ and ~N~ is ~N0 + 1~, then the length
+   of ~[_|Ls]~ is ~N~. Further, this only holds if ~N > 0~.
+
+Programming  in Prolog  demands you  to  think in  terms of  *relations
+between entities*.
+
+Instead of saying  "we are computing the length of  a list", we should
+remember that we are covering a lot more uses than that:
+
+#+begin_src prolog
+<<list_length>>
+?- list_length(Ls, 3),
+   writeln(Ls).
+#+end_src
+
+#+RESULTS[1dde6605f29baedd2babbb8bad673b47a9069d4f]:
+: [_5066,_5252,_5424]
+
+In  the above  result, we  see that  the only  thing that  can have  a
+~list_length~ of ~3~ is a list of ~3~ atoms which we do not know of.
+
+We might even get query in a more general way, and get as many general
+answers as we want. Just run this at the REPL:
+
+#+begin_src prolog :eval no
+?- list_length(Ls, L).
+#+end_src
+
+Here is a similar program that will print some possible results to the
+code above, line by line.
+
+#+begin_src prolog
+<<list_length>>
+possible_lengths(Ls, L) :-
+    L #< 5,
+    list_length(Ls, L).
+
+?- bagof([Ls, L], possible_lengths(Ls, L), R),
+   maplist(writeln, R).
+#+end_src
+
+#+RESULTS[ab568a3aaf48ad94838088efe1fc54066021f927]:
+: |: |: |: |: |: |: |: |: |: |: |: |: [[],0]
+: [[_16468],1]
+: [[_16438,_16444],2]
+: [[_16402,_16408,_16414],3]
+: [[_16360,_16366,_16372,_16378],4]
+: |:
+: true.
+
+$\therefore$ A relation is usable in different modes.
+
+Btw, we should probably use ~length/2~ instead of ~list_length/2~.
+
+** Prolog is a logic programming language
+
+Logic programming languages and  functional programming languages fall
+under the category of declarative languages.
+
+A function is a special case of a relation.
+
+A  pure Prolog  program consists  of a  set of  Horn clauses,  and its
+execution can be regarded as a special case of resolution.
+
+We  can  apply  declarative  debugging  techniques  involving  logical
+properties of the program.
+
+There is a property called *monotonicity*, which states that
+
+- Adding a constraint can at most reduce the set of solutions;
+- Adding a clause can at most extend the set of solutions.
+
+** Prolog is a homoiconic language
+
+/ομοίως εικόν/
+
+Prolog programs are  also valid Prolog terms. So one  can easily write
+Prolog  programs that  analyze, transform  and interpret  other Prolog
+programs.
+
+** Prolog is a very dynamic language
+
+Prolog programs can be created, called and modified at runtime.
+
+This  lets you  implement  higher-order predicates,  which have  other
+predicates as arguments (example: ~maplist/2~).
+
+** Prolog is a very versatile language
+
+The relational nature makes Prolog programs very flexible and general.
+
+This is important in  language processing and knowledge representation
+in databases.
+
+Modern Prolog systems  are capable of helping with  logic puzzles, web
+hosting, verification, optimization tasks, etc.
+
+Prolog's  versatility is  rooted in  its implicit  mechanisms: search,
+unification,  argument indexing,  constraint propagation.  This allows
+the user to  delegate certain tasks to the Prolog  engine, and this is
+desirable.
+
+** Example: Water jug problem
+
+Everything is taken from [[https://www.youtube.com/watch?v=vdabv9EkYrY][this video]].
+
+We have two jugs:
+
+1. jug *a* has capacity 4;
+2. jug *b* has capacity 3.
+
+Neither jug has  measuring markings. Both jugs start  empty. We assume
+that we have an  unlimited supply of water. We can  fill and empty the
+jugs at any time.
+
+*Task:* /Measure 2 units of water./
+
+This is a /search task/. Let's delegate it to Prolog.
+We are looking for a *sequence of state transitions*, or /moves/,
+
+Here's a way to formulate this in Prolog.
+
+Since we have a  static view of the problem only, this  can be hard to
+visualize in Prolog. But let's think  in terms of /relations/ so that it
+becomes easier to express *changes*:
+
+$S_0 \rightarrow S_1 \rightarrow  S_2 \rightarrow \dots \rightarrow S$
+where a /move/ takes us from $S_i \rightarrow S_{i+1}$.
+
+Or better even, a /move/ *relates* $S_i$ to $S_{i+1}$.
+
+Now we can say that
+
+- *jug(Id, Capacity, Fill)* represents a jug.
+- a /state/ of the puzzle is represented by a list of jugs.
+- a /move/ relates a current state *Js0* to the next state *Js*.
+- we are looking for specific /sequences/ of moves.
+
+We can use DCG notation for convenience.
+
+#+name: jug_problem
+#+begin_src prolog
+:- use_module(library(clpfd)).
+
+moves(Js0) --> { member(jug(_, _, 2), Js0) }.
+% Unnecessary fill move
+moves(Js0) --> [fill(ID)],
+	       { select(jug(ID, C, _), Js0, Js) },
+	       moves([jug(ID, C, C) | Js]).
+% Unnecessary empty move
+moves(Js0) --> [empty(ID)],
+	       { select(jug(ID, C, _), Js0, Js) },
+	       moves([jug(ID, C, 0) | Js]).
+moves(Js0) --> [from_to(F, T)],
+	       { select(jug(F, FC, FF0), Js0, Js1),
+		 select(jug(T, TC, TF0), Js1, Js),
+		 FF0 #> 0, % Unnecessary for final solution
+		 TF0 #< TC, % Unnecessary for final solution
+		 M #= min(FF0, TC-TF0),
+		 FF #= FF0 - M,
+		 TF #= TF0 + M },
+	       moves([jug(F, FC, FF), jug(T, TC, TF) | Js]).
+#+end_src
+
+#+RESULTS[5cc0f3b3486b6019c211aca53fb81b2f4e8fccd9]: jug_problem
+
+Actually,  the moves  *fill(Id)*  and *empty(Id)*  are  unnecessary if  we
+consider a jug with  all the water we need at  the beginning. We'll be
+removing it at the end.
+
+Here is the result for the most general query for this problem.
+
+#+begin_src prolog
+<<jug_problem>>
+
+print_answer(Ans) :-
+    format('Js = ~w, Ms = ~w~n', Ans).
+
+?- findnsols(5, [Js, Ms], phrase(moves(Js), Ms), Ans),
+   maplist(print_answer, Ans).
+#+end_src
+
+#+RESULTS[a11f19d3783346ba1f09de7895a7f1c4f56dbe64]:
+: Js = [jug(_5806,_5808,2)|_5802], Ms = []
+: Js = [_5762,jug(_5774,_5776,2)|_5770], Ms = []
+: Js = [_5718,_5724,jug(_5736,_5738,2)|_5732], Ms = []
+: Js = [_5668,_5674,_5680,jug(_5692,_5694,2)|_5688], Ms = []
+: Js = [_5612,_5618,_5624,_5630,jug(_5642,_5644,2)|_5638], Ms = []
+
+Let's take  a look  at the  first answer: Indeed,  it states  that the
+problem is  already solved.  ~Ms~ is an  empty set, while  ~Js~ is  a list
+which contains at least a single jug, with unknown capacity and filled
+with ~2~ units  of water, as first element. Therefore,  since there is a
+jug  with ~2~  units of  water, no  move is  needed, and  the puzzle  is
+solved.
+
+The rest of  the solutions, here limited to 5,  state a similar thing,
+except that the jug described above  is shifting around the list. This
+is actually an unfair enumeration, and it is infinite.
+
+If we ask for all the solutions who have at least one movement...
+
+#+begin_src prolog :eval no
+<<jug_problem>>
+?- phrase(moves(JS), [_]).
+#+end_src
+
+then this  is also an  unfair enumeration; furthermore, this  query is
+nonterminating.
+
+So let's  start with  a concrete  case. We'll say  that we  have three
+jugs:
+
+1. Jug a with capacity 4 and fill 0;
+2. Jug b with capacity 3 and fill 0;
+3. Jug c with capacity 7 and fill 7.
+
+#+begin_src prolog :eval no
+<<jug_problem>>
+?- phrase(moves([jug(a,4,0), jug(b,3,0), jug(c,7,7)]), Ms)
+#+end_src
+
+This  problem doesn't  terminate either,  because *Prolog  doesn't know
+that the solution  exists*. What this mean is that  the search strategy
+is incomplete, since  it may fail to find a  solution, even though the
+solution exists.
+
+We could  change the algorithm  to keep track  of a history,  but this
+takes work and will make our  program slower. We'll then use iterative
+deepening to traverse  our search tree, which is a  depth search which
+attempts to make all goals reach  a certain level until that level can
+be deepened on all options again.
+
+So let's say  that we're interested in solutions with  no moves. So we
+add the constraint at the *beginning* of the query.
+
+#+begin_src prolog
+<<jug_problem>>
+
+?- Ms = [],
+   phrase(moves([jug(a,4,0), jug(b,3,0), jug(c,7,7)]), Ms).
+#+end_src
+
+#+RESULTS[43fc12d3bb3306f1dbccf801b05e21b5048bf55d]:
+
+This query  terminates with a ~false~,  so this means that  there are no
+solutions with no moves.
+
+We might also  want to ask for  a situation where there  is a solution
+with exactly two moves, but there are no solutions either:
+
+#+begin_src prolog
+<<jug_problem>>
+
+?- Ms = [_,_],
+   phrase(moves([jug(a,4,0), jug(b,3,0), jug(c,7,7)]), Ms),
+   writeln(Ms).
+#+end_src
+
+#+RESULTS[6867d604616a0bcfb04799f48c85c725d812933c]:
+
+However,  one   interesting  thing  is   to  be  noted:   Our  program
+*terminates*. And  this happens when  the length of  ~Ms~ is fixed.  So we
+need to guarantee  that ~Ms~ is a  list of fixed length,  and this means
+that  we're  gonna  perform  iterative deepening  by  increasing  said
+length. This can be done by prepending ~length/2~ to our original query.
+
+Let's   perform   this   by   taking  the   first   twenty   available
+solutions. We'll also  be taking the amount of moves  from the list as
+~L~.
+
+#+begin_src prolog
+<<jug_problem>>
+
+print_answer([L, Ms]) :-
+    format('L = ~a, Ms = ', [L]),
+    writeln(Ms).
+
+find_solutions(Ms, L) :-
+   length(Ms, L), 
+   phrase(moves([jug(a,4,0), jug(b,3,0), jug(c,7,7)]), Ms).
+
+?- findnsols(20, [L, Ms], find_solutions(Ms, L), Ans),
+   maplist(print_answer, Ans).
+#+end_src
+
+#+RESULTS[2f37971b17948040c8346ec17a3086218898e93f]:
+#+begin_example
+L = 4, Ms = [fill(b),from_to(b,a),fill(b),from_to(b,a)]
+L = 4, Ms = [fill(b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 4, Ms = [from_to(c,b),from_to(b,a),fill(b),from_to(b,a)]
+L = 4, Ms = [from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [fill(b),fill(b),from_to(b,a),fill(b),from_to(b,a)]
+L = 5, Ms = [fill(b),fill(b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [fill(b),fill(c),from_to(b,a),fill(b),from_to(b,a)]
+L = 5, Ms = [fill(b),fill(c),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [fill(b),empty(a),from_to(b,a),fill(b),from_to(b,a)]
+L = 5, Ms = [fill(b),empty(a),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [fill(b),empty(c),from_to(b,a),fill(b),from_to(b,a)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),fill(b),from_to(b,a)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),fill(c),from_to(b,a)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),empty(c),from_to(b,a)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),from_to(b,a),fill(a)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),from_to(b,a),fill(c)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),from_to(b,a),empty(a)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),from_to(b,a),empty(c)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(b),from_to(c,a),from_to(b,c)]
+L = 5, Ms = [fill(b),from_to(b,a),fill(c),fill(b),from_to(b,a)]
+#+end_example
+
+We may  even improve this code  by removing some constraints  from the
+original code; in other words, we  don't need to check for moves where
+no water at all is moved.
+
+Let's also remove the clauses for  filling and emptying jugs, since we
+have a jug filled with water at the beginning.
+
+#+name: jug_problem_2
+#+begin_src prolog
+:- use_module(library(clpfd)).
+
+moves(Js0) --> { member(jug(_, _, 2), Js0) }.
+moves(Js0) --> [from_to(F, T)],
+	       { select(jug(F, FC, FF0), Js0, Js1),
+		 select(jug(T, TC, TF0), Js1, Js),
+		 M #= min(FF0, TC-TF0),
+		 FF #= FF0 - M,
+		 TF #= TF0 + M },
+	       moves([jug(F, FC, FF), jug(T, TC, TF) | Js]).
+#+end_src
+
+#+RESULTS[fb098a1139e740279f4f7bc163b8eb358d30a196]: jug_problem_2
+
+Let's try this again.
+
+#+begin_src prolog :tangle jug_problem.prolog
+<<jug_problem_2>>
+
+print_answer([L, Ms]) :-
+    format('L = ~a, Ms = ', [L]),
+    writeln(Ms).
+
+find_solutions(Ms, L) :-
+   length(Ms, L), 
+   phrase(moves([jug(a,4,0), jug(b,3,0), jug(c,7,7)]), Ms).
+
+?- findnsols(10, [L, Ms], find_solutions(Ms, L), Ans),
+   maplist(print_answer, Ans).
+#+end_src
+
+#+RESULTS[796df92b42fba5f1e5f7fe9b94a6ab73f3795923]:
+#+begin_example
+L = 4, Ms = [from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(a,b),from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(a,c),from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(b,a),from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(b,c),from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(c,a),from_to(a,b),from_to(b,c),from_to(a,b),from_to(c,a)]
+L = 5, Ms = [from_to(c,b),from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(c,b),from_to(b,a),from_to(b,a),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(c,b),from_to(b,a),from_to(b,c),from_to(c,b),from_to(b,a)]
+L = 5, Ms = [from_to(c,b),from_to(b,a),from_to(c,b),from_to(c,b),from_to(b,a)]
+#+end_example
+
+Now we can say for certain that
+
+: [from_to(c,b),from_to(b,a),from_to(c,b),from_to(b,a)]
+
+which is the sole solution with size  4, is *the* shortest answer to the
+problem.
+
+This illustrates that an algorithm is logic and control.
+
