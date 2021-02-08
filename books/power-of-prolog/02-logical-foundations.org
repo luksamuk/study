@@ -1,0 +1,5 @@
+#+title: The Power of Prolog: Logical Foundations
+#+author: Lucas S. Vieira
+#+property: header-args:prolog :exports both :noweb strip-export :cache yes :results output
+#+startup: showall latexpreview
+

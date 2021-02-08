@@ -1,0 +1,11 @@
+#+title: The Power of Prolog: Notes
+#+author: Lucas S. Vieira
+
+The following are an index of notes for readings on The Power of Prolog.
+
+Course is at https://metalevel.at/prolog.
+
+- [[./00-intro-01-facets.org][Introduction / Facets of Prolog]]
+- [[./02-logical-foundations.org][Logical Foundations]]
+
+

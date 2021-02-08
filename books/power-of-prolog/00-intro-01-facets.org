@@ -1,9 +1,7 @@
-#+title: Notes for "The Power of Prolog"
+#+title: The Power of Prolog: Introduction and Facets of Prolog
 #+author: Lucas S. Vieira
 #+property: header-args:prolog :exports both :noweb strip-export :cache yes :results output
 #+startup: showall latexpreview
-
-Course is at https://metalevel.at/prolog.
 
 * Introduction
 
