@@ -3,3 +3,42 @@
 #+property: header-args:prolog :exports both :noweb strip-export :cache yes :results output
 #+startup: showall latexpreview
 
+See [[https://www.logicmatters.net/latex-for-logicians/nd/][LaTeX for Logicians]].
+
+* Logic
+
+[[https://www.youtube.com/watch?v=nlTZQ0FF2Eo][Video]].
+
+Logic is a very broad topic.
+
+Logic  is concerned  with  the properties  of,  and relations  between
+syntax, semantics
+
+- Syntax (formulae, sentences...)
+- Semantics (truth, validity, semantic consequences...)
+- Inferences (proofs, theorems, soundness, completeness...)
+
+
+** Example 1.
+
+Statement *A*: /"It is an apple"/.
+Statement *B*: /"It is a banana."/
+
+\begin{equation*}
+\frac{\,A \lor B \qquad \lnot A\,}{B}
+\end{equation*}
+
+Notation:
+
+\begin{equation*}
+\frac{\,\textrm{premises}\,}{\,\textrm{conclusion}\,}
+\end{equation*}
+
+The reasoning doesn't  depend on the content  of *A* and *B*.  Not even on
+the /truth/ of  those premises. Deduction is done from  the /structure/ of
+the statements.
+
+Name of the rule: /disjunctive syllogism/ or /modus tollendo ponens/.
+
+Sequent notation: $A \lor B,\, \lnot A \vdash B$
+

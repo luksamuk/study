@@ -9,3 +9,6 @@ Course is at https://metalevel.at/prolog.
 - [[./02-logical-foundations.org][Logical Foundations]]
 
 
+- [[./other.org][Other stuff]]
+
+  

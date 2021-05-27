@@ -1,0 +1,24 @@
+#+title: Chapter 01: Fundamental Forth
+
+#+begin_src forth
+15 spaces
+42 emit
+
+#+end_src
+
+#+begin_src forth
+: star 42 emit ;
+#+end_src
+
+#+begin_src forth
+cr star cr star cr star
+#+end_src
+
+#+begin_src forth
+: margin cr 30 spaces ;
+: blip margin star ;
+: stars 0 do star loop ;
+
+
+: bar margin 5 stars ;
+#+end_src

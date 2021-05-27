@@ -1,0 +1,110 @@
+#+title: Other stuff
+#+author: Lucas S. Vieira
+#+property: header-args:prolog :exports both :noweb strip-export :cache yes :results output
+#+startup: showall latexpreview
+
+Here I'll put some Prolog examples that  do not relate to The Power of
+Prolog directly.
+
+* Inequality defined through cut
+
+#+begin_src prolog
+exists(foo).
+exists(bar).
+exists(baz).
+
+eq(X, X).
+
+neq(X, Y) :- eq(X, Y), !, fail.
+neq(X, Y).
+
+query_different(X, Y) :-
+    exists(X),
+    exists(Y),
+    neq(X, Y).
+
+print_result([X, Y]) :-
+    format('X = ~a~n', X),
+    format('Y = ~a~n~n', Y).
+
+?- bagof([X, Y], query_different(X, Y), R),
+   maplist(print_result, R).
+#+end_src
+
+#+RESULTS[b05d1898f34a05b04a98719313b2da96ac6152a3]:
+#+begin_example
+X = foo
+Y = bar
+
+X = foo
+Y = baz
+
+X = bar
+Y = foo
+
+X = bar
+Y = baz
+
+X = baz
+Y = foo
+
+X = baz
+Y = bar
+
+#+end_example
+
+* Graph problem
+
+#+begin_src prolog
+edge(a, b).
+edge(a, f).
+edge(a, g).
+edge(b, c).
+edge(b, d).
+edge(c, d).
+edge(c, e).
+edge(g, h).
+edge(d, h).
+edge(h, e).
+edge(h, f).
+
+path(A, B, [A, B]) :- edge(A, B).
+path(A, B, [A | CB]) :-
+    edge(A, C),
+    path(C, B, CB).
+
+print_result(P) :-
+    format('P = '),
+    writeln(P).
+
+?- bagof(P, path(a, f, P), R),
+   maplist(print_result, R).
+#+end_src
+
+#+RESULTS[f5788228eda1a573f8d33f8caae2e76656ae210a]:
+: P = [a,f]
+: P = [a,b,c,d,h,f]
+: P = [a,b,d,h,f]
+: P = [a,g,h,f]
+
+* John's tastes
+
+#+begin_src prolog
+tasty(bananas).
+tasty(bread).
+tasty(chocolate).
+
+healthy(bananas).
+healthy(porridge).
+healthy(bread).
+
+likes(john, X) :-
+    healthy(X),
+    tasty(X).
+
+?- bagof(X, likes(john, X), Likes),
+   writeln(Likes).
+#+end_src
+
+#+RESULTS[deb8bf54a4cb51c75f90eff6e634fc13c6fb039c]:
+: [bananas,bread]

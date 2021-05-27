@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2021-02-04 qui]
+Última atualização: [2021-05-27 qui]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -130,7 +130,7 @@ Arquivos relacionados à leitura e ao estudo do livro /The Little
 MLer/. Os exemplos utilizam OCaml ao invés de Standard ML; distinções
 são apontadas segundo necessário.
 
-**** ~nand2tetris~
+**** =nand2tetris=
 Exercícios resolvidos do livro /The Elements of Computing Systems/, de
 Nisan e Schocken. Normalmente, não inclui os arquivos de testes do
 livro, que podem ser encontrados na distribuição do material
@@ -186,6 +186,7 @@ Relação de módulos:
 - =Chapter5=: Exercícios iniciais do capítulo 5.
   - =Data.Picture=: Exercícios finais do capítulo 5, contendo biblioteca
     de manipulação de figuras.
+    
 **** =practical-common-lisp=
 Relação de arquivos criados ao ler o livro /Practical Common Lisp/, de
 Peter Seibel.
@@ -194,8 +195,11 @@ Peter Seibel.
 Notas e códigos relacionados ao livro /Theorem Proving in Lean/, de
 Avigad, Moura e Kong (2019).
 
-**** ~power-of-prolog~
+**** =power-of-prolog=
 Notas e códigos relacionados ao website [[https://www.metalevel.at/prolog][The Power of Prolog]].
+
+**** =xchgraxrax=
+Notas e resolução comentada para o livro ~xchg rax,rax~ de ~xorpd~.
 
 *** =courses=
 
