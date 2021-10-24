@@ -1,0 +1,166 @@
+* Aristóteles :Autor:Início:
+** Pensamento grego
+** Física :Obra:
+** Metafísica :Obra:
+** Lógica :Obra:
+
+* Pensamento grego
+** Análise científica
+*** Separação entre senso comum e análise científica
+** Renascimento
+
+* Física :Obra:
+** Mutabilidade
+*** Abstração de dados
+*** Estruturas de dados
+
+** Matéria
+*** Computação simbólica
+*** Abstração de dados
+
+** Forma
+*** Computação simbólica
+*** Abstração de dados
+
+* Abstração de dados
+** Estruturas de dados
+
+* Metafísica :Obra:
+** Imutabilidade
+*** Computação simbólica
+
+* Lógica :Obra:
+** Epistemologia
+*** Análise matemática de processos
+** Instrumento (órganon)
+*** Novum Organum :Obra:
+** Investigação da semântica
+(Silogismos, modus ponens, etc)
+*** Formalização semântica
+
+* Formalização semântica
+** Gottlob Frege :Autor:
+** Bertrand Russell :Autor:
+** Kurt Gödel :Autor:
+** Alan Turing :Autor:
+** Alfred Tarski :Autor:
+
+* Renascimento
+Sob influência grega.
+** Análise matemática de processos
+*** Separação entre senso comum e análise científica
+** Nicolau Copérnico :Autor:
+*** Separação entre senso comum e análise científica
+** Galileu Galilei :Autor:
+*** Separação entre senso comum e análise científica
+*** Análise matemática de processos
+** Francis Bacon :Autor:
+** John Napier :Autor:
+** Blaise Pascal :Autor:
+
+* Análise matemática de processos
+** Concepção moderna da mente
+** Análise científica
+
+* Concepção moderna da mente
+** Teoria da mente
+*** René Descartes :Autor:
+** Filósofos
+*** Epistemologia
+*** Análise matemática de processos
+*** Análise científica
+
+* Francis Bacon :Autor:
+** Novum Organum :Obra:
+*** Forma
+**** Somatório de características necessárias e suficientes
+*** Somatório de características necessárias e suficientes
+**** Indução por amostragem
+***** Algoritmo
+***** Essência
+***** Análise científica
+****** Aprendizado por descoberta
+***** Aprendizado por descoberta
+** Gottfried Wilhelm von Leibniz :Autor:
+
+* Aprendizado por descoberta
+** Indução de leis físicas
+*** Procura por um algoritmo de uso geral
+**** Matemática formal
+**** David Hilbert :Autor:
+***** Entscheidungsproblem :Obra:
+
+* Matemática formal
+** David Hilbert :Autor:
+** Alan Turing :Autor:
+** Gottfried Wilhelm von Leibniz :Autor:
+
+* Entscheidungsproblem :Obra:
+** Alan Turing :Autor:
+
+* Alan Turing :Autor:
+** Mente e corpo como entidades iguais
+** Algoritmo
+*** Máquina de Turing
+**** Problema da Parada
+
+* John Napier :Autor:
+** Logaritmo
+** Ossos de Napier
+
+* Blaise Pascal :Autor:
+** Pascaline
+** Pensées
+*** Automatização do pensamento
+**** Concepção moderna da mente
+** Gottfried Wilhelm von Leibniz :Autor:
+
+* Gottfried Wilhelm von Leibniz :Autor:
+** Roda de Leibniz
+** Automatização de processos lógicos
+
+* Automatização de processos lógicos
+** Automatização do pensamento
+
+* René Descartes :Autor:
+** Meditações :Obra:
+*** Rejeição da percepção como confiável
+**** Separação entre senso comum e análise científica
+**** Retorno ao dualismo
+***** Divisão entre mente e mundo físico
+
+* Separação entre senso comum e análise científica
+** Divisão entre mente e mundo físico
+*** Res cogitans
+*** Res extensa
+
+* Divisão entre mente e mundo físico
+** Processos mentais têm uma existência própria :Conclusão:
+
+* Teoria da mente
+** Mente e corpo como entidades iguais
+*** Processos mentais são alcançados por sistemas físicos
+**** Automatização de processos lógicos
+
+* Processos mentais são alcançados por sistemas físicos
+** Raciocínio como equivalente a um cálculo :Conclusão:
+
+
+
+
+* Inteligência Artificial :Início:
+** Automação do comportamento inteligente
+*** Automatização do pensamento
+*** Estruturas de dados
+** Problema da definição de inteligência
+** Expansão das capacidades da computação
+
+* Estruturas de dados
+** Representação do conhecimento
+*** Computação simbólica
+** Algoritmo
+** Modelos ocultos de Markov
+** Redes Bayesianas dinâmicas
+
+* Algoritmo
+** Provadores de teoremas
