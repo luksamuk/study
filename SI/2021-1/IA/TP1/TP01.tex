@@ -1,0 +1,386 @@
+% Created 2021-10-24 dom 03:31
+% Intended LaTeX compiler: pdflatex
+\documentclass[article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]{abntex2}
+		  \usepackage{times}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{titlesec}
+\usepackage[english, hyperpageref]{backref}
+\usepackage{hyperref}
+\usepackage{indentfirst}
+\usepackage{titling}
+\ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+\renewcommand{\maketitlehookb}{}
+}{}
+\titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+\titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+\setlength{\parindent}{1.5cm}
+\setlrmarginsandblock{3cm}{2cm}{*}
+\setulmarginsandblock{2.5cm}{2.5cm}{*}
+\checkandfixthelayout
+
+
+
+\usepackage{minted}
+\author{Lucas Samuel Vieira\thanks{lucas.vieira@ufvjm.edu.br}}
+\date{\today}
+\title{Inteligência Artificial - Trabalho Prático 01 - Respostas\\\medskip
+\large Introdução à Linguagem de Programação Python}
+\hypersetup{
+ pdfauthor={Lucas Samuel Vieira},
+ pdftitle={Inteligência Artificial - Trabalho Prático 01 - Respostas},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 27.2 (Org mode 9.4.5)}, 
+ pdflang={Brazilian}}
+\begin{document}
+
+\maketitle
+\OnehalfSpacing
+\pretextual
+\textual
+
+\section{Exercício 01 - Padaria}
+\label{sec:org81f226d}
+
+\begin{minted}[]{python}
+from typing import Final
+
+# O pão dormido tem 60% de desconto, ou seja,
+# tem 40% do valor do pão fresco
+BREAD_COST: Final = 4.60
+OLD_BREAD_COST: Final = BREAD_COST * 0.4
+
+def print_aligned(prompt, number):
+    print('{}{:6.2f}'.format(prompt, number))
+
+# Input do usuário
+while True:
+    try:
+        old_breads = int(input("Insira a quantidade de paes dormidos: "))
+        if old_breads < 0:
+            print("Quantidade deve ser maior ou igual a zero.")
+        else:
+            break
+    except ValueError:
+        print("Quantidade invalida.")
+
+# Exibição das informações
+print_aligned('Preco do pao:         ', BREAD_COST)
+print_aligned('Preco do pao dormido: ', OLD_BREAD_COST)
+print_aligned('Total da compra:      ', old_breads * OLD_BREAD_COST)
+\end{minted}
+
+\newpage
+\section{Exercício 02 - Roleta}
+\label{sec:org412f213}
+
+\begin{minted}[]{python}
+from random import randint
+from typing import Final
+
+def gen_random_number():
+    return randint(-1, 36)
+
+# Constantes indicando cores das casas (-1 == 00).
+GREEN_NUMBERS: Final = [-1, 0]
+RED_NUMBERS: Final = [
+    1,   3,  5,  7,  9, 12, 14, 16, 18,
+    19, 21, 23, 25, 27, 30, 32, 34, 36
+]
+
+def get_number_color(number):
+    if number in GREEN_NUMBERS:
+        return "Verde"
+    elif number in RED_NUMBERS:
+        return "Vermelho"
+    return "Preto"
+
+def get_roulette_range(number):
+    if number >= 1 and number <= 18:
+        return "1 a 18"
+    return "19 a 36"
+
+def format_roulette_number(number):
+    return "00" if number == -1 else "{}".format(number)
+
+def get_payment_categories(number):
+    categories = []
+    # Número único
+    categories.append(format_roulette_number(number))
+    if number > 0:
+        # Vermelho ou preto
+        categories.append(get_number_color(number))
+        # Ímpar ou par
+        categories.append("par" if number % 2 == 0 else "ímpar")
+        # Intervalo da roleta
+        categories.append(get_roulette_range(number))
+    return categories
+
+
+generated_number = gen_random_number()
+print("O resultado da rodada é {}"
+      .format(format_roulette_number(generated_number)))
+
+for category in get_payment_categories(generated_number):
+    print("Pagar {}".format(category))
+\end{minted}
+
+\newpage
+\section{Exercício 03 - Maior valor inteiro}
+\label{sec:org818aa92}
+
+\begin{minted}[]{python}
+from random import randint
+
+num_updates = 0
+maximum = randint(1, 100)
+print("{}".format(maximum))
+
+for i in range(99):
+    new_num = randint(1, 100)
+    if new_num > maximum:
+        maximum = new_num
+        num_updates += 1
+        print("{} (atualizado)".format(new_num))
+    else:
+        print("{}".format(new_num))
+
+print("O valor máximo encontrado foi {}".format(maximum))
+print("O número máximo de vezes que o maior valor foi "
+      "atualizado foi {} vezes."
+      .format(num_updates))
+\end{minted}
+
+\section{Exercício 04 - Ano bissexto}
+\label{sec:orgdda02d4}
+
+\begin{minted}[]{python}
+def is_bissexto(year):
+    if year % 400 == 0:
+        return True
+    elif year % 100 == 0:
+        return False
+    elif year % 4 == 0:
+        return True
+    return False
+
+# Resultado deve ser [True, False, True, False]
+years = [2016, 2018, 2020, 2021]
+print(list(map(is_bissexto, years)))
+\end{minted}
+
+\section{Exercício 05 - Dias em um mês}
+\label{sec:orgc43fa98}
+
+\begin{minted}[]{python}
+# Exercício 04
+def is_bissexto(year):
+    if year % 400 == 0:
+        return True
+    elif year % 100 == 0:
+        return False
+    elif year % 4 == 0:
+        return True
+    return False
+
+def num_days(month, year):
+    if month == 2:
+        return 29 if is_bissexto(year) else 28
+    elif month in [1, 3, 5, 7, 8, 10, 12]:
+        return 31
+    return 30
+
+# Deverá imprimir [31, 28, 29, 29]
+test_args = [(1, 2021), (2, 2021), (2, 2020), (2, 1996)]
+print(list(map(lambda p: num_days(p[0], p[1]), test_args)))
+\end{minted}
+
+\newpage
+\section{Exercício 06 - Data mágica}
+\label{sec:org2533c67}
+
+\begin{minted}[]{python}
+# Exercício 04
+def is_bissexto(year):
+    if year % 400 == 0:
+        return True
+    elif year % 100 == 0:
+        return False
+    elif year % 4 == 0:
+        return True
+    return False
+
+# Exercício 05
+def num_days(month, year):
+    if month == 2:
+        return 29 if is_bissexto(year) else 28
+    elif month in [1, 3, 5, 7, 8, 10, 12]:
+        return 31
+    return 30
+
+def is_magic_date(day, month, year):
+    year_two_digits = year - (int(year / 100) * 100)
+    return (day * month) == year_two_digits
+
+# Encontra todas as datas mágicas do Século XX (1901-2000).
+for year in range(1901, 2001):
+    for month in range(1, 13):
+        for day in range(1, num_days(month, year)+1):
+            if is_magic_date(day, month, year):
+                print("{:02d}/{:02d}/{:04d}"
+                      .format(day, month, year))
+\end{minted}
+
+\newpage
+\section{Exercício 07 - Crivo de Eratóstenes}
+\label{sec:org047bab5}
+
+\begin{enumerate}
+\item Ao invés de remover diretamente os  itens da lista, algo que seria inseguro e
+lento, optei por marcá-los  como \texttt{False} em uma lista que  indica se o número
+naquele índice é primo ou não.
+\item Só é necessário gerar múltiplos se o  \(p\) atual for um número primo, por mais
+que iteremos até o limite.
+\item O  cálculo de múltiplos é  realizado para \(p^2 \leq  x \leq \textrm{limite}\),
+através de um range com passos de \(p\) em \(p\), para evitar cálculos diretos de
+multiplicação.
+\end{enumerate}
+
+\begin{minted}[]{python}
+def sieve_of_erathostenes(limit):
+    is_prime = [True for i in range(limit + 1)]
+    is_prime[0] = False
+    is_prime[1] = False
+    for p in range(2, limit):
+        if is_prime[p]:
+            for multiple in range(p ** 2, limit + 1, p):
+                is_prime[multiple] = False
+    # Geração da lista
+    primes = []
+    for i in range(limit + 1):
+        if is_prime[i]:
+            primes.append(i)
+    return primes
+
+while True:
+    try:
+        limit = int(input("Insira um limite: "))
+        if limit < 2:
+            print("Insira um número maior ou igual a 2.")
+            continue
+        break
+    except ValueError:
+        print("Valor inválido.")
+
+print(sieve_of_erathostenes(limit))
+\end{minted}
+
+\newpage
+\section{Exercício 08 - Scrabble}
+\label{sec:org66ea7c8}
+
+\begin{minted}[]{python}
+# Construção do dictionary
+def build_dict():
+    points = {}
+    for letter in ['a', 'e', 'i', 'l', 'n', 'o', 'r', 's', 't', 'u']:
+        points[letter] = 1
+    for letter in ['d', 'g']:
+        points[letter] = 2
+    for letter in ['b', 'c', 'm', 'p']:
+        points[letter] = 3
+    for letter in ['f', 'h', 'v', 'w', 'y']:
+        points[letter] = 4
+    points['k'] = 5
+    for letter in ['j', 'x']:
+        points[letter] = 8
+    for letter in ['q', 'z']:
+        points[letter] = 10
+    return points
+
+points_dict = build_dict()
+points = 0
+word = input('Insira uma palavra: ').lower()
+
+for letter in word:
+    try:
+        points += points_dict[letter]
+    except KeyError:
+        pass
+
+print("Pontuação: {} pontos".format(points))
+\end{minted}
+
+\newpage
+\section{Exercício 09 - Mini-parser}
+\label{sec:org772dc64}
+
+\begin{minted}[]{python}
+#!/usr/bin/python
+import sys
+
+def slurp(filename):
+    slurped_file = []
+    try:
+        with open(filename, "r") as the_file:
+            slurped_file = [line.rstrip('\n') for line in the_file]
+    except IsADirectoryError:
+        print("Erro ao abrir \"{}\": é um diretório".format(filename))
+    except FileNotFoundError:
+        print("Erro ao abrir o arquivo \"{}\"".format(filename))
+    except OSError:
+        print("Impossível ler o arquivo \"{}\"".format(filename))
+    return slurped_file
+
+def get_function_name(line):
+    return line.split(" ")[1].split("(")[0]
+
+def print_undocumented_function(filename, line, function_name):
+    print("{}:{:03d}: {}".format(filename, line, function_name))
+
+def check_file(filename):
+    lines = slurp(filename)
+    if len(lines) > 0:
+        # Caso especial para primeira linha: se for uma
+        # função, não tem comentário antes.
+        if lines[0].startswith("def "):
+            print_undocumented_function(
+                filename, 1, get_function_name(lines[0]))
+        for idx in range(1, len(lines)):
+            prev_line = lines[idx - 1]
+            curr_line = lines[idx]
+            if curr_line.startswith("def ") and \
+               (not prev_line.startswith("#")):
+                print_undocumented_function(
+                    filename, idx + 1, get_function_name(curr_line))
+
+for arg in sys.argv[1:]:
+    check_file(arg)
+\end{minted}
+
+\newpage
+\section{Exercício 10 - Distância entre Strings}
+\label{sec:org71a3252}
+
+\begin{minted}[]{python}
+def string_distance(s, t):
+    if len(s) == 0:
+        return len(t)
+    elif len(t) == 0:
+        return len(s)
+    cost = 0
+    if s[-1] != t[-1]:
+        cost = 1
+    d1 = string_distance(s[:-1], t) + 1
+    d2 = string_distance(s, t[:-1]) + 1
+    d3 = string_distance(s[:-1], t[:-1]) + cost
+    return min(d1, d2, d3)
+
+str1 = input("Insira um texto:    ").lower()
+str2 = input("Insira outro texto: ").lower()
+print("Distância de edição: {}".format(string_distance(str1, str2)))
+\end{minted}
+\end{document}

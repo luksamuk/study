@@ -1,0 +1,98 @@
+#+TITLE: Inteligência Artificial - Trabalho Prático 01 - Respostas
+#+SUBTITLE: Introdução à Linguagem de Programação Python
+#+AUTHOR: Lucas Samuel Vieira
+#+EMAIL: lucas.vieira@ufvjm.edu.br
+#+LANGUAGE: pt-br
+#+OPTIONS: toc:nil title:t email:t
+#+STARTUP: showall
+
+:LATEX:
+#+LATEX_CLASS: abntex2
+#+LATEX_CLASS_OPTIONS: [article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]
+#+LATEX_HEADER: \usepackage{times}
+#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage{titlesec}
+#+LATEX_HEADER: \usepackage[english, hyperpageref]{backref}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage{indentfirst}
+#+LATEX_HEADER: \usepackage{titling}
+
+# Resolve problema de titulo estrangeiro
+#+LATEX_HEADER: \ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+#+LATEX_HEADER: \renewcommand{\maketitlehookb}{}
+#+LATEX_HEADER: }{}
+
+# Fontes de título
+#+LATEX_HEADER: \titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+#+LATEX_HEADER: \titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+
+# Bordas
+#+LATEX_HEADER: \setlength{\parindent}{1.5cm}
+#+LATEX_HEADER: \setlrmarginsandblock{3cm}{2cm}{*}
+#+LATEX_HEADER: \setulmarginsandblock{2.5cm}{2.5cm}{*}
+#+LATEX_HEADER: \checkandfixthelayout
+
+#+LATEX: \OnehalfSpacing
+#+LATEX: \pretextual
+#+LATEX: \textual
+:END:
+
+* Exercício 01 - Padaria
+
+#+include: "src/01.py" src python
+
+#+latex: \newpage
+* Exercício 02 - Roleta
+
+#+include: "src/02.py" src python
+
+#+latex: \newpage
+* Exercício 03 - Maior valor inteiro
+
+#+include: "src/03.py" src python
+
+* Exercício 04 - Ano bissexto
+
+#+include: "src/04.py" src python
+
+* Exercício 05 - Dias em um mês
+
+#+include: "src/05.py" src python
+
+#+latex: \newpage
+* Exercício 06 - Data mágica
+
+#+include: "src/06.py" src python
+
+#+latex: \newpage
+* Exercício 07 - Crivo de Eratóstenes
+
+1. Ao invés de remover diretamente os  itens da lista, algo que seria inseguro e
+   lento, optei por marcá-los  como ~False~ em uma lista que  indica se o número
+   naquele índice é primo ou não.
+2. Só é necessário gerar múltiplos se o  $p$ atual for um número primo, por mais
+   que iteremos até o limite.
+3. O  cálculo de múltiplos é  realizado para $p^2 \leq  x \leq \textrm{limite}$,
+   através de um range com passos de $p$ em $p$, para evitar cálculos diretos de
+   multiplicação.
+
+#+include: "src/07.py" src python
+
+#+latex: \newpage
+* Exercício 08 - Scrabble
+
+#+include: "src/08.py" src python
+
+#+latex: \newpage
+* Exercício 09 - Mini-parser
+
+#+include: "src/09.py" src python
+
+#+latex: \newpage
+* Exercício 10 - Distância entre Strings
+
+#+include: "src/10.py" src python
+
