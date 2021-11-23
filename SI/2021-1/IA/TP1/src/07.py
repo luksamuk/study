@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 def sieve_of_erathostenes(limit):
     is_prime = [True for i in range(limit + 1)]
     is_prime[0] = False
