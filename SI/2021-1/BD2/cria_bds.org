@@ -1,0 +1,52 @@
+#+title: Bancos de Dados II
+#+author: Lucas S. Vieira
+#+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword senha :dbhost 172.17.0.2 :exports both
+
+Bancos de dados usados na disciplina.
+
+* Banco de dados
+
+** Criando o BD com Docker
+
+Isso vai criar o SGBD para a disciplina.
+
+#+begin_src bash
+docker pull mariadb/server:10.5
+docker run --detach \
+       --name dbms-bd2 \
+       -p 3306:3306 \
+       --env MYSQL_ROOT_PASSWORD="senha" \
+       -v "$(pwd)"/scripts:/scripts \
+       mariadb/server:10.5
+#+end_src
+
+Scripts estarão em ~/scripts~.
+
+** Conectar via console
+
+Descobrir o IP do BD:
+
+#+begin_src bash :exports both
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dbms-bd2
+#+end_src
+
+Conectar através do console:
+
+#+begin_src bash
+docker exec -it dbms-bd2 mysql -uroot -psenha
+#+end_src
+
+Se precisar acessar o filesystem:
+
+#+begin_src bash
+docker exec -it dbms-bd2 bash
+#+end_src
+
+** Rodando o script
+
+Para rodar o script, abrir o mysqli e executar:
+
+#+begin_src fundamental
+mysql> source /scripts/bases_dados.sql
+#+end_src
+

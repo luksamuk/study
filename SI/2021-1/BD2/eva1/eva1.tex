@@ -1,0 +1,306 @@
+% Created 2021-11-11 qui 01:07
+% Intended LaTeX compiler: pdflatex
+\documentclass[article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]{abntex2}
+		  \usepackage{times}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{titlesec}
+\usepackage[english, hyperpageref]{backref}
+\usepackage{hyperref}
+\usepackage{indentfirst}
+\usepackage{titling}
+\ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+\renewcommand{\maketitlehookb}{}
+}{}
+\titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+\titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+\setlength{\parindent}{1.5cm}
+\setlrmarginsandblock{3cm}{2cm}{*}
+\setulmarginsandblock{2.5cm}{2.5cm}{*}
+\checkandfixthelayout
+
+
+
+\usepackage{minted}
+\author{Lucas Samuel Vieira}
+\date{\today}
+\title{EVA 1}
+\hypersetup{
+ pdfauthor={Lucas Samuel Vieira},
+ pdftitle={EVA 1},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 27.2 (Org mode 9.4.5)}, 
+ pdflang={Brazilian}}
+\begin{document}
+
+\OnehalfSpacing
+\pretextual
+\textual
+
+\begin{center}
+\textbf{UFVJM - UNIVERSIDADE FEDERAL DOS VALES DO JEQUITINHONHA E MUCURI}
+
+\textbf{BACHARELADO EM SISTEMAS DE INFORMAÇÃO}
+
+\textbf{BANCO DE DADOS II - SEMESTRE 2021/1}
+
+\textbf{Exercício de Avaliação de Aprendizagem 1 - EVA 1}
+\end{center}
+
+\noindent
+Nome: Lucas Samuel Vieira
+\newline
+
+\section{Exercício 1}
+\label{sec:orga624afd}
+
+Formule e escreva 3 consultas aninhadas aplicadas às bases de dados utilizadas.
+
+\subsection{Consulta aninhada 1}
+\label{sec:org25e0b91}
+
+Realizada no banco de dados \texttt{banco}.
+Mostrar nome  e total  de empréstimos  de cada cliente  devedor que  tiver feito
+empréstimos totalizando mais  de mil reais na agência de  Downtown, Brooklyn (ID
+1).
+
+\begin{minted}[]{sql}
+SELECT c.nome_cliente, e.total
+  FROM cliente c
+  JOIN devedor d
+    ON c.cod_cliente = d.cod_cliente
+  JOIN emprestimo e
+    ON d.numero_emprestimo = e.numero_emprestimo
+ WHERE c.cod_cliente IN
+       (SELECT cod_cliente
+          FROM devedor d
+          JOIN emprestimo e
+                ON d.numero_emprestimo = e.numero_emprestimo
+         WHERE total > 1000
+           AND d.cod_agencia = 1);
+\end{minted}
+
+\subsection{Consulta aninhada 2}
+\label{sec:org924dee8}
+
+Realizada no banco de dados \texttt{companhia}.
+Mostrar  informações  de  empregados  que estejam  trabalhando  em  projetos  de
+produtos com um gasto de mais de dez horas.
+
+\begin{minted}[]{sql}
+SELECT *
+  FROM empregado e
+ WHERE e.ssn IN
+       (SELECT r.essn
+          FROM projeto p
+          JOIN trabalha_em r
+                ON r.pno = p.pnumero
+         WHERE p.pjnome LIKE 'Produto%'
+           AND r.horas > 10)
+\end{minted}
+
+\subsection{Consulta aninhada 3}
+\label{sec:org8d45d48}
+
+Realizada no banco de dados \texttt{concurso}.
+Mostrar todos  os candidatos  cujo preço  de inscrição  esteja entre  os maiores
+preços de inscrição para a cidade de Formiga.
+
+\begin{minted}[]{sql}
+SELECT DISTINCT c.*
+  FROM inscricao i
+  JOIN candidato c
+    ON i.cod_candidato = c.cod_candidato
+  JOIN tipo_inscricao ti
+    ON i.tipo_inscricao = ti.cod_tipo
+ WHERE ti.preco IN
+       (SELECT DISTINCT ti.preco
+          FROM inscricao i
+          JOIN tipo_inscricao ti
+                ON i.tipo_inscricao = ti.cod_tipo
+          JOIN municipio m
+                ON i.cod_municipio = m.cod_municipio
+         WHERE m.descricao = 'Formiga'
+           AND ti.preco > 25)
+\end{minted}
+
+\section{Exercício 2}
+\label{sec:orga85da9e}
+
+Formule e escreva  2 stored procedures (1  delas com uso de  parâmetros) sobre a
+base de dados \texttt{concurso}.
+
+\subsection{Procedure 1}
+\label{sec:org0bff792}
+
+Lista os dados dos candidatos de cada inscrição, juntamente com o município para
+o qual se inscreveram.
+
+\begin{minted}[]{sql}
+DELIMITER &
+CREATE PROCEDURE sp_lista_inscricoes_candidatos()
+BEGIN
+        SELECT i.cod_inscricao AS codigo,
+               m.descricao AS municipio_nome,
+               c.nome, c.cpf, c.telefone, c.endereco
+          FROM inscricao i
+          JOIN candidato c
+            ON i.cod_candidato = c.cod_candidato
+          JOIN municipio m
+            ON i.cod_municipio = m.cod_municipio;
+END &
+DELIMITER ;
+\end{minted}
+
+\subsection{Procedure 2}
+\label{sec:org3833c0e}
+
+Coleta a quantidade de inscrições realizadas para um município em específico.
+
+\begin{minted}[]{sql}
+DELIMITER &
+CREATE PROCEDURE sp_num_insc_por_mun(out num_insc int, mun_desc VARCHAR(20))
+BEGIN
+        SELECT count(*) into num_insc
+          FROM inscricao i
+          JOIN municipio m
+            ON i.cod_municipio = m.cod_municipio
+           AND m.descricao = mun_desc;
+END &
+DELIMITER ;
+\end{minted}
+
+\section{Exercício 3}
+\label{sec:org14a7d3b}
+
+Formule e escreva 3  visões, 1 em cada base de dados  utilizada. Todas as visões
+devem  utilizar-se de  alguma  função  de agregação  (\texttt{count},  \texttt{sum}, \texttt{min}  ou
+\texttt{max}).
+
+\subsection{Visão 1}
+\label{sec:org72e550f}
+
+Criada no banco de dados \texttt{banco}.
+Mostra o saldo total  de cada cliente, juntamente com seus dados,  e o número de
+contas que o mesmo possui.
+
+\begin{minted}[]{sql}
+CREATE VIEW vw_clientes_saldo_total AS
+SELECT c.cod_cliente, c.nome_cliente, c.rua_cliente,
+       c.cidade_cliente,
+       count(dt.numero_conta) AS num_contas,
+       sum(ct.saldo) AS saldo_total
+  FROM devedor d
+  JOIN cliente c
+    ON c.cod_cliente = d.cod_cliente
+  JOIN depositante dt
+    ON dt.cod_cliente = c.cod_cliente
+  JOIN conta ct
+    ON dt.numero_conta = ct.numero_conta
+  GROUP BY c.cod_cliente;
+\end{minted}
+
+\subsection{Visão 2}
+\label{sec:orga1a05a9}
+
+Criada no banco de dados \texttt{companhia}.
+Mostra os dados dos empregados, a quantidade de horas empregadas em projetos e a
+quantidade de projetos de que o mesmo participa.
+
+\begin{minted}[]{sql}
+CREATE VIEW vw_empregados_horas_projetos AS
+SELECT e.nome, e.ssn, e.datanasc, e.endereco, e.sexo,
+       e.salario,
+       sum(coalesce(r.horas, 0)) AS horas_projetos,
+       count(p.pnumero) as num_projetos
+  FROM empregado e
+  JOIN trabalha_em r
+    ON e.ssn = r.essn
+  JOIN projeto p
+    ON r.pno = p.pnumero
+  GROUP BY e.ssn;
+\end{minted}
+
+\subsection{Visão 3}
+\label{sec:orgc2e580e}
+
+Criada no banco de dados \texttt{concurso}.
+Mostra a quantidade de inscrições realizadas para cada município.
+
+\begin{minted}[]{sql}
+CREATE VIEW vw_inscricoes_municipio AS
+SELECT m.*, count(i.cod_inscricao) AS num_inscricoes
+  FROM municipio m
+  JOIN inscricao i
+    ON m.cod_municipio = i.cod_municipio
+  GROUP BY m.cod_municipio;
+\end{minted}
+
+\section{Exercício 4}
+\label{sec:org47c698a}
+
+Formule e escreva 2 funções a serem  aplicadas em quaisquer bases de dados. Pelo
+menos 1 função deve conter declaração de variável e estrutura condicional em seu
+código.
+
+\subsection{Função 1}
+\label{sec:org2e4efe6}
+
+Criada no banco de dados \texttt{concurso}.
+Mostra  a rentabilidade  do  valor arrecadado  com os  concursos  para a  cidade
+indicada, na forma de conceito (alto, médio, baixo).
+
+\begin{minted}[]{sql}
+DELIMITER &
+CREATE FUNCTION f_rentabilidade(municipio varchar(20)) RETURNS varchar(12)
+BEGIN
+  DECLARE valor float;
+
+  SELECT sum(ti.preco) INTO valor
+    FROM municipio m
+    JOIN inscricao i
+      ON i.cod_municipio = m.cod_municipio
+    JOIN tipo_inscricao ti
+      ON i.tipo_inscricao = ti.cod_tipo
+   WHERE m.descricao = municipio;
+
+  CASE
+    WHEN (valor <= 300)
+         THEN RETURN 'BAIXO';     
+    WHEN (valor > 300 AND valor < 500)
+         THEN RETURN 'MEDIO';
+    WHEN (valor >= 500)
+         THEN RETURN 'ALTO';
+    ELSE RETURN 'DESCONHECIDO';
+  END CASE;
+END &
+DELIMITER ;
+\end{minted}
+
+\subsection{Função 2}
+\label{sec:org80b5485}
+
+Criada no banco de dados \texttt{companhia}.
+Mostra  a  quantidade  de  horas  empregadas  por  funcionários  em  um  projeto
+específico, no total.
+
+\begin{minted}[]{sql}
+DELIMITER &
+CREATE FUNCTION f_horasempregadas(proj varchar(20)) RETURNS float
+BEGIN
+        DECLARE t_horas float;
+
+        SELECT sum(horas) INTO t_horas
+          FROM projeto p
+          JOIN trabalha_em r
+            ON r.pno = p.pnumero
+         WHERE p.pjnome = proj;
+
+    RETURN t_horas;
+END &
+DELIMITER ;
+\end{minted}
+\end{document}
