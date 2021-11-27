@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2021-05-27 qui]
+Última atualização: [2021-11-27 sáb]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -64,9 +64,9 @@ completamente feitas por mim.
   - ~TC~: Exercícios de Teoria da Computação.
   - ~AEDS2~: Algoritmos e Estruturas de Dados II. Inclui notas de aulas
     e exercícios também.
-- =2019-2=: Exercícios relacionados à faculdade, no segundo semestre
+- ~2019-2~: Exercícios relacionados à faculdade, no segundo semestre
   de 2019.
-  - =AEDS3=: Algoritmos e Estruturas de Dados III. Partes em destaque:
+  - ~AEDS3~: Algoritmos e Estruturas de Dados III. Partes em destaque:
     - ~avl~:   Implementação    de   uma   árvore   AVL    em   /literate
       programming/. Fator de balanceamento não é armazenado nos nós.
     - ~tp3-rbtree~: Implementação  de uma  árvore red-black  em /literate
@@ -82,7 +82,13 @@ completamente feitas por mim.
     SGBDs.
   - ~POO~:  Programação   Orientada  a  Objetos.  Inclui   trabalhos  da
     disciplina, feitos principalmente em Java.
-
+- ~2021-1~ Exercícios  relacionados à  faculdade, no  semestre 2021/1  (final de
+  2021), em meio à pandemia de COVID-19.
+  - ~BD2~:  Bancos de  Dados II.  Inclui exercícios  resolvidos e  notas rápidas
+    sobre sintaxe e  uso de SQL, MariaDB/MySQL. Também inclui  recursos para uso
+    de Docker para uso de SGBDs, especialmente MySQL.
+  - ~IA~: Inteligência Artificial. Inclui exercícios resolvidos da disciplina em
+    Python.
 *** ~exercises~
 Exercícios variados, não necessariamente relacionados a estudo.
 Para maiores informações, veja o README incluído nesta pasta.
