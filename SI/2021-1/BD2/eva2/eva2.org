@@ -1,0 +1,273 @@
+#+TITLE: EVA 2
+#+AUTHOR: Lucas Samuel Vieira
+#+LANGUAGE: pt-br
+#+OPTIONS: toc:nil title:nil email:nil
+#+STARTUP: latexpreview showall
+
+:LATEX:
+#+LATEX_CLASS: abntex2
+#+LATEX_CLASS_OPTIONS: [article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]
+#+LATEX_HEADER: \usepackage{times}
+#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage{titlesec}
+#+LATEX_HEADER: \usepackage[english, hyperpageref]{backref}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage{indentfirst}
+#+LATEX_HEADER: \usepackage{titling}
+#+LATEX_HEADER: \usepackage{graphicx}
+
+# Resolve problema de titulo estrangeiro
+#+LATEX_HEADER: \ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+#+LATEX_HEADER: \renewcommand{\maketitlehookb}{}
+#+LATEX_HEADER: }{}
+
+# Fontes de título
+#+LATEX_HEADER: \titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+#+LATEX_HEADER: \titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+
+# Bordas
+#+LATEX_HEADER: \setlength{\parindent}{1.5cm}
+#+LATEX_HEADER: \setlrmarginsandblock{3cm}{2cm}{*}
+#+LATEX_HEADER: \setulmarginsandblock{2.5cm}{2.5cm}{*}
+#+LATEX_HEADER: \checkandfixthelayout
+
+#+LATEX: \OnehalfSpacing
+#+LATEX: \pretextual
+#+LATEX: \textual
+:END:
+
+#+begin_center
+*UFVJM - UNIVERSIDADE FEDERAL DOS VALES DO JEQUITINHONHA E MUCURI*
+
+*BACHARELADO EM SISTEMAS DE INFORMAÇÃO*
+
+*BANCO DE DADOS II - SEMESTRE 2021/1*
+
+*Exercício de Avaliação de Aprendizagem 2 - EVA 2*
+#+end_center
+
+#+LATEX: \noindent
+Nome: Lucas Samuel Vieira
+#+LATEX: \newline
+
+# #+LATEX: \noindent
+# Questões:
+# #+LATEX: \newline
+
+* Exercício 1
+
+Apresente um esquema  de uma base de  dados relacional (de pelo  menos 2 tabelas
+relacionadas) e descreva uma funcionalidade de  um SI que seja mapeada para mais
+de uma operação SQL na base de dados. Apresente o código de uma Stored Procedure
+que implemente esta funcionalidade como sendo uma transação.
+
+** Resposta
+
+Para  a realização  do exercício,  será considerada  uma tabela  de venda  e uma
+tabela para os itens das respectivas vendas.
+
+O processo  de venda pode ser  visto como uma  operação a ser realizada  por uma
+transação.
+
+Para tanto, teremos uma tabela para os dados  de uma venda, e uma tabela para os
+itens da mesma, como demonstrado pelas queries de criação a seguir:
+
+#+begin_src sql
+CREATE TABLE venda (
+       id INT NOT NULL AUTO_INCREMENT,
+       cliente VARCHAR(50) NOT NULL,
+       vendedor VARCHAR(50) NOT NULL,
+       data_venda TIMESTAMP NOT NULL,
+       PRIMARY KEY(id)
+);
+
+CREATE TABLE venda_itens (
+       id INT NOT NULL AUTO_INCREMENT,
+       descricao VARCHAR(50) NOT NULL,
+       venda_id INT NOT NULL,
+       PRIMARY KEY(id),
+       FOREIGN KEY(venda_id) REFERENCES venda(id)
+);
+#+end_src
+
+Sendo  assim, para  realizar  uma venda,  basta que  façamos  uma transação  que
+garanta que  a venda e  seus itens sejam  inseridos atomicamente, como  mostra a
+procedure a seguir.
+
+#+begin_src sql
+DELIMITER &
+CREATE PROCEDURE sp_realiza_venda_teste()
+BEGIN
+    DECLARE venda_indice int;
+    DECLARE data_atual timestamp;
+
+    START TRANSACTION;
+
+    SELECT CURRENT_TIMESTAMP INTO data_atual;
+
+    INSERT INTO venda (cliente, vendedor, data_venda)
+    VALUES ('Fulano da Silva', 'Vendedor da Silva', data_atual);
+
+    SELECT LAST_INSERT_ID() INTO venda_indice;
+
+    INSERT INTO venda_itens (descricao, venda_id)
+    VALUES
+        ('Shampoo', venda_indice),
+        ('Condicionador', venda_indice),
+        ('Sabonete', venda_indice);
+
+    COMMIT;
+END &
+DELIMITER ;
+#+end_src
+
+O resultado pode ser verificado com a query a seguir:
+
+#+begin_src sql
+SELECT v.id, v.cliente, v.vendedor, i.descricao, v.data_venda
+  FROM venda v
+  JOIN venda_itens i ON v.id = i.venda_id;
+#+end_src
+
+* Exercício 2
+
+Apresente um esquema de uma sequência  de operações de 2 transações ocorrendo no
+tempo (como foi visto em vídeo aula) que implique num deadlock (transações sobre
+qualquer base de dados utilizada na disciplina).
+
+** Resposta
+
+Para o exercício a seguir, foi utilizado  o banco de dados ~concurso~, utilizado na
+disciplina.
+
+Para o exemplo, criaremos dois  terminais. No primeiro terminal, iniciaremos uma
+transação,  e então  mudaremos  a  ~descricao~ do  município  de  código 2  para
+~"Municipio 2"~, sem realizar /commit/.
+
+#+begin_src sql
+-- Terminal 1
+START TRANSACTION;
+UPDATE municipio SET descricao = 'Municipio 2'
+ WHERE cod_municipio = 2;
+#+end_src
+
+Ao mesmo tempo,  no segundo terminal, modificaremos a descrição  do município de
+código 3 para ~"Municipio 3"~, também em uma transação, sem realizar /commit/.
+
+#+begin_src sql
+-- Terminal 2
+START TRANSACTION;
+UPDATE municipio SET descricao = 'Municipio 3'
+ WHERE cod_municipio = 3;
+#+end_src
+
+Agora, no  Terminal 1, tentaremos alterar  a descrição do município  de código 3
+para um  texto qualquer. Isso fará  com que o Terminal  1 entre em um  estado de
+espera, aguardando o encerramento da transação no Terminal 2.
+
+#+begin_src sql
+-- Terminal 1
+UPDATE municipio SET descricao = 'Texto'
+ WHERE cod_municipio = 3; -- Em espera
+#+end_src
+
+Neste  momento, poderemos  causar um  /deadlock/ proposital  se, no  Terminal 2,
+tentarmos  alterar  a descrição  do  município  de  código  2 para  outro  texto
+qualquer.
+
+#+begin_src sql
+-- Terminal 2
+UPDATE municipio SET descricao = 'OutroTexto'
+ WHERE cod_municipio = 2; -- Deadlock!
+#+end_src
+
+Isso   causará  uma   espera  circular   entre   as  transações   de  ambos   os
+terminais.  Neste   momento,  o   banco  de   dados  (mais   especificamente,  a
+implementação open source  do MySQL, o MariaDB) matará a  transação causadora do
+/deadlock/ no Terminal 2, e a query anteriormente em espera, no Terminal 1, será
+realizada, ainda sem realizar /commit/ na transação.
+
+A figura a seguir mostra a aplicação do exemplo em uma máquina real, com os dois
+terminais conectados ao SGBD.
+
+#+attr_latex: :placement [H]
+#+caption: Exemplo de /deadlock/ entre duas transações ocorrendo no MariaDB, executado via Docker.
+[[./deadlock.png]]
+
+* Exercício 3
+
+Diferencie  os  protocolos de  recuperação  contra  falhas  baseado em  log  com
+atualização imediata e adiada.
+
+** Resposta
+
+A recuperação contra  falhas baseada em log  envolve a criação de  um arquivo em
+disco (o log) para registro das operações da transação, antes de sua efetivação;
+somente após  o registro destas transações  em disco, as mesmas  começarão a ser
+efetivadas, através de análise periódica da parte do SGBD.
+
+Com relação à  efetivação no banco de dados, temos  as atualizações *imediata* e
+*adiada*.
+
+Para  a atualização  *adiada*, a  efetivação  das modificações  na transação  só
+realmente ocorrerão  após todos os efeitos  da mesma estarem escritos  no log de
+transações, que implica  necessariamente na escrita de ambos  /start/ e /commit/
+para aquela  transação. Caso não  haja /commit/ correspondente para  um /start/,
+aquela transação não será efetuada, e será eliminada.
+
+Para  a  atualização *imediata*,  a  efetivação  das modificações  na  transação
+ocorrem  logo  após serem  escritas  no  log, ou  seja,  para  cada operação  da
+transação escrita no log, sua execução será imediata. Dessa forma, a recuperação
+de erros será realizada através da restauração dos valores antigos alterados, de
+acordo  com a  forma  como foram  registrados  no log.  Caso  não haja  /commit/
+correspondente para um /start/, as modificações realizadas para aquela transação
+serão desfeitas;  caso o /checkpoint/  de leitura  de uma transação  se encontre
+antes do /commit/ de uma transação, as operações da mesma serão refeitas.
+
+* Exercício 4
+
+Diferencie índices secundários esparsos e densos.
+
+** Resposta
+
+Índices secundários são utilizados para  indexação de informações em tabelas que
+não sejam  chaves primárias,  mas que constituam  uma informação  relevante para
+pesquisa e que seja conveniente acelerar o processo de busca através da mesma.
+
+Um índice secundário *denso* utiliza uma indexação através de uma informação que
+seja  chave-candidata, ou  seja, que  não possua  repetição, o  que garante  que
+o arquivo  de índice  possua a mesma  quantidade de registros  que o  arquivo de
+dados.
+
+Em contrapartida,  um índice secundário  *esparso* possui menos registros  que o
+arquivo de dados,  uma vez que o atributo indexado  não seja chave-candidata, ou
+seja, não possua critério de não-repetição.
+
+* Exercício 5
+
+Descreva, com suas  palavras, os diferentes níveis de privilégios  que podem ser
+concedidos ou revogados a usuários do SGBD MySQL.
+
+** Resposta
+
+Pode-se configurar os privilégios  de uso de um usuário no  SGBD MySQL de acordo
+com os seguintes níveis:
+
+- *Global*: Configura-se a permissão de leitura e escrita a nível do SGBD, o que
+  envolve acesso aos bancos de dados criados  e a criação dos mesmos, e também o
+  gerenciamento de usuários.
+- *Banco de dados*:  Configura-se a permissão de leitura e  escrita em bancos de
+  dados específicos do SGBD.
+- *Tabelas*: Configura-se a permissão de leitura  e escrita em certas tabelas de
+  um banco de dados.
+- *Colunas*: Configura-se a permissão de leitura  e escrita em certas colunas de
+  uma tabela do banco de dados.
+
+Estes níveis podem  ser discriminados no uso dos comandos  ~GRANT~ e ~REVOKE~ do
+MySQL,  não  sendo  explicitamente  descritos  como  acima  enumerado,  mas  sim
+deduzidos de acordo com a forma como estes comandos são escritos.
+
+

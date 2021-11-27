@@ -50,3 +50,63 @@ Para rodar o script, abrir o mysqli e executar:
 mysql> source /scripts/bases_dados.sql
 #+end_src
 
+
+* Comandos de privilégios de acesso
+
+** Criação de usuário
+
+#+begin_src sql
+CREATE USER 'usuario'@'%' IDENTIFIED BY 'senha';
+#+end_src
+
+O  wildcard após  o ~@~  indica que  o usuário  poderá se  conectar de  qualquer
+host. Poderia ser substituído por um IP em específico, por exemplo.
+
+** Adição de permissões
+
+#+begin_src sql
+GRANT lista_de_privilegios ON nivel_de_privilegios TO usuario opcao_de_grant;
+#+end_src
+
+Exemplos:
+
+#+begin_src sql
+GRANT ALL PRIVILEGES ON *.* TO 'usuario'@'%';
+GRANT ALL PRIVILEGES ON empresa.* TO 'usuario'@'%';
+#+end_src
+
+** Revogação de permissões
+
+#+begin_src sql
+REVOKE lista_de_privilegios ON nivel_de_privilegios FROM usuario;
+#+end_src
+
+Exemplo:
+
+#+begin_src sql
+REVOKE ALL PRIVILEGES ON *.* FROM 'usuario'@'%';
+#+end_src
+
+** Lista de privilégios
+
+Exemplos possíveis para lista de privilégios:
+
+- ALL [PRIVILEGES]
+- ALTER
+- CREATE
+- DELETE
+- DROP
+- EXECUTE
+- FILE
+- INDEX
+- INSERT
+- SELECT
+- SHOW DATABASES
+- SHUTDOWN
+- UPDATE
+- USAGE
+- ...
+
+** Nível de privilégios
+
+
