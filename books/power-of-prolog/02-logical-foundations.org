@@ -11,8 +11,7 @@ See [[https://www.logicmatters.net/latex-for-logicians/nd/][LaTeX for Logicians]
 
 Logic is a very broad topic.
 
-Logic  is concerned  with  the properties  of,  and relations  between
-syntax, semantics
+Logic  is concerned  with  the properties  of,  and relations  between...
 
 - Syntax (formulae, sentences...)
 - Semantics (truth, validity, semantic consequences...)
@@ -41,4 +40,110 @@ the statements.
 Name of the rule: /disjunctive syllogism/ or /modus tollendo ponens/.
 
 Sequent notation: $A \lor B,\, \lnot A \vdash B$
+
+** Example 2.
+
+"This dog is a pug, and the dog is yours."
+   $\vDash$ "This is /your/ pug"
+
+"This dog is a Labrador, and the dog is yours."
+   $\vDash$ "This is /your/ labrador".
+
+Suggested /inference/ rule:
+
+"This dog is a *C*, and the dog is yours."
+  $\vdash$ "This is your *C*."
+
+By  performing  an   /inductive  inference/,  we  came  up   with  a  /deductive
+rule/. However...
+
+"This dog is a father, and the dog is yours."
+   $\vdash$ "This is /your/ father."
+
+...the inference  is /unsound/; there  are cases where  it holds, but  there are
+also cases where it does not hold, just as described on the last example.
+
+Depending on what we can express, which sentences are true, which deductions are
+sound  and  what can  be  proved,  and  depending  on syntactic  formalisms  and
+semantics used, we arrive at different logics.
+
+** Logics
+
+- Propositional logic (zero-order logic)
+  + Can express NP-complete problems (for every instance of a problem in NP, one
+    can construct,  even in polynomial  space, a formula in  propositional logic
+    that is satisfiable, iff the instance is a yes-instance.
+  +  Therefore, satisfiability  of  propositional  formulae is  as  hard as  the
+    hardest problems in NP.
+  + Propositional satisfiability was the first problem proved to be NP-complete. 
+- Predicate logic
+  A family of logics, cathegorized by their orders:
+  - First-order predicate logic
+    +   Includes   propositional   logic   as   a   sub-formalism,   being   its
+      generalization.
+    + Maybe the most important type of logic.
+    + First-order predicate logic can describe a Turing machine.
+    +  Therefore results  of  a  computation are  semantic  consequences of  the
+      description.
+  - Second and higher-order logic
+    Example: $\left(\forall P\right)\left(P(0)  \land \left(\forall k\right)\left(P(k) \rightarrow  P(k + 1)\right)
+    \rightarrow \left(\forall n\right)\left(P(n)\right)\right)$
+    + Quantification  over relations between domain  elements, complementing the
+      relations over individuals  of first-order logic. For  higher order logic,
+      we quantify over relations between relations, and so on.
+
+General principle: *Increased expressiveness has a price.*
+
+** Classical Logic
+
+Another way to  characterize logic is by making a  distinction between classical
+and non-classical logics.
+
+"Classical logic" denotes propositional and  predicate logic as found in Frege's
+/Begriffsschift/ (1879).
+
+Characteristic properties:
+
++ Law of excluded middle ($A \lor \lnot A$ -- /tertium non datur/);
++ Commutativity of conjunction ($\left(A \land B\right) \rightarrow \left(B \land A\right)$);
++ Law of non-contradiction ($\lnot (A \land \lnot A)$);
++ etc
+
+Some situations justify different foundational  laws. For example when reasoning
+about  proofs, $\nvDash  (A \lor  \lnot  A)$, since  we  have no  proof of  some
+conjecture, but we also have no proof for the negation of the same conjecture.
+
+** Non-classical Logics
+
+Different foundational laws lead to different logics.
+
+Examples:
+
++ Intuitionistic logic (the law of excluded middle does not hold);
++ Modal logics (temporal logic, epistemic logic, etc);
++ Many-valued logics (Łukasiewicz logic, fuzzy  logic, etc -- True and False are
+  not the only possible truth-values);
++  Substructural  logics  (linear  logic,  relevance logic,  etc  --  Relate  to
+  structural rules of logic such as contraction or extension);
++ Etc.
+
+Similar  to programming  languages: Pick  a logic  that is  /suitable/ for  your
+domains of interest.
+
+One could compare the relation "logic $\leftrightarrow$ computer science" to the
+relation "mathematics $\leftrightarrow$ physics". (Symbols here used lightly!)
+
+** Prolog
+
+Prolog  is  a *programming  language*,  based  on  a Turing-complete  subset  of
+predicate logic. It also supports a few higher-order and meta-logical features.
+
+Its execution mechanism can be regarded as a specific form of /theorem proving/,
+being /incomplete/ in  the sense that, in general, not  all logical consequences
+of a program are derived (for example, think of side effects).
+
+/"Prolog  is an  efficient  programming language  because it  is  a very  stupid
+theorem prover."/ -- Richard O'Keefe, /The Craft of Prolog/
+
+However, Prolog is often a very good choice for /implementing/ theorem provers.
 
