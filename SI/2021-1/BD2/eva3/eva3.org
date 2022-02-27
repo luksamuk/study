@@ -1,0 +1,140 @@
+#+TITLE: EVA 3
+#+AUTHOR: Lucas Samuel Vieira
+#+LANGUAGE: pt-br
+#+OPTIONS: toc:nil title:nil email:nil
+#+STARTUP: latexpreview showall inlineimages
+
+:LATEX:
+#+LATEX_CLASS: abntex2
+#+LATEX_CLASS_OPTIONS: [article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]
+#+LATEX_HEADER: \usepackage{times}
+#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage{titlesec}
+#+LATEX_HEADER: \usepackage[english, hyperpageref]{backref}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage{indentfirst}
+#+LATEX_HEADER: \usepackage{titling}
+#+LATEX_HEADER: \usepackage{graphicx}
+
+# Resolve problema de titulo estrangeiro
+#+LATEX_HEADER: \ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+#+LATEX_HEADER: \renewcommand{\maketitlehookb}{}
+#+LATEX_HEADER: }{}
+
+# Fontes de título
+#+LATEX_HEADER: \titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+#+LATEX_HEADER: \titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+
+# Bordas
+#+LATEX_HEADER: \setlength{\parindent}{1.5cm}
+#+LATEX_HEADER: \setlrmarginsandblock{3cm}{2cm}{*}
+#+LATEX_HEADER: \setulmarginsandblock{2.5cm}{2.5cm}{*}
+#+LATEX_HEADER: \checkandfixthelayout
+
+#+LATEX: \OnehalfSpacing
+#+LATEX: \pretextual
+#+LATEX: \textual
+:END:
+
+#+begin_center
+*UFVJM - UNIVERSIDADE FEDERAL DOS VALES DO JEQUITINHONHA E MUCURI*
+
+*BACHARELADO EM SISTEMAS DE INFORMAÇÃO*
+
+*BANCO DE DADOS II - SEMESTRE 2021/1*
+
+*Exercício de Avaliação de Aprendizagem 3 - EVA 3*
+#+end_center
+
+#+LATEX: \noindent
+Nome: Lucas Samuel Vieira
+#+LATEX: \newline
+
+# #+LATEX: \noindent
+# Questões:
+# #+LATEX: \newline
+
+* Exercício 1
+
+#+attr_org: :width 500
+#+attr_latex: :width 0.8\linewidth
+[[./diagrama_relacional.png]]
+
+#+attr_org: :width 500
+#+attr_latex: :width 0.8\linewidth
+[[./diagrama_oo.png]]
+
+
+Como comparação,  podemos afirmar que  o uso do mapeamento  objeto-relacional do
+atributo  endereço evita  a criação  de  uma tabela  com uma  constraint, o  que
+culmina em melhor gerenciamento das entidades a nível de programação.
+
+* Exercício 2
+
+O particionamento (/sharding/)  de um banco de dados pode  ser realizado de duas
+formas diferentes.
+
+Primeiramente, temos o particionamento *horizontal*, onde o principal objetivo é
+dividir tabelas  em mais  instâncias de  si mesmas, de  forma que  consultas não
+sejam  feitas em  dados  desnecessários.  Por exemplo,  uma  tabela de  usuários
+poderia  ser  particionada  em  mais  tabelas de  usuários  de  acordo  com  sua
+região. Assim,  teríamos uma tabela  de usuários para  a América; uma  tabela de
+usuários para a Europa; uma tabela de usuários para a Ásia, e assim em diante.
+
+Temos  também  o  particionamento  *vertical*, que  consiste  em  duas  técnicas
+diferentes.
+
+A primeira técnica é a *normalização*, que considera a redução de redundâncias e
+uma  melhoria   na  indexação,  de  forma   que  os  índices  da   tabela  sejam
+bem-definidos. Por  exemplo, tomando como  base uma tabela de  clientes, podemos
+considerar a remoção de cadastros redundantes na tabela, e também da mudança dos
+tipos  das chaves  primárias,  bem como  adição de  alguns  índices novos,  caso
+necessário.
+
+A segunda técnica é a *divisão de colunas*, que consiste em armazenar colunas de
+uma mesma  tabela em  lugares fisicamente separados,  considerando a  demanda de
+leitura  e  escrita  de  determinadas   colunas  em  uma  tabela.  Essa  técnica
+normalmente é  considerada após  um processo cuidadoso  de /load  balancing/. No
+mesmo exemplo de tabela de clientes, se os  dados de nome e idade do cliente são
+consideravelmente mais consultados e alterados que  seu endereço, então o nome e
+a idade poderiam ser armazenados fisicamente de forma que consultas e alterações
+nos mesmos fossem mais rápidas.
+
+* Exercício 3
+
+A técnica de semi-junção em consultas consiste em modificar requisições para que
+a carga de execução das consultas impacte o menor número de elementos do cluster
+ao mesmo tempo. Em outras palavras,  auxilia no processo de /load balancing/ dos
+recursos do BD  distribuído, permitindo menor número de  bloqueios nas consultas
+de toda uma aplicação.
+
+Considerando as tabelas ~ESTUDANTE~ e  ~NOTA~, que estejam fisicamente separadas
+em mais bancos de dads distribuídos, deseja-se recuperar o ID dos estudantes que
+tenham pelo menos uma nota lançada.
+
+A aproximação  mais ingênua  para este  problema poderia envolver  o uso  de uma
+junção comum:
+
+#+begin_src sql
+select distinct e.id from estudante e
+left join nota n on n.id_estudante = e.id
+#+end_src
+
+Nesta situação,  é possível  que haja  perda de performance  e uso  excessivo de
+consultas  em tabelas,  posto  que  a junção  precisará  usar  ambas as  tabelas
+simultaneamente.
+
+A alternativa  é o uso do  /semijoin/, que consiste  em migrar a maior  parte da
+carga de consulta para a tabela ~NOTA~.
+
+#+begin_src sql
+select e.id from estudante e
+where exists (
+      select 1 from nota n
+      where n.id_estudante = e.id
+)
+#+end_src
+

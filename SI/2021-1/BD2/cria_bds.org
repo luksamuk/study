@@ -1,12 +1,16 @@
 #+title: Bancos de Dados II
 #+author: Lucas S. Vieira
-#+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword senha :dbhost 172.17.0.2 :exports both
+#+PROPERTY: header-args:sql :engine mysql :dbport 3306 :dbuser root :dbpassword senha :dbhost 172.17.0.2 :exports both :eval no
+#+PROPERTY: header-args:bash :eval no
+
+#+latex_header: \usepackage{minted}
 
 Bancos de dados usados na disciplina.
 
 * Banco de dados
 
-** Criando o BD com Docker
+** MariaDB
+*** Criando o contêiner MariaDB com Docker
 
 Isso vai criar o SGBD para a disciplina.
 
@@ -22,12 +26,14 @@ docker run --detach \
 
 Scripts estarão em ~/scripts~.
 
-** Conectar via console
+*** Conectar via console
 
 Descobrir o IP do BD:
 
 #+begin_src bash :exports both
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dbms-bd2
+docker inspect -f \
+       '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
+       dbms-bd2
 #+end_src
 
 Conectar através do console:
@@ -42,16 +48,153 @@ Se precisar acessar o filesystem:
 docker exec -it dbms-bd2 bash
 #+end_src
 
-** Rodando o script
+*** Rodando o script
 
 Para rodar o script, abrir o mysqli e executar:
 
-#+begin_src fundamental
+#+begin_example
 mysql> source /scripts/bases_dados.sql
+#+end_example
+
+** PostgreSQL
+*** Criando o contêiner PostgreSQL com Docker
+
+#+begin_src bash
+docker pull postgres:14.1
+docker run --name postgres-bd2 \
+       -e POSTGRES_PASSWORD="senha" \
+       -p 5432:5432 \
+       -d postgres:14.1
 #+end_src
 
+*** Criando o contêiner do pgadmin4
 
-* Comandos de privilégios de acesso
+#+begin_src bash
+docker pull dpage/pgadmin4:6.2
+docker run --name pgadmin4-bd2 \
+       -e PGADMIN_DEFAULT_EMAIL="lucas.vieira@ufvjm.edu.br" \
+       -e PGADMIN_DEFAULT_PASSWORD="senha" \
+       -e PGADMIN_LISTEN_PORT="5051" \
+       -p 5051:5051 \
+       -d dpage/pgadmin4:6.2
+#+end_src
+
+Essa operação pode demorar um pouco; os logs do contêiner podem ser investigados
+com o comando ~docker logs -f pgadmin4-bd2~.
+
+Será possível conectar ao pgadmin4 no endereço http://localhost:5051/login. Faça
+login com os dados utilizados como email e password no comando anterior.
+
+Para que  o pgadmin4  tenha acesso  ao contêiner PostgreSQL,  crie uma  bridge e
+conecte ambos os contêineres a ela:
+
+#+begin_src bash
+docker network create --driver bridge bd2-network
+docker network connect bd2-network postgres-bd2
+docker network connect bd2-network pgadmin4-bd2
+#+end_src
+
+*** Associando o contêiner no pgadmin4
+
+Faça login normalmente no pgadmin4 como indicado no passo anterior.
+
+Caso  seja a  primeira  vez, isso  pode  demorar um  pouco;  aguarde o  pgadmin4
+carregar.
+
+Após fazer login, na lista à esquerda,  clique com o botão direito em "Servers",
+selecione "Create" > "Server...".
+
+Dê o  nome que quiser  a ele, na  aba General. Mas  na aba Connection,  defina a
+porta  como "5432",  o username  como "postgres"  e a  senha como  "senha", como
+configurado ao criar o contêiner do PostgreSQL.
+
+Você poderá marcar para salvar a senha também.
+
+Com  relação ao  "hostname",  você  deverá observar  os  endereço  IPv4 dado  ao
+contêiner do Postgres na bridge criada, através do comando:
+
+#+begin_src bash
+docker network inspect bd2-network
+#+end_src
+
+Observe o elemento "Containers", e procure pelo filho cujo nome seja "postgres-bd2".
+
+*** Banco de dados "compania"
+
+**** Endereço
+
+#+begin_src sql
+create type endereco as (
+       rua varchar(30),
+       bairro varchar(20),
+       numero varchar(6),
+       complemento varchar(15),
+       cep char(8)
+);
+#+end_src
+
+**** Individuo
+
+#+begin_src sql
+create type individuo as (
+       nome varchar(30),
+       sobrenome varchar(30),
+       datanasc date,
+       telefone varchar(11)[],
+       localizacao endereco
+);
+#+end_src
+
+**** Tabela Empregado
+
+#+begin_src sql
+create table empregado (
+       trabalhador individuo,
+       salario float,
+       cpf char(11),
+       gerente char(11),
+       primary key(cpf),
+       foreign key(gerente) references empregado(cpf)
+);
+#+end_src
+
+**** Tabela Dependente
+
+#+begin_src sql
+create table dependente (
+       pessoa individuo,
+       titular char(11),
+       numero integer,
+       parentesco varchar(15),
+       primary key(titular, numero),
+       foreign key(titular) references empregado(cpf)
+);
+#+end_src
+
+**** Exemplo de inserção de dados de um Empregado
+
+#+begin_src sql
+insert into empregado (
+       trabalhador.nome,
+       trabalhador.sobrenome,
+       trabalhador.datanasc,
+       trabalhador.telefone,
+       trabalhador.localizacao.rua,
+       trabalhador.localizacao.bairro,
+       trabalhador.localizacao.numero,
+       trabalhador.localizacao.complemento,
+       trabalhador.localizacao.cep,
+       salario,
+       cpf,
+       gerente
+) values (
+  'Joao', 'Silva', '1978-06-25', '{"3899444934", "3894341234"}',
+  'Rua A', 'Santo Antonio', '444', NULL, '35555555',
+  1250, '3498929623', NULL
+)
+#+end_src
+
+* Comandos de privilégios de acesso (MariaDB/MySQL)
 
 ** Criação de usuário
 
@@ -106,7 +249,4 @@ Exemplos possíveis para lista de privilégios:
 - UPDATE
 - USAGE
 - ...
-
-** Nível de privilégios
-
 

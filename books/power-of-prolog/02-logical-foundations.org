@@ -1,4 +1,4 @@
-#+title: The Power of Prolog: Logical Foundations
+)#+title: The Power of Prolog: Logical Foundations
 #+author: Lucas S. Vieira
 #+property: header-args:prolog :exports both :noweb strip-export :cache yes :results output
 #+startup: showall latexpreview
@@ -147,3 +147,180 @@ theorem prover."/ -- Richard O'Keefe, /The Craft of Prolog/
 
 However, Prolog is often a very good choice for /implementing/ theorem provers.
 
+* Predicate Logic
+
+(This is kind of an obvious bit for me,  so I'm going to skip this and make some
+remarks to level the naming conventions).
+
+A *model* is an interpretation for a formula.
+
+For   a   formula    $\mathcal{F}$,   if   $(\exists\mathcal{M})(\mathcal{M}   =
+\textrm{true})$, then the formula is *satisfiable*.
+
+A formula is *valid* if $(\forall \mathcal{M})(\mathcal{M} = \textrm{true})$.
+
+Semantic consequence: If every  model where A is true also makes  B true, then B
+is a *semantic consequence* of A.
+
+$\left((\forall \mathcal{M} \| A = true) \rightarrow (B = true)\right) \implies (A \vDash B)$.
+
+** Relations
+
++ $<(x, y) \equiv x < y$;
++ $P(x, y) \equiv xPy$;
++ $a = b \equiv =(a, b)$
++ $Sum(x, y, z)$: The predicate is true iff $z$ is the sum of $x$ and $y$.
++ Etc.
+
+** Theories
+
+A *theory* is a set of sentences (we use the word liberally here). The sentences
+are called *theorems*, commonly specified as a set of *nonlogical axioms*.
+
+Example. Zermelo-Fraenkel set theory (ZF):
+
++ Axiom of extensionality.
+  $(\forall  x)(\forall y)\left((\forall  z)(z \in  x \leftrightarrow  z \in  y)
+  \rightarrow x = y \right)$
++ Axiom of regularity. (somewhat prevents recursion on families of sets)
+  $(\forall  x)\left(x \neq  \emptyset  \rightarrow (\exists  y)\left((y \in  x)
+  \land (y \cap x = \emptyset)\right)\right)$
++ Axiom of subset.
+  $(z \subseteq x) \leftrightarrow (\forall q)\left((q \in z) \rightarrow (q \in
+  x)\right)$
++ Axiom of powersets.
+  $(\forall  x)(\exists y)(\forall  z)\left((z \subseteq  x) \rightarrow  (z \in
+  y)\right)$
++ Etc., and the semantic consequences of these axioms (since this is a deductive
+  theory).
+
+Questions of relevance:
+- *(Semantic) Consistency*  aka *Satisfiability*. Does the  conjunction of these
+  sentences have a model?
+- *(Syntactic)         Consistency*.          $\phi\notin\textrm{ZF}$         or
+  $\lnot\phi\notin\textrm{ZF}$ for all sentences $\phi$?
+
+Many important  statements are /independent/ of  ZF: $\phi\notin\textrm{ZF}$ and
+$\lnot\phi\notin\textrm{ZF}$.
+
+What are the semantic consequences of these axioms?
+
+How do we even determine semantic consequences?
+
+*There are infinitely  many possible interpretations!* Also, *a  theory may have
+infinitely  many axioms!*  (e.g.   ZF  has axiom  schemas,  and  is not  finally
+axiomatizable).
+
+** Model existence theorem
+
+If  a  first-order  theory  with  a  well-orderable  language  is  syntactically
+consistent, then  it has a model  (The semantic notion of  consistency coincides
+with its syntactic notion).
+
+This theorem is an  important link between syntax and semantics,  and ZF and ZFC
+are examples of such theories.
+
+This connection  generally breaks down  for higher order logics,  which normally
+are syntactically consistent, but have no model.
+
+** Deductive systems
+
+*Main goal:* Prove semantic consequences on a purely syntactic basis.
+
+A *proof*  is a finite  sequence of inferences, starting  from a set  of logical
+axioms and using inference rules to deduce theorems.
+
+A formula A  is a syntactic consequence  of a set of formulas  $\Gamma$ (this is
+written as $\Gamma \vdash A$) if there is a proof of A from $\Gamma$.
+
+There are many deductive systems for predicate logic:
+
++ *Hilbert-style systems.*
+  Good for comparing different logics, but  not so good for automated reasoning;
+  generally have many axioms and a small number of inference rules.
++ *Gentzen-style systems.*
+  Generally have more inference rules than Hilbert-style systems.
+  - *Natural deduction.*
+    Attempts  to emulate  the kind  of reasoning  that one  could call  "natural
+    reasoning".    Closely  relates   to   $\lambda\textrm{-calculus}$  by   the
+    Curry-Howard Isomorphism.
+  - *Sequent calculus.*
++ *Resolution.*
+  Optimal for automated  reasoning. Prolog uses specific forms  of resolution to
+  derive semantic consequences from programs.
++ Etc.
+
+*** Most important properties of deductive systems
+
+**** Soundness
+
+$\Gamma \vdash A \Rightarrow \Gamma \vDash A$
+
+If we derive  a syntactic consequence from  the formulas of the  system, then it
+must also be  a semantic consequence of  these formulas. If it is  not the case,
+the system is *unsound*.
+
+**** Completeness
+
+$\Gamma \vDash A \Rightarrow \Gamma \vdash A$
+
+If we can  derive all semantic consequences  of the formulas of the  system in a
+syntactic manner, then the  system is a complete system. This  way, we can focus
+on purely syntactic reasoning, so we don't need to consider all interpretations.
+
+*** Deduction theorem
+
+$\Gamma, A \vdash B \Rightarrow \Gamma \vdash A \rightarrow B$
+
+If we can prove something (A) under  a specific assumption (B), then we can also
+prove that A implies B.
+
+This  gives the  formal justification  for  conditional proofs,  since we  could
+then consider the particular case starting from an assumption (A):
+
+$A \vdash B \Rightarrow\,\,\, \vdash A \rightarrow B$
+
+** Notable properties of first-order predicate logic
+
++ *Monotonicity of entailment*: $P \vDash C \implies P, A \vDash C$
++ *(Semantic) Completeness*, by Gödel's, /completeness theorem/:
+  - For  every first-order  theory T  with  a well-orderable  language, and  any
+    sentence s in the language of T: $T \vDash s \iff T \vdash s$.
+  - In  particular ($T = \emptyset$),  also weak  completeness: $\vDash  s \iff
+    \vdash s$.
+    + $\iff$ Every sentence is ether satisfiable or refutable.
++ *Compactness*: A set $S$ of first-ordered sentences has a model if and only if
+  every finite subset of $S$ has a model. This is equivalent to the completeness
+  theorem.
++ Upward  and downward  *Löwenheim-Skolem theorem*:  If a  countable first-order
+  theory has an infinite model, then for every infinite cardinal number $\kappa$
+  it has model of size $\kappa$.
++  *Lindström's   theorem*:  First-order  predicate   logic  is,  in   a  sense,
+  characterized  by the  compactness theorem  and the  downward Löwenheim-Skolem
+  theorem. Therefore,  to get  a more  expressive logic,  one of  these theorems
+  needs to  be sacrificed  (e.g. in  second-order logic,  both theorems  fail to
+  hold).
+  
+*** Syntactic completeness
+
+A formal  system $\mathcal{S}$ is *syntactically  complete* if and only  if, for
+each  sentence   $\phi$  of   the  system,  either   $\mathcal{S}\vdash\phi$  or
+$\mathcal{S}\vdash\lnot\phi$.
+
+Such an $\mathcal{S}$  is also called deductively  complete, maximally complete,
+negation complete, or complete.
+
+Example: ZF, if it is consistent, is complete.
+
++ *Gödel's  first incompleteness theorem:*  Any consistent formal  system within
+  which a certain amount of arithmetic can be carried out is incomplete.
+
+*** Skolem's paradox
+
+On one hand: ZF $\vdash$ "There is an uncountable set."
+
+On the other hand, ZF, if consistent, has a countable model.
+
+Therefore,  the notion  of countability  is relative:  there are  sets that  are
+countable from the  perspective of certain models, but not  from the perspective
+of some models.
