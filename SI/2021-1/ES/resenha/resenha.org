@@ -1,0 +1,113 @@
+#+TITLE: Resenha Crítica do Vídeo
+#+AUTHOR: Lucas Samuel Vieira
+#+LANGUAGE: pt-br
+#+OPTIONS: toc:nil title:nil email:nil
+#+STARTUP: latexpreview showall inlineimages
+
+:LATEX:
+#+LATEX_CLASS: abntex2
+#+LATEX_CLASS_OPTIONS: [article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]
+#+LATEX_HEADER: \usepackage{times}
+#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage{titlesec}
+#+LATEX_HEADER: \usepackage[english, hyperpageref]{backref}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage{indentfirst}
+#+LATEX_HEADER: \usepackage{titling}
+#+LATEX_HEADER: \usepackage{graphicx}
+
+# Resolve problema de titulo estrangeiro
+#+LATEX_HEADER: \ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+#+LATEX_HEADER: \renewcommand{\maketitlehookb}{}
+#+LATEX_HEADER: }{}
+
+# Fontes de título
+#+LATEX_HEADER: \titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+#+LATEX_HEADER: \titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+
+# Bordas
+#+LATEX_HEADER: \setlength{\parindent}{1.5cm}
+#+LATEX_HEADER: \setlrmarginsandblock{3cm}{2cm}{*}
+#+LATEX_HEADER: \setulmarginsandblock{2.5cm}{2.5cm}{*}
+#+LATEX_HEADER: \checkandfixthelayout
+
+#+LATEX: \OnehalfSpacing
+#+LATEX: \pretextual
+#+LATEX: \textual
+:END:
+
+#+begin_center
+*UFVJM - UNIVERSIDADE FEDERAL DOS VALES DO JEQUITINHONHA E MUCURI*
+
+*BACHARELADO EM SISTEMAS DE INFORMAÇÃO*
+
+*ENGENHARIA DE SOFTWARE I - SEMESTRE 2021/1*
+\\
+\\
+*Resenha Crítica do Vídeo - O que é Arquitetura de Software?*
+#+end_center
+
+#+LATEX: \noindent
+Nome: Lucas Samuel Vieira
+#+LATEX: \newline
+
+# #+LATEX: \noindent
+# Questões:
+# #+LATEX: \newline
+
+* Resumo
+
+A  questão parece  simples,  mas  é um  dos  tópicos mais  discutidos,
+principalmente em grupos de Engenharia de Software.
+
+Existe  uma  diferença  entre  arquitetura de  software  e  design  de
+software:
+
+#+begin_center
+*Arquitetura é sempre design. Design nem sempre é arquitetura.*
+#+end_center
+
+A   prática   de   Arquitetura   de   Software   busca   maximizar   a
+produtividade.  Práticas bem-feitas  aumentam as  entregas, com  menor
+esforço.
+
+*Objetivo:*  Garantir que  os objetivos  de negócio,  os atributos  de
+ qualidade e restrições de alto nível sejam atendidos.
+
+Uma boa  arquitetura busca orientar  e propiciar formas  produtivas de
+desenvolver, manter, atualizar, entregar e operacionalizar software.
+
+Estas decisões não estarão próximas do código.
+
+Pode-se pensar na arquitetura como:
+- Quais são os componentes que fazem parte do software;
+- Como atribui responsabilidades aos componentes;
+- Como eles se relacionam;
+- Estratégia como padrão coerente para tomada de decisão.
+
+Diagrama  de  Contexto,  sugerido  pela C4:  Sistema  ao  centro,  com
+aplicações e componentes (sistemas  externos e personas) que induzirão
+o sistema a alguma ação ao redor.
+
+As  setas pontilhadas  que vão  dos componentes  para o  sistema dizem
+respeito  a relacionamentos,  as relações  que o  software possui  com
+aplicações externas.
+
+#+begin_center
+*Arquitetura   de   Software   é    a   o   design   de   componentes, responsabilidades, relacionamentos  e estratégia de  evolução, visando aumentar a  produtividade para desenvolver, manter,  operacionalizar e
+distribuir  software,  com o  propósito  de  atender os  objetivos  de negócio de forma efetiva, respeitando e observando as principais restrições e atributos de qualidade.*
+#+end_center
+
+* Discussão
+
+As ideias do  vídeo me pareceram muito  interessantes sobretudo quando
+fala-se  da  questão  dos   componentes  e  de  seus  relacionamentos,
+sobretudo    sob   uma    visão   de    microsserviços   e    sistemas
+distribuidos.  Como  estes são  temas  em  ascensão na  computação,  é
+interessante notar como  a arquitetura de software  pode ser utilizada
+para  gerenciar sistemas  de  grande complexidade  desse  tipo. Sem  a
+arquitetura de  software, não seria  possível prever e  mitigar muitos
+dos problemas que poderiam surgir numa arquitetura de microsserviços.

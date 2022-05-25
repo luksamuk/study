@@ -1,0 +1,116 @@
+% Created 2022-03-13 dom 17:48
+% Intended LaTeX compiler: pdflatex
+\documentclass[article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]{abntex2}
+		  \usepackage{times}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{titlesec}
+\usepackage[english, hyperpageref]{backref}
+\usepackage{hyperref}
+\usepackage{indentfirst}
+\usepackage{titling}
+\usepackage{graphicx}
+\ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+\renewcommand{\maketitlehookb}{}
+}{}
+\titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+\titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+\setlength{\parindent}{1.5cm}
+\setlrmarginsandblock{3cm}{2cm}{*}
+\setulmarginsandblock{2.5cm}{2.5cm}{*}
+\checkandfixthelayout
+
+
+
+\usepackage{minted}
+\author{Lucas Samuel Vieira}
+\date{\today}
+\title{Resenha Crítica do Vídeo}
+\hypersetup{
+ pdfauthor={Lucas Samuel Vieira},
+ pdftitle={Resenha Crítica do Vídeo},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 27.2 (Org mode 9.5.2)}, 
+ pdflang={Brazilian}}
+\begin{document}
+
+\OnehalfSpacing
+\pretextual
+\textual
+
+\begin{center}
+\textbf{UFVJM - UNIVERSIDADE FEDERAL DOS VALES DO JEQUITINHONHA E MUCURI}
+
+\textbf{BACHARELADO EM SISTEMAS DE INFORMAÇÃO}
+
+\textbf{ENGENHARIA DE SOFTWARE I - SEMESTRE 2021/1}
+
+
+\textbf{Resenha Crítica do Vídeo - O que é Arquitetura de Software?}
+\end{center}
+
+\noindent
+Nome: Lucas Samuel Vieira
+\newline
+
+\section{Resumo}
+\label{sec:org146e002}
+
+A  questão parece  simples,  mas  é um  dos  tópicos mais  discutidos,
+principalmente em grupos de Engenharia de Software.
+
+Existe  uma  diferença  entre  arquitetura de  software  e  design  de
+software:
+
+\begin{center}
+\textbf{Arquitetura é sempre design. Design nem sempre é arquitetura.}
+\end{center}
+
+A   prática   de   Arquitetura   de   Software   busca   maximizar   a
+produtividade.  Práticas bem-feitas  aumentam as  entregas, com  menor
+esforço.
+
+\textbf{Objetivo:}  Garantir que  os objetivos  de negócio,  os atributos  de
+ qualidade e restrições de alto nível sejam atendidos.
+
+Uma boa  arquitetura busca orientar  e propiciar formas  produtivas de
+desenvolver, manter, atualizar, entregar e operacionalizar software.
+
+Estas decisões não estarão próximas do código.
+
+Pode-se pensar na arquitetura como:
+\begin{itemize}
+\item Quais são os componentes que fazem parte do software;
+\item Como atribui responsabilidades aos componentes;
+\item Como eles se relacionam;
+\item Estratégia como padrão coerente para tomada de decisão.
+\end{itemize}
+
+Diagrama  de  Contexto,  sugerido  pela C4:  Sistema  ao  centro,  com
+aplicações e componentes (sistemas  externos e personas) que induzirão
+o sistema a alguma ação ao redor.
+
+As  setas pontilhadas  que vão  dos componentes  para o  sistema dizem
+respeito  a relacionamentos,  as relações  que o  software possui  com
+aplicações externas.
+
+\begin{center}
+\textbf{Arquitetura   de   Software   é    a   o   design   de   componentes, responsabilidades, relacionamentos  e estratégia de  evolução, visando aumentar a  produtividade para desenvolver, manter,  operacionalizar e
+distribuir  software,  com o  propósito  de  atender os  objetivos  de negócio de forma efetiva, respeitando e observando as principais restrições e atributos de qualidade.}
+\end{center}
+
+\section{Discussão}
+\label{sec:org3c8b795}
+
+As ideias do  vídeo me pareceram muito  interessantes sobretudo quando
+fala-se  da  questão  dos   componentes  e  de  seus  relacionamentos,
+sobretudo    sob   uma    visão   de    microsserviços   e    sistemas
+distribuidos.  Como  estes são  temas  em  ascensão na  computação,  é
+interessante notar como  a arquitetura de software  pode ser utilizada
+para  gerenciar sistemas  de  grande complexidade  desse  tipo. Sem  a
+arquitetura de  software, não seria  possível prever e  mitigar muitos
+dos problemas que poderiam surgir numa arquitetura de microsserviços.
+\end{document}

@@ -1,0 +1,206 @@
+#+TITLE: Resumo Individual da Unidade 4
+#+AUTHOR: Lucas Samuel Vieira
+#+LANGUAGE: pt-br
+#+OPTIONS: toc:nil title:nil email:nil
+#+STARTUP: latexpreview showall inlineimages
+
+:LATEX:
+#+LATEX_CLASS: abntex2
+#+LATEX_CLASS_OPTIONS: [article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]
+#+LATEX_HEADER: \usepackage{times}
+#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage{titlesec}
+#+LATEX_HEADER: \usepackage[english, hyperpageref]{backref}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage{indentfirst}
+#+LATEX_HEADER: \usepackage{titling}
+#+LATEX_HEADER: \usepackage{graphicx}
+
+# Resolve problema de titulo estrangeiro
+#+LATEX_HEADER: \ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+#+LATEX_HEADER: \renewcommand{\maketitlehookb}{}
+#+LATEX_HEADER: }{}
+
+# Fontes de título
+#+LATEX_HEADER: \titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+#+LATEX_HEADER: \titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+#+LATEX_HEADER: \titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+
+# Bordas
+#+LATEX_HEADER: \setlength{\parindent}{1.5cm}
+#+LATEX_HEADER: \setlrmarginsandblock{3cm}{2cm}{*}
+#+LATEX_HEADER: \setulmarginsandblock{2.5cm}{2.5cm}{*}
+#+LATEX_HEADER: \checkandfixthelayout
+
+#+LATEX: \OnehalfSpacing
+#+LATEX: \pretextual
+#+LATEX: \textual
+:END:
+
+#+begin_center
+*UFVJM - UNIVERSIDADE FEDERAL DOS VALES DO JEQUITINHONHA E MUCURI*
+
+*BACHARELADO EM SISTEMAS DE INFORMAÇÃO*
+
+*ENGENHARIA DE SOFTWARE I - SEMESTRE 2021/1*
+
+*Resumo da Unidade 4 - Engenharia de Requisitos*
+#+end_center
+
+#+LATEX: \noindent
+Nome: Lucas Samuel Vieira
+#+LATEX: \newline
+
+# #+LATEX: \noindent
+# Questões:
+# #+LATEX: \newline
+
+* Resumo
+
+Os  requisitos do  sistema  descrevem o  que o  mesmo  deve fazer,  os
+serviços que oferece e as restrições ao funcionamento.
+
+Eles  refletem  a  necessidade  do cliente,  refletem  uma  finalidade
+determinada.
+
+O  processo  de  descobrir,  analisar, documentar  e  verificar  esses
+serviços é chamado de *engenharia de requisitos*.
+
+A falha ao  separar /requisitos de usuário/ e  /requisitos de sistema/
+pode gerar problemas a longo prazo.
+
+- *Requisitos  de usuário:*  Declarações  em linguagem  natural e  com
+  diagramas dos serviços que o  sistema deverá fornecer aos usuários e
+  restrições com as quais ele deve operar.
+- *Requisitos de sistema:* Descrições detalhadas das funções, serviços
+  e restrições  operacionais do  software, definindo exatamente  o que
+  deve ser implementado; pode ser parte do contrato.
+
+Estes tipos de requisitos requerem diferentes tipos de detalhamento, a
+depender de seu uso.
+
+** Requisitos funcionais e não-funcionais
+
+- *Requisitos funcionais:* Declarações de  serviços que o sistema deve
+  fornecer, como  o sistema deve  ou não  agir para certas  entradas e
+  como se comportar em certas situações. Geralmente descritos de forma
+  abstrata e não-técnica.
+- *Requisitos  não-funcionais:*  Restrições  aos  serviços  e  funções
+  oferecidos  pelo  sistema,  o  que inclui  /timing/,  restrições  no
+  processo    de   desenvolvimento    e   restrições    impostas   por
+  normas. Geralmente aplicam-se ao sistema como um todo.
+
+** Documento de requisitos de software
+
+O  documento é  uma declaração  oficial do  que os  desenvolvedores do
+sistema devem implementar, o que inclui tanto os requisitos de usuário
+quanto os  requisitos do  sistema. É  essencial quando  um contratante
+externo está desenvolvendo o sistema de software.
+
+Para projetos em que os requisitos  sejam instáveis, a confecção de um
+documento de requisitos pode ser pouco proveitosa, e poderia dar lugar
+a técnicas de desenvolvimento ágil mais propícias.
+
+** Especificação dos requisitos
+
+A especificação de  requisitos é o processo de  escrever os requisitos
+de  usuário  e  de  sistema  em  um  documento  de  requisitos.  Estes
+requisitos  devem,  idealmente, ser  claros,  inequívocos  e de  fácil
+compreensão, o  que é difícil  de conseguir porque estarão  sujeitos à
+interpretação dos /stakeholders/.
+
+Deve-se pensar nos  requisitos do sistema como  versões expandidas dos
+requisitos do usuário, sendo utilizados diretamente por engenheiros de
+software  como pontos  de  partida  para a  construção  do projeto  do
+sistema.  Os  requisitos   de  usuário,  porém,  devem   ter  um  viés
+não-técnico,  partindo do  pressuposto da  acessibilidade para  com os
+/stakeholders/ que não dominem o vocabulário técnico.
+
+** Processos de engenharia de requisitos
+
+Estes processos incluem quatro atividades de alto nível:
+
+1. Estudo de viabilidade -- avalia se o sistema é útil para a empresa;
+2. Elicitação e análise -- descoberta de requisitos;
+3. Especificação -- conversão dos requisitos em uma forma de padrão;
+4. Validação -- avaliação dos  requisitos levantados para com o desejo
+   do cliente.
+
+Na  prática, porém,  a  engenharia  de requisitos  é  um processo  que
+intercala todas essas atividades. Adicionalmente, os esforços mudam de
+acordo com a maturidade do projeto; enquanto o esforço inicial está na
+compreensão dos requisitos do negócio, os esforços finais estarão mais
+concentrados em  elicitar e compreender  em detalhes os  requisitos já
+levantados.
+
+** Elicitação e análise de requisitos
+
+Esta  fase ocorre  normalmente  após o  estudo  de viabilidade.  Nela,
+engenheiros de software trabalham com  clientes e usuários finais para
+compreender o  domínio da  aplicação, os serviços  que o  sistema deve
+oferecer, desempenho do sistema, restrições de hardware, etc.
+
+A elicitação é constituida por quatro atividades:
+
+1. Descoberta de requisitos;
+2. Classificação e organização dos requisitos;
+3. Priorização e negociação dos requisitos;
+4. Especificação dos requisitos.
+
+Nesta fase, destaca-se não apenas  a necessidade de proximidade com os
+/stakeholders/ e  o domínio  já citados, como  também a  elaboração de
+diagramas  de  Caso  de  Uso para  melhor  compreender  os  requisitos
+funcionais do sistema.
+
+** Validação de requisitos
+
+Nesta fase,  verifica-se se  os requisitos  levantados para  o sistema
+realmente  definem o  que o  cliente  espera do  mesmo. Sobrepõe-se  à
+análise, já  que, ao invés  de buscar levantar requisitos,  foca-se em
+encontrar problemas com os requisitos.
+
+Este passo é importante porque um erro na especificação dos requisitos
+pode gerar altos custos e retrabalho posteriormente.
+
+Este processo envolve verificações que incluem:
+
+1. Verificações de validade;
+2. Verificações de consistência;
+3. Verificações de completude;
+4. Verificações de realismo;
+5. Verificabilidade.
+
+Como técnicas a serem utilizadas, pode-se citar:
+
+1. Revisões de requisitos;
+2. Prototipação;
+3. Geração de casos de teste.
+
+** Gerenciamento de requisitos
+
+Em  geral, requisitos  de um  projeto de  software estão  em constante
+mudança, sobretudo em sistemas grandes,  pois estes sistemas tratam de
+problemas que não podem ser completamente definidos, o que inviabiliza
+a completude dos requisitos.
+
+O gerenciamento de  requisitos é o processo de  compreensão e controle
+das mudanças de  requisitos do sistema, o que envolve  manter-se a par
+das necessidades individuais dos /stakeholders/  e também a criação de
+um processo formal de admissão de propostas de mudanças no software.
+
+Este  processo deve  ser  idealizado  tão logo  se  inicie  a fase  de
+elicitação dos requisitos.
+
+* Considerações
+
+A engenharia de requisitos permeia  todo o processo de planejamento de
+software, sendo provavelmente o ponto mais importante da mesma, já que
+uma falha  neste processo pode  implicar em problemas  exponenciais em
+outras  fases  da  engenharia  de  software.  Sendo  assim,  parece-me
+interessante  gastar o  máximo possível  de esforço  nesta fase,  para
+evitar maiores contratempos e também para garantir a alta qualidade de
+um software, obviamente impactando na satisfação do cliente final.
+
+

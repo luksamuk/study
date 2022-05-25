@@ -1,0 +1,224 @@
+% Created 2022-03-13 dom 21:49
+% Intended LaTeX compiler: pdflatex
+\documentclass[article, a4paper, oneside, 11pt, english, brazil, sumario=tradicional]{abntex2}
+		  \usepackage{times}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{titlesec}
+\usepackage[english, hyperpageref]{backref}
+\usepackage{hyperref}
+\usepackage{indentfirst}
+\usepackage{titling}
+\usepackage{graphicx}
+\ifthenelse{\equal{\ABNTEXisarticle}{true}}{%
+\renewcommand{\maketitlehookb}{}
+}{}
+\titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection\space\space}{0pt}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection\space\space}{0pt}{\space}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection\space\space}{0pt}{\space}
+\titleformat{\paragraph}{\normalfont\normalsize\itshape}{}{0pt}{\theparagraph\space\space}
+\setlength{\parindent}{1.5cm}
+\setlrmarginsandblock{3cm}{2cm}{*}
+\setulmarginsandblock{2.5cm}{2.5cm}{*}
+\checkandfixthelayout
+
+
+
+\usepackage{minted}
+\author{Lucas Samuel Vieira}
+\date{\today}
+\title{Resumo Individual da Unidade 4}
+\hypersetup{
+ pdfauthor={Lucas Samuel Vieira},
+ pdftitle={Resumo Individual da Unidade 4},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 27.2 (Org mode 9.5.2)}, 
+ pdflang={Brazilian}}
+\begin{document}
+
+\OnehalfSpacing
+\pretextual
+\textual
+
+\begin{center}
+\textbf{UFVJM - UNIVERSIDADE FEDERAL DOS VALES DO JEQUITINHONHA E MUCURI}
+
+\textbf{BACHARELADO EM SISTEMAS DE INFORMAÇÃO}
+
+\textbf{ENGENHARIA DE SOFTWARE I - SEMESTRE 2021/1}
+
+\textbf{Resumo da Unidade 4 - Engenharia de Requisitos}
+\end{center}
+
+\noindent
+Nome: Lucas Samuel Vieira
+\newline
+
+\section{Resumo}
+\label{sec:org5c39eab}
+
+Os  requisitos do  sistema  descrevem o  que o  mesmo  deve fazer,  os
+serviços que oferece e as restrições ao funcionamento.
+
+Eles  refletem  a  necessidade  do cliente,  refletem  uma  finalidade
+determinada.
+
+O  processo  de  descobrir,  analisar, documentar  e  verificar  esses
+serviços é chamado de \textbf{engenharia de requisitos}.
+
+A falha ao  separar \emph{requisitos de usuário} e  \emph{requisitos de sistema}
+pode gerar problemas a longo prazo.
+
+\begin{itemize}
+\item \textbf{Requisitos  de usuário:}  Declarações  em linguagem  natural e  com
+diagramas dos serviços que o  sistema deverá fornecer aos usuários e
+restrições com as quais ele deve operar.
+\item \textbf{Requisitos de sistema:} Descrições detalhadas das funções, serviços
+e restrições  operacionais do  software, definindo exatamente  o que
+deve ser implementado; pode ser parte do contrato.
+\end{itemize}
+
+Estes tipos de requisitos requerem diferentes tipos de detalhamento, a
+depender de seu uso.
+
+\subsection{Requisitos funcionais e não-funcionais}
+\label{sec:orgaa5817d}
+
+\begin{itemize}
+\item \textbf{Requisitos funcionais:} Declarações de  serviços que o sistema deve
+fornecer, como  o sistema deve  ou não  agir para certas  entradas e
+como se comportar em certas situações. Geralmente descritos de forma
+abstrata e não-técnica.
+\item \textbf{Requisitos  não-funcionais:}  Restrições  aos  serviços  e  funções
+oferecidos  pelo  sistema,  o  que inclui  \emph{timing},  restrições  no
+processo    de   desenvolvimento    e   restrições    impostas   por
+normas. Geralmente aplicam-se ao sistema como um todo.
+\end{itemize}
+
+\subsection{Documento de requisitos de software}
+\label{sec:org29fdbc5}
+
+O  documento é  uma declaração  oficial do  que os  desenvolvedores do
+sistema devem implementar, o que inclui tanto os requisitos de usuário
+quanto os  requisitos do  sistema. É  essencial quando  um contratante
+externo está desenvolvendo o sistema de software.
+
+Para projetos em que os requisitos  sejam instáveis, a confecção de um
+documento de requisitos pode ser pouco proveitosa, e poderia dar lugar
+a técnicas de desenvolvimento ágil mais propícias.
+
+\subsection{Especificação dos requisitos}
+\label{sec:org12c92ca}
+
+A especificação de  requisitos é o processo de  escrever os requisitos
+de  usuário  e  de  sistema  em  um  documento  de  requisitos.  Estes
+requisitos  devem,  idealmente, ser  claros,  inequívocos  e de  fácil
+compreensão, o  que é difícil  de conseguir porque estarão  sujeitos à
+interpretação dos \emph{stakeholders}.
+
+Deve-se pensar nos  requisitos do sistema como  versões expandidas dos
+requisitos do usuário, sendo utilizados diretamente por engenheiros de
+software  como pontos  de  partida  para a  construção  do projeto  do
+sistema.  Os  requisitos   de  usuário,  porém,  devem   ter  um  viés
+não-técnico,  partindo do  pressuposto da  acessibilidade para  com os
+\emph{stakeholders} que não dominem o vocabulário técnico.
+
+\subsection{Processos de engenharia de requisitos}
+\label{sec:org0dc6bff}
+
+Estes processos incluem quatro atividades de alto nível:
+
+\begin{enumerate}
+\item Estudo de viabilidade -- avalia se o sistema é útil para a empresa;
+\item Elicitação e análise -- descoberta de requisitos;
+\item Especificação -- conversão dos requisitos em uma forma de padrão;
+\item Validação -- avaliação dos  requisitos levantados para com o desejo
+do cliente.
+\end{enumerate}
+
+Na  prática, porém,  a  engenharia  de requisitos  é  um processo  que
+intercala todas essas atividades. Adicionalmente, os esforços mudam de
+acordo com a maturidade do projeto; enquanto o esforço inicial está na
+compreensão dos requisitos do negócio, os esforços finais estarão mais
+concentrados em  elicitar e compreender  em detalhes os  requisitos já
+levantados.
+
+\subsection{Elicitação e análise de requisitos}
+\label{sec:org4eda909}
+
+Esta  fase ocorre  normalmente  após o  estudo  de viabilidade.  Nela,
+engenheiros de software trabalham com  clientes e usuários finais para
+compreender o  domínio da  aplicação, os serviços  que o  sistema deve
+oferecer, desempenho do sistema, restrições de hardware, etc.
+
+A elicitação é constituida por quatro atividades:
+
+\begin{enumerate}
+\item Descoberta de requisitos;
+\item Classificação e organização dos requisitos;
+\item Priorização e negociação dos requisitos;
+\item Especificação dos requisitos.
+\end{enumerate}
+
+Nesta fase, destaca-se não apenas  a necessidade de proximidade com os
+\emph{stakeholders} e  o domínio  já citados, como  também a  elaboração de
+diagramas  de  Caso  de  Uso para  melhor  compreender  os  requisitos
+funcionais do sistema.
+
+\subsection{Validação de requisitos}
+\label{sec:org210c967}
+
+Nesta fase,  verifica-se se  os requisitos  levantados para  o sistema
+realmente  definem o  que o  cliente  espera do  mesmo. Sobrepõe-se  à
+análise, já  que, ao invés  de buscar levantar requisitos,  foca-se em
+encontrar problemas com os requisitos.
+
+Este passo é importante porque um erro na especificação dos requisitos
+pode gerar altos custos e retrabalho posteriormente.
+
+Este processo envolve verificações que incluem:
+
+\begin{enumerate}
+\item Verificações de validade;
+\item Verificações de consistência;
+\item Verificações de completude;
+\item Verificações de realismo;
+\item Verificabilidade.
+\end{enumerate}
+
+Como técnicas a serem utilizadas, pode-se citar:
+
+\begin{enumerate}
+\item Revisões de requisitos;
+\item Prototipação;
+\item Geração de casos de teste.
+\end{enumerate}
+
+\subsection{Gerenciamento de requisitos}
+\label{sec:org9bb07ac}
+
+Em  geral, requisitos  de um  projeto de  software estão  em constante
+mudança, sobretudo em sistemas grandes,  pois estes sistemas tratam de
+problemas que não podem ser completamente definidos, o que inviabiliza
+a completude dos requisitos.
+
+O gerenciamento de  requisitos é o processo de  compreensão e controle
+das mudanças de  requisitos do sistema, o que envolve  manter-se a par
+das necessidades individuais dos \emph{stakeholders}  e também a criação de
+um processo formal de admissão de propostas de mudanças no software.
+
+Este  processo deve  ser  idealizado  tão logo  se  inicie  a fase  de
+elicitação dos requisitos.
+
+\section{Considerações}
+\label{sec:org82c8de5}
+
+A engenharia de requisitos permeia  todo o processo de planejamento de
+software, sendo provavelmente o ponto mais importante da mesma, já que
+uma falha  neste processo pode  implicar em problemas  exponenciais em
+outras  fases  da  engenharia  de  software.  Sendo  assim,  parece-me
+interessante  gastar o  máximo possível  de esforço  nesta fase,  para
+evitar maiores contratempos e também para garantir a alta qualidade de
+um software, obviamente impactando na satisfação do cliente final.
+\end{document}
