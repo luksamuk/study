@@ -1,0 +1,269 @@
+#+title: Docker: Criando e gerenciando contêineres
+
+* Formas de deploy com isolamento
+
+- Máquinas virtuais
+- Contêineres
+
+** Por que não máquinas virtuais?
+
+O custo em termos de gastos e de recursos da máquina pode ser elevado.
+
+** Diferenças entre contêineres e virtualização
+
+Contêineres na verdade simulam parcialmente a operação de um sistema operacional
+sobre outro (no caso, Linux).
+
+Contêineres usam /namespaces/ para isolamento (vide os conceitos de Plan 9!).
+
+Para balancear uso de recursos como processador e RAM, contêineres usam /cgroups/.
+
+* Alguns comandos básicos
+
+- ~docker ps~ ou ~docker container ls~: Mostrar contêineres em execução.
+- ~docker run imagem~: Executar contêiner a partir de imagem, bloqueando no console.
+- ~docker run -d imagem~: Executar contêiner a partir de imagem, em modo daemon.
+- ~docker ps -a~ ou ~docker container ls -a~: Mostrar todos os contêineres.
+- ~docker images~: Mostra imagens baixadas.
+- ~docker run imagem  comando~: Executar comando específico na  imagem, ao invés
+  do entrypoint.
+- ~docker  run  -it  imagem  bash~:  Executar imagem  no  modo  interativo,  com
+  console. Mais especificamente nesse caso, executa o ~bash~.
+- ~docker start conteiner~: Inicia contêiner já criado.
+- ~docker stop conteiner~: Pára contêiner em execução, de forma segura.
+- ~docker stop -t=0 conteiner~: Pára contêiner em execução imediatamente.
+- ~docker   exec  conteiner   com~:  Cria   ou  afixa-se   a  um   contêiner  em
+  execução.  Parecido  com  ~run~,  mas  pode  usar  contêineres  que  estiverem
+  executando.
+  
+Os textos ~conteiner~ e ~imagem~ serão hashes ou nomes de contêineres ou imagens
+que podem ser observados pelos comandos ~docker ps~ e ~docker images~ ou variantes.
+  
+** Exemplos
+
+#+begin_src bash
+# Cria o contêiner com Ubuntu e o encerra imediatamente
+docker run ubuntu
+
+# Cria e executa contêiner com Ubuntu de forma interativa, com console
+docker run -it ubuntu bash
+
+# Cria e executa o contêiner com Ubuntu, rodando o comando Sleep por um dia
+docker run ubuntu sleep 1d
+
+# Supondo que "<hash>" seja o hash do contêiner do comando anterior,
+# quando este está em execução, liga-se a ele e abre um shell.
+docker exec -t <hash> bash
+#+end_src
+
+
+** Parando todos os contêineres em execução
+
+Para parar todos os contêineres em execução de uma vez:
+
+#+begin_src bash
+docker stop $(docker container ls -q)
+#+end_src
+
+Note que ~docker container ls -q~ mostra só os IDs dos contêineres em execução.
+
+** Removendo todos os contêineres parados
+
+Também usando a ideia de pipe do shell:
+
+#+begin_src bash
+docker container rm $(docker container ls -aq)
+#+end_src
+
+Note o ~-a~ que força a mostrar até mesmo os contêineres não listados.
+
+** Removendo todas as imagens
+
+Igualmente...
+
+#+begin_src bash
+docker rmi $(docker image ls -aq)
+#+end_src
+
+** Extra: ~ctop~
+
+[[https://github.com/bcicen/ctop][ctop]] é  uma ferramenta como  o ~k9s~, mas  para Docker. Muito  bom. Recomendo,
+pessoalmente.
+
+
+* Imagens vs. Contêineres
+
+Imagens são imutáveis e construídas através de Dockerfiles.
+
+Imagens são construídas em CAMADAS, de  forma que essas camadas possam inclusive
+ser reaproveitadas entre outros contêineres.
+
+Um contêiner nada mais é que uma  instância em execução de uma imagem, porém com
+uma nova camada mutável sobre si.
+
+O histórico de um contêiner ou de uma imagem pode ser acompanhado com:
+
+#+begin_src bash
+docker history conteiner-ou-imagem
+#+end_src
+
+* Dockerfiles
+
+Dockerfiles são arquivos  criados para a criação de imagens  para execução de um
+projeto qualquer.
+
+Supondo um projeto Node.js de front-end  estático, este mesmo pode ser executado
+usando Node 14 usando Docker facilmente.
+
+Imaginando que estejamos  no diretório raiz deste projeto,  podemos adicionar um
+arquivo Dockerfile:
+
+#+begin_src dockerfile
+# Baixando a imagem verificada "node" do DockerHub.
+# A tag 14 deixa claro ser a versão mais atualizada do Node.js 14.
+FROM node:14
+# O diretório de trabalho dentro da imagem.
+WORKDIR /app-node
+# Copia o conteúdo do diretório atual (primeiro ponto) para o
+# diretório atual do contêiner (segundo ponto)
+COPY . .
+# Baixar dependências do node
+RUN npm install
+# Ponto de entrada de execução da aplicação, ao rodar em contêiner
+ENTRYPOINT npm start
+#+end_src
+
+Para criar a imagem com um nome específico, usando o diretório atual:
+
+#+begin_src bash
+docker build -t username/app-node:1.0 .
+#+end_src
+
+Supondo  que a  aplicação web  seja  servida na  porta ~3000~,  não é  meramente
+suficiente usar um ~docker run -d username/app-node:1.0~.
+
+Será necessário  também refletir as  portas do contêiner, que  normalmente estão
+isoladas, nas portas da aplicação:
+
+#+begin_src bash
+# Para refletir em portas aleatórias
+docker run -d -P username/app-node:1.0
+
+# Para ligar explicitamente a porta 8080 do host à 3000 do contêiner
+# (note a ordem das portas informadas)
+docker run -d -p 8080:3000 username/app-node:1.0
+#+end_src
+
+* Melhorando o Dockerfile
+
+#+begin_src dockerfile
+FROM node:14
+WORKDIR /app-node
+
+# Expor a porta não é obrigatório, mas ajuda bastante
+EXPOSE 3000
+
+COPY . .
+RUN npm install
+ENTRYPOINT npm start
+#+end_src
+
+
+Podemos também definir a porta da  aplicação através de uma variável de ambiente
+(por exemplo,  acessível no  Node com ~process.env.NOMEDAVARIAVEL~.  Nesse caso,
+considere uma variável de ambiente ~PORT~.
+
+Para começar definindo um argumento de linha de comando no Dockerfile:
+
+#+begin_src dockerfile
+ARG PORT_BUILD=6000
+EXPOSE $PORT
+#+end_src
+
+Note que o comando ~ARG~ só realmente funciona em TEMPO DE BUILD DA IMAGEM. Para
+que  essa informação  fique  exposta  em tempo  de  execução  do contêiner,  use
+finalmente a variável de ambiente:
+
+#+begin_src dockerfile
+ARG PORT_BUILD=6000
+ENV PORT=$PORT_BUILD
+EXPOSE $PORT_BUILD
+#+end_src
+
+Em  suma, ~ARG~  funciona para  a construção  da imagem,  e ~ENV~  funciona como
+variável de ambiente durante a execução do contêiner.
+
+* Deploy no DockerHub
+
+Obviamente: isso requer uma conta no DockerHub.
+
+Primeiro, realize login no DockerHub via console:
+
+#+begin_src bash
+docker login -u username
+#+end_src
+
+Isso pode dar um warning a respeito de token salvo de forma não-encriptada.
+
+Basta agora dar push na imagem certa, com a tag certa:
+
+#+begin_src bash
+docker push username/app-node:1.0
+#+end_src
+
+** Criando cópias de uma imagem com outro nome
+
+O  comando anterior  poderia  dar um  erro de  "access  denied" caso  ~username~
+dissesse respeito a um nome de usuário que não seja o seu. Para resolver isso:
+
+1. Consulte o hash (ou a tag antiga) da sua imagem com ~docker images~;
+2. Crie uma cópia da sua imagem com uma nova tag.
+
+O comando para criar a nova tag será...
+
+#+begin_src bash
+docker tag imagemoriginal username/app-node:1.0
+#+end_src
+
+...onde ~imagemoriginal~ poderá  ser um hash ou uma tag  anterior. E agora, sim,
+você poderá dar push.
+
+** Push de nova versão
+
+Caso você dê o  push de uma nova versão da imagem, o  Docker e o DockerHub serão
+inteligentes o suficiente para reaproveitar camadas  que você já tenha dado push
+anteriormente.
+
+Em  outras  palavras,  só  será  dado  push  das  camadas  que  realmente  forem
+necessárias.
+
+#+begin_src bash
+docker push username/app-node:1.2
+#+end_src
+
+* Persistência
+
+Para ver a coluna de tamanho do contêiner:
+
+#+begin_src bash
+docker ps -s
+
+# Para ver os que não estão rodando
+docker ps -sa
+#+end_src
+
+Neste comando, o tamanho _virtual_ diz respeito  à soma do tamanho da imagem com
+o tamanho do contêiner. Já o tamanho não-virtual diz respeito ao contêiner, mais
+especificamente a nova camada de read-write criada para a execução do mesmo.
+
+Às vezes,  é necessário persistir  as informações através de  vários contêineres
+criados. Para tanto, é necessário usar *volumes*.
+
+Existem três formas principais de lidar com volumes:
+
+- através de *bind mount*, que monta a persistência do host através de uma ponte
+  para que seja acessível pelo contêiner;
+- através do *volume*, persistência gerenciada pelo próprio Docker;
+- através do *tmpfs*, que é temporário.
+
+  
