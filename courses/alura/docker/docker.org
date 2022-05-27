@@ -267,3 +267,76 @@ Existem três formas principais de lidar com volumes:
 - através do *tmpfs*, que é temporário.
 
   
+** Bind mounts
+
+Liga um ponto de montagem do host a um diretório dentro do contêiner.
+
+Para criar um diretório no host e montá-lo no contêiner em ~/app~:
+
+#+begin_src bash
+mkdir $HOME/volume-docker
+docker run -it -v $HOME/volume-docker:/app ubuntu bash
+#+end_src
+
+Usando a flag ~--mount~:
+
+#+begin_src bash
+docker run -it \
+       --mount type=bind,source=$HOME/volume-docker,target=/app \
+       ubuntu \
+       bash
+#+end_src
+
+** Volumes
+
+Usar volumes  é mais recomendado porque  são gerenciados pelo Docker,  não sendo
+dependentes de caminhos no host.
+
+Para criar um volume:
+#+begin_src bash
+docker volume create meu-volume
+#+end_src
+
+Para ver os volumes criados:
+
+#+begin_src bash
+docker volume ls
+#+end_src
+
+Volumes ficam  em ~/var/lib/docker/volumes~,  lembrando que  ~/var/lib/docker~ é
+acessível pelo usuário ~root~.
+
+Executando uma imagem com o volume criado, montado em ~/app~ no contêiner:
+
+#+begin_src bash
+docker run -it -v meu-volume:/app ubuntu bash
+#+end_src
+
+Com a flag ~--mount~,  o volume será criado caso não exista  (note a ausência da
+propriedade ~type~):
+
+#+begin_src
+docker run -t --mount source=meu-volume,target=/app ubuntu bash
+#+end_src
+
+** Tmpfs
+
+Este tipo de persistência funciona apenas no Linux.
+
+#+begin_src bash
+docker run -it --tmpfs=/app ubuntu bash
+#+end_src
+
+A pasta ~/app~ no contêiner será uma  pasta temporária, criada na memória RAM do
+host. Este tipo de persistência só funciona a cada execução.
+
+Este  tipo de  armazenamento  é interessante  de ser  utilizado  quando não  for
+interessante persistir dados  na camada de ReadWrite (pense  em dados sensíveis,
+por exemplo).
+
+Para montar com a flag ~--mount~:
+
+#+begin_src
+docker run -t --mount type=tmpfs,destination=/app ubuntu bash
+#+end_src
+
