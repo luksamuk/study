@@ -1,0 +1,233 @@
+#+title: Docker Swarm: Orquestrador de containers
+
+* Dependências
+
+- Docker
+- Docker Machine
+- VirtualBox
+
+* Revisão de Docker
+
+É possível utilizar o [[https://labs.play-with-docker.com][Play with Docker]] para fazer alguns testes.
+
+* Docker Swarm
+
+Docker Swarm  resolve problemas  de consumo  excessivo de  recursos da  parte de
+múltiplos  contêineres, e  também de  KeepAlive (reiniciar  um contêiner  caso o
+mesmo seja encerrado de forma inesperada).
+
+Além  disso, o  Swarm  pode ser  usado para  executar  contêineres em  clusters,
+executando  um mesmo  conjunto de  contêineres  em várias  máquinas para  evitar
+sobrecarga de uma única máquina.
+
+O  Docker Swarm  é um  *orquestrador  de contêineres*,  e define  através de  um
+/dispatcher/ a máquina mais adequada para executar um contêiner.
+
+* Usando a Docker Machine
+
+*ATENÇÃO: Segundo o site oficial do Docker, o Docker Machine está depreciado.*
+
+A Docker  Machine cria algumas  máquinas virtuais  leves para testes  com Docker
+Swarm. Os  clusters serão criados com  essas máquinas virtuais criadas,  que são
+leves e já possuem Docker instalado.
+
+Para visualizar as máquinas ativas:
+
+#+begin_src bash
+docker-machine ls
+#+end_src
+
+Para criar uma VM:
+
+#+begin_src bash
+docker-machine create -d virtualbox vm1
+#+end_src
+
+Note que o driver utilizado é o ~virtualbox~.
+
+Podemos também gerenciar o status de execução das VMs:
+
+#+begin_src bash
+docker-machine start vm1
+docker-machine stop vm1
+#+end_src
+
+Finalmente, podemos também acessar uma VM através de SSH:
+
+#+begin_src bash
+docker-machine ssh vm1
+#+end_src
+
+
+*** Prováveis problemas
+
+Caso o VirtualBox falhe com ~E_ACCESSDENIED~:
+
+- Veja todas as máquinas criadas com ~docker-machine ls~;
+- Remova as desnecessárias com ~docker-machine rm -y <nome>~;
+-  Encontre  todos  os  "host-only  ethernet  adapters"  com  ~VBoxManage  list
+   hostonlyifs~;
+- Remova todos os adapters órfãos com ~VBoxManage hostonlyif remove <nome>~;
+- Vá até o diretório ~/etc/vbox~. Se não existir, crie-o;
+- Crie um arquivo ~networks.conf~, e adicione a linha a seguir:
+
+   #+begin_src conf
+,* 0.0.0.0/0 ::/0
+   #+end_src
+   
+- Crie uma nova máquina normalmente;
+- Execute o comando ~eval $(docker-machine env <nome>)~ para configurar o shell.
+
+O /downside/  desta solução é  que o passo ~Waiting  for an IP~  acaba demorando
+bastante.
+
+*** Usando Docker Swarm para serviços em nuvem
+
+A Docker  Machine aquis  erve apenas para  criar um ambiente  de VMs  locais com
+diversas máquinas,  mas pode ser utilizado  também com provedores de  serviço em
+nuvem.
+
+Por exemplo, usando o driver  ~amazonec2~, podemos criar diretamente máquinas na
+AWS, usando o serviço EC2.
+
+** Criando o swarm
+
+Vamos iniciar o cluster (swarm) a partir da máquina virtual ~vm1~.
+
+#+begin_src bash
+docker-machine ssh vm1
+
+# No shell da vm1...
+docker swarm init
+#+end_src
+
+O segundo comando mostrará um erro porque  não conseguirá selecionar um IP a ser
+anunciado, uma vez que o Docker Swarm  tem duas opções: o IP da máquina virtual,
+e  o  IP da  máquina  física,  disponível através  de  duas  interfaces de  rede
+diferentes.
+
+Por isso,  vamos discriminar o IP  a ser utilizado, o  que na verdade é  uma boa
+prática a se fazer.
+
+No console, será mostrado  que a máquina atual é um ~manager~  (por ter criado o
+swarm), e o nó (a máquina) terá também um ID específico.
+
+O console também mostrará um comando para adicionar /workers/ ao swarm.
+
+** Para saber o status da máquina
+
+Para saber se a máquina está em um swarm, use
+
+#+begin_src bash
+# Em vm1
+docker info
+#+end_src
+
+Com um  pouco de  esforço, será possível  ver a linha  ~Swarm: active~  em certo
+ponto do log mostrado.
+
+* Responsabilidade dos nós workers
+
+** Criando um worker
+
+Vamos criar mais duas máquinas virtuais.
+
+#+begin_src bash
+# No host
+docker-machine create -d virtualbox vm2
+docker-machine create -d virtualbox vm3
+#+end_src
+
+Vamos recuperar o token a ser utilizado para que um worker entre no Swarm.
+
+#+begin_src bash
+# Em vm1
+docker swarm join-token worker
+#+end_src
+
+Agora,  *vá  até  ~vm2~  e  ~vm3~  e cole  o  comando  mostrado  em  ~vm1~  para
+adicioná-los*.
+
+** Listando e removendo nós
+
+Para listar os nós do swarm:
+
+#+begin_src bash
+# Em vm1
+docker node ls
+#+end_src
+
+*NOTA:* Apenas um /manager/ pode visualizar ou alterar o estado do cluster.
+
+Para remover um nó  no swarm, o nó precisa estar com  status /Down/. Para tanto,
+primeiro precisamos que a ~vm3~, por exemplo, saia do cluster:
+
+#+begin_src bash
+# Em vm3
+docker swarm leave
+#+end_src
+
+Agora, poderemos efetivamente remover o nó do swarm:
+
+#+begin_src bash
+# Em vm1
+docker node rm <id_da_vm3>
+#+end_src
+
+Para  adicionar ~vm3~  novamente,  será  necessário executar  na  mesma o  mesmo
+processo anterior de adição através do comando de join com um token específico.
+
+** Subindo um serviço
+
+O comando lembra bastante o ~docker container run~, mas deve ser executado em um
+/manager/ porque workers não têm autonomia para mudar o estado do cluster.
+
+Além disso, é possível criar um contêiner em qualquer worker, mas o status desse
+contêiner não será anunciado para o  restante das máquinas, portanto não sendo o
+ideal para se trabalhar com Swarm.
+
+#+begin_src bash
+# Em vm1
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+Será mostrado em caso de sucesso que o serviço *convergiu*, ou seja, foi criado,
+portanto agora há um contêiner sendo executado no escopo do swarm.
+
+*** Descobrindo o IP de um worker
+
+#+begin_src bash
+# Em vm1
+docker node inspect vm2
+#+end_src
+
+** Tarefas e Routing Mesh
+
+Para listar os serviços:
+
+#+begin_src bash
+docker service ls
+#+end_src
+
+Pudemos observar ao criar o serviço que foi criada também uma tarefa.
+
+Uma *tarefa* é uma *instância de um serviço* sendo executado.
+
+Para observar as tarefas e onde estão sendo executadas:
+
+#+begin_src bash
+docker service ps <id do serviço>
+#+end_src
+
+Dessa forma, o  serviço poderá ser acessado  através de acesso direto  à VM (use
+~docker  inspect~  no  manager para  ver  o  IP  do  nó  em que  a  tarefa  está
+executando), mas também  através do IP do manager (~vm1~)  ou de /qualquer outro
+worker!/
+
+Esse redirecionamento é realizado através do processo de /routing mesh/.
+
+Isso também  significa que a  porta ~8080~, usada  pelo serviço em  questão, não
+pode ser reutilizada para outros serviços no cluster inteiro.
+
+Caso o  contêiner seja *forçosamente removido*  no nó original, será  criada uma
+*nova tarefa* para garantir a persistência do serviço novamente.
