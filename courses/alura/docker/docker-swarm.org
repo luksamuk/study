@@ -240,7 +240,7 @@ pode ser reutilizada para outros serviços no cluster inteiro.
 Caso o  contêiner seja *forçosamente removido*  no nó original, será  criada uma
 *nova tarefa* para garantir a persistência do serviço novamente.
 
-** Gerenciando o cluster com managers
+* Gerenciando o cluster com managers
 
 Se, por exemplo,  fosse executado ~docker swarm leave --force~  em um manager, o
 estado do  swarm (e  consequentemente dos workers)  seria perdido.  Isso poderia
@@ -250,7 +250,7 @@ Adicionalmente,  note que  os /workers/  não  podem subir  serviços, então  e
 seriam  parcialmente  inutilizados. Todavia,  ainda  seria  possível acessar  os
 serviços através do IP dos workers que ainda estão funcionando.
 
-*** Fazendo backup do Swarm
+** Fazendo backup do Swarm
 
 Vamos reconfigurar tudo  do zero. Para tanto, executaremos  ~docker swarm leave~
 em todos os workers e prosseguiremos com a configuração:
@@ -279,7 +279,7 @@ Ao   recuperar   um   backup,   basta   colocar   os   arquivos   novamente   em
 docker swarm init --force-new-cluster --advertise-addr <ip>
 #+end_src
 
-*** Criando mais managers
+** Criando mais managers
 
 Vamos começar refazendo o cluster do zero.
 
@@ -331,7 +331,7 @@ docker swarm join --token ... <ip>
  Leader*. Mas isso não  é feito de forma arbitrária; é  utilizado o algoritmo de
  consenso RAFT.
 
-*** Algoritmo de consenso RAFT
+** Algoritmo de consenso RAFT
 
 Quando o  Leader falha,  os nós  remanescentes (managers  e workers)  votam para
 definir qual deve ser o novo Leader entre os nós managers.
@@ -355,5 +355,130 @@ cluster.
 A Docker recomenda sempre 3, 5 ou 7 managers, mas nunca mais que dez -- e sempre
 números ímpares, de forma que sempre haverá um consenso.
 
+* Separando as responsabilidades
 
+A responsabilidade do *manager* é orquestrar  o swarm, enquanto os *workers* são
+responsáveis  por carregar  e executar  os contêineres.  Todavia, podem  existir
+situações em que um *manager* acabe executando serviços também.
+
+A ideia é adicionar restrições para que isso não ocorra.
+
+** Readicionando um manager
+
+Para remover  um nó /manager/  com segurança, primeiro precisamos  rebaixá-lo de
+/manager/ para /worker/:
+
+#+begin_src bash
+# Caso o nó em vm1 já não tenha sido removido, em vm1:
+docker swarm leave --force
+
+# Em vm2
+docker node demote vm1
+docker node rm vm1
+#+end_src
+
+Para readicionar a ~vm1~:
+
+#+begin_src bash
+# Em vm2
+docker swarm join-token manager
+
+# Em vm1
+docker swarm join --token ... <ip>
+#+end_src
+
+Vamos subir um serviço...
+
+#+begin_src bash
+# Em vm2
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+Podemos observar  que o  serviço foi  adicionado em ~vm1~,  o que  *não deveria*
+ocorrer no nosso caso!
+
+Por  padrão,   o  Docker  Swarm   permite  que  serviços  sejam   executados  em
+managers. Queremos que isso não ocorra.
+
+Temos duas formas de evitar que isso ocorra.
+
+*** Removendo todos os serviços
+
+#+begin_src bash
+docker service rm $(docker service ls -q)
+#+end_src
+
+** Restringindo nós
+
+Para evitar  que um nó não  execute serviços, precisamos trocar  seu /status/ de
+disponibilidade:
+
+#+begin_src bash
+# Em vm1
+docker node update --availability drain vm2
+#+end_src
+
+O  comando   anterior  trocará  o   status  de  ~AVAILABILITY~  da   ~vm2~  para
+/Drain/. Isso  significa que, caso  haja um serviço  em execução em  ~vm2~ nesse
+momento, este serviço será alocado para outro nó.
+
+Esta estratégia tem dois problemas:
+
+1. Isso apenas /muda  o problema de lugar/. O serviço  poderá ser realocado para
+   outro nó onde não queremos que  seja executado, e precisaremos mudar o status
+   de disponibilidade do outro nó também, e assim por diante.
+2. A  ideia é que  os managers  não executem o  serviço de ~barbearia~,  mas que
+   ainda sejam capazes de executar certos serviços. Se um nó tem disponibilidade
+   /Drain/, então nenhum serviço pode ser executado no mesmo.
+
+** Restringindo serviços
+
+Esta  possibilidade  é   menos  invasiva  que  a   anterior.  Nessa  estratégia,
+restringimos o serviço para que ele  não seja executado em determinados tipos de
+nós.
+
+Antes de mais nada, execute o serviço caso já não esteja em execução:
+
+#+begin_src bash
+# Em vm1
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+De  forma  análoga   ao  gerenciamento  de  nós,  podemos   atualizar  dados  de
+serviços. Neste caso, vamos adicionar uma /constraint/ ao serviço criado:
+
+#+begin_src bash
+# Em vm1
+docker service update --constraint-add node.role==worker <id_do_serviço>
+#+end_src
+
+Caso fosse  aplicada alguma  /constraint/ impossível de  ser atendida,  o Docker
+atualizaria o serviço, mas avisaria que não há nenhum nó capaz de atender àquela
+/constraint/. E por consequência, não  haveria mais tarefas para aquele serviço,
+porque nenhum nó poderia atender àquela  exigência. Assim, o serviço não estaria
+mais acessível.
+
+*** Outras restrições
+
+Poderíamos usar também /constraints/ usando propriedades como ~id~ e ~hostname~,
+além de ~role~. Eis alguns exemplos.
+
+#+begin_src bash
+# Restringir o serviço para rodar em um nó de ID específico
+docker service update --constraint-add node.id==<id> <id_do_serviço>
+
+# Restringir o serviço para rodar apenas na vm4:
+docker service update --constraint-add node.hostname==vm4 <id_do_serviço>
+#+end_src
+
+*** Removendo restrições
+
+Podemos também remover  explicitamente /constraints/ de um  serviço. Para tanto,
+basta trocar a flag ~--constraint-add~ por ~--constraint-rm~.
+
+#+begin_src bash
+docker service update --constraint-rm node.hostname==vm4 <id_do_serviço>
+#+end_src
+
+* Serviços globais e replicados
 
