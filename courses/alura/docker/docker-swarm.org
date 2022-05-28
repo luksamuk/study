@@ -482,3 +482,86 @@ docker service update --constraint-rm node.hostname==vm4 <id_do_serviço>
 
 * Serviços globais e replicados
 
+*Nós managers também podem agir como nós de tipo /workers/*.
+
+Alguns  serviços ainda  podem  rodar  em nós  de  tipo /manager/,  especialmente
+serviços de:
+
+- Monitoramento;
+- Segurança;
+- Serviços críticos em geral.
+
+** Serviços replicados
+
+Vamos começar removendo a constraint anterior  e então olhando para o serviço em
+execução.
+
+#+begin_src bash
+# Em vm1
+docker service update --constraint-rm node.role==worker <id_do_serviço>
+docker service ls
+#+end_src
+
+#+begin_src text
+ID                  NAME                MODE                REPLICAS            IMAGE                          PORTS
+c6gcw38fhcms        eloquent_mccarthy   replicated          1/1                 aluracursos/barbearia:latest   *:8080->3000/tcp
+#+end_src
+
+Podemos  observar que  o  serviço possui  modo ~replicated~  e  possu uma  única
+réplica.
+
+O Docker Swarm  possui um modo /replicado/  e um modo /global/.  O modo /global/
+envolve rodar um serviço em todos os nós, e será visto mais adiante.
+
+O modo  /replicado/ é  o tipo  padrão de um  serviço Swarm,  e opera  através da
+criação de  várias tarefas para  um mesmo serviço,  para que outra  tarefa possa
+responder a requisições, quando uma tarefa em específico ficar muito ocupada.
+
+Para aumentar o número de réplicas desse serviço:
+
+#+begin_src bash
+# Em vm1
+docker service update --replicas 4 <id_do_serviço>
+#+end_src
+
+Podemos observar agora como o serviço está operando através de várias tarefas:
+
+#+begin_src bash
+docker service ps <id_do_serviço>
+#+end_src
+
+*** Comando ~service scale~
+
+Outra forma de escalar um serviço é usando o comando ~scale~:
+
+#+begin_src bash
+docker service scale <id_do_serviço>=<numero_de_replicas>
+#+end_src
+
+Exemplo:
+
+#+begin_src bash
+# Em vm1
+docker service scale c6=5
+#+end_src
+
+** Serviços globais
+
+Vamos começar recriando o serviço em modo global.
+
+#+begin_src bash
+# Em vm1
+docker service rm <id_do_serviço>
+docker service create -p 8080:3000 --mode global aluracursos/barbearia
+#+end_src
+
+Note  a  flag  ~--mode  global~,  que substitui  o  padrão  ~--mode  replicated~
+(utilizado também quando o modo não é informado).
+
+Serão  criadas, neste  caso,  cinco  tarefas deste  serviço,  e  o serviço  será
+executado em cada nó.
+
+Serviços de  monitoramento e segurança  são exemplos  de serviços que  podem ser
+executados de forma global.
+
+
