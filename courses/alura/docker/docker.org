@@ -85,6 +85,14 @@ Igualmente...
 docker rmi $(docker image ls -aq)
 #+end_src
 
+** Criando um contêiner com nome
+
+É possível também criar contêineres definindo nomes para os mesmos:
+
+#+begin_src bash
+docker run -it --name ubuntu1 ubuntu bash
+#+end_src
+
 ** Extra: ~ctop~
 
 [[https://github.com/bcicen/ctop][ctop]] é  uma ferramenta como  o ~k9s~, mas  para Docker. Muito  bom. Recomendo,
@@ -340,3 +348,167 @@ Para montar com a flag ~--mount~:
 docker run -t --mount type=tmpfs,destination=/app ubuntu bash
 #+end_src
 
+* Redes
+
+Para inspecionar detalhes do contêiner:
+
+#+begin_src bash
+docker inspect <id_do_container>
+#+end_src
+
+No JSON que aparece no console,  procurando pela chave ~"Networks"~, pode-se ver
+os dados de rede do contêiner.
+
+Para gerenciar redes no Docker, podemos usar o comando ~docker network~.
+
+Começamos listando as redes disponíveis:
+
+#+begin_src bash
+docker network ls
+#+end_src
+
+Por padrão, o Docker já cria as redes ~host~, ~none~ e ~bridge~.
+
+Dois contêineres podem acessar a si mesmos quando estiverem em uma rede, através
+do IP listado em ~"IPAddress"~ ao inspecioná-los.
+
+** Criando uma rede
+
+Como o nome de um contêiner é  mais "estável" que um IP, podemos utilizá-lo para
+roteamento DNS nas redes.
+
+Vamos criar uma rede:
+
+#+begin_src bash
+docker network create --driver bridge minha-bridge
+#+end_src
+
+Ao criar um contêiner com nome, podemos agora definir também a rede do mesmo:
+
+#+begin_src bash
+docker run -it --name ubuntu1 --network minha-bridge ubuntu bash
+#+end_src
+
+Para avaliar  se o  contêiner está  com a rede  adequada, observe  a propriedade
+~"Networks"~ na saída do ~docker inspect~ daquele contêiner.
+
+Podemos criar mais um contêiner de exemplo, rodando em modo daemon:
+
+#+begin_src bash
+docker run -d --name pong --network minha-bridge ubuntu sleep 1d
+#+end_src
+
+Este  contêiner  chamado ~pong~  encontra-se  na  mesma rede  ~minha-bridge~,  e
+executa um comando ~sleep~ por um dia.
+
+Para tanto, no console do contêiner ~ubuntu1~, poderemos usar diretamente o nome
+do contêiner ~pong~ em substituição ao IP do mesmo. Dessa forma, temos uma forma
+direta de referenciá-lo.
+
+#+begin_src bash
+# Em ubuntu1
+apt update
+apt install iputils-ping -y
+ping pong
+#+end_src
+
+** Rede ~none~
+
+A rede ~none~ é uma rede padrão  com driver ~null~. Ela é utilizada para definir
+que um contêiner não terá qualquer interface de rede vinculada a si.
+
+** Rede ~host~
+
+A rede ~host~ é uma rede padrão  com driver ~host~. Ela é utilizada para remover
+quaisquer  isolamentos  de  rede  que   um  contêiner  possa  ter,  efetivamente
+utilizando as portas do host diretamente.
+
+* Coordenando contêineres
+
+Para evitar fazer todo o processo de comunicação dos serviços manualmente usando
+Docker e o console, podemos recorrer ao Docker Compose.
+
+O Docker Compose é uma ferramenta de /coordenação/ de contêineres (não confundir
+com orquestração!. Para tanto, utiliza-se arquivos YAML.
+
+Suponha a execução de um banco de dados  MongoDB e um serviço web que o utiliza,
+como a seguir:
+
+#+begin_src bash
+docker run -d --network minha-bridge --name meu-mongo mongo:4.4.6
+docker run -d --network minha-bridge --name alurabooks \
+       -p 3000:3000 aluradocker/alura-books:1.0
+#+end_src
+
+Para  traduzir essa  configuração  para  o Docker  Compose,  criamos um  arquivo
+~docker-compose.yml~:
+
+#+begin_src docker-compose
+version: "3.9"
+services:
+  mongodb:
+    image: mongo:4.4.6
+    container_name: meu-mongo
+    networks:
+      - compose-bridge
+
+  alurabooks:
+    image: aluradocker/alura-books:1.0
+    container_name: alurabooks
+    networks:
+      - compose-bridge
+    ports:
+      - 3000:3000
+
+networks:
+  compose-bridge:
+    driver: bridge
+#+end_src
+
+Agora, no diretório onde este arquivo foi criado, basta executar:
+
+#+begin_src bash
+docker compose up
+#+end_src
+
+** Melhorando o arquivo do compose
+
+*** Expressando dependências
+
+Para expressar uma dependência em outro serviço, use a chave ~depends_on~:
+
+#+begin_src docker-compose
+  alurabooks:
+    image: aluradocker/alura-books:1.0
+    container_name: alurabooks
+    networks:
+      - compose-bridge
+    ports:
+      - 3000:3000
+    depends_on:
+      - mongodb
+#+end_src
+
+Note que  ~depends_on~ não espera até  que o banco esteja  pronto, apenas espera
+até que o contêiner do serviço esteja em execução.
+
+*** Comandos do Docker Compose
+
+Para executar no modo detached:
+
+#+begin_src bash
+docker compose up -d
+#+end_src
+
+Para ver os serviços executados via Docker Compose:
+
+#+begin_src bash
+docker compose ps
+#+end_src
+
+Para  remover  os  contêineres  e  a  rede  criados  (no  diretório  do  arquivo
+~docker-compose.yml~:
+
+#+begin_src bash
+docker compose down
+#+end_src
