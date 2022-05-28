@@ -109,6 +109,11 @@ diferentes.
 Por isso,  vamos discriminar o IP  a ser utilizado, o  que na verdade é  uma boa
 prática a se fazer.
 
+#+begin_src bash
+# Em vm1
+docker swarm init --advertise-addr <ip>
+#+end_src
+
 No console, será mostrado  que a máquina atual é um ~manager~  (por ter criado o
 swarm), e o nó (a máquina) terá também um ID específico.
 
@@ -194,6 +199,9 @@ docker service create -p 8080:3000 aluracursos/barbearia
 Será mostrado em caso de sucesso que o serviço *convergiu*, ou seja, foi criado,
 portanto agora há um contêiner sendo executado no escopo do swarm.
 
+*NOTA:* O ~vm1~,  apesar de ser um  /manager/, não está isento,  neste ponto, de
+executar os serviços também.
+
 *** Descobrindo o IP de um worker
 
 #+begin_src bash
@@ -231,3 +239,121 @@ pode ser reutilizada para outros serviços no cluster inteiro.
 
 Caso o  contêiner seja *forçosamente removido*  no nó original, será  criada uma
 *nova tarefa* para garantir a persistência do serviço novamente.
+
+** Gerenciando o cluster com managers
+
+Se, por exemplo,  fosse executado ~docker swarm leave --force~  em um manager, o
+estado do  swarm (e  consequentemente dos workers)  seria perdido.  Isso poderia
+inclusive ser análogo a uma situação de problema de hardware, por exemplo.
+
+Adicionalmente,  note que  os /workers/  não  podem subir  serviços, então  eles
+seriam  parcialmente  inutilizados. Todavia,  ainda  seria  possível acessar  os
+serviços através do IP dos workers que ainda estão funcionando.
+
+*** Fazendo backup do Swarm
+
+Vamos reconfigurar tudo  do zero. Para tanto, executaremos  ~docker swarm leave~
+em todos os workers e prosseguiremos com a configuração:
+
+#+begin_src bash
+# Em vm1
+docker swarm init --advertise-addr <ip>
+
+# Em vm2
+docker swarm join --token ... <ip>
+
+# Em vm3
+docker swarm join --token ... <ip>
+
+# Em vm1
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+Para evitar que uma tragédia aconteça,  é possível, por exemplo, realizar backup
+direto dos arquivos em ~/var/lib/docker/swarm~, que existe na ~vm1~.
+
+Ao   recuperar   um   backup,   basta   colocar   os   arquivos   novamente   em
+~/var/lib/docker/swarm~. Em seguida, execute um comando como o a seguir:
+
+#+begin_src bash
+docker swarm init --force-new-cluster --advertise-addr <ip>
+#+end_src
+
+*** Criando mais managers
+
+Vamos começar refazendo o cluster do zero.
+
+#+begin_src bash
+# Em todos os nós
+docker swarm leave --force
+
+# Em vm1
+docker swarm init --advertise-addr <ip>
+#+end_src
+
+Em ~vm1~, recupere o comando para adição de um novo manager:
+
+#+begin_src bash
+docker swarm join-token manager
+#+end_src
+
+Execute o comando  anterior em ~vm2~ e ~vm3~.  Com isso, as VMs ~1~  a ~3~ agora
+são managers.
+
+Vamos adicionar, agora, mais dois workers.
+
+#+begin_src bash
+# No host
+docker-machine -d virtualbox create vm4
+docker-machine -d virtualbox create vm5
+#+end_src
+
+Enquanto as VMs são criadas, vamos observar os hosts e seus status na ~vm1~.
+
+#+begin_src bash
+docker node ls --format "{{.Hostname}} {{.ManagerStatus}}"
+#+end_src
+
+Poderemos observar que ~vm1~ possui status  /Leader/, enquanto ~vm2~ e ~vm3~ são
+/Reachable/.
+
+Vamos adicionar ~vm4~ e ~vm5~ como /workers/ do cluster.
+
+#+begin_src bash
+# Em vm1
+docker swarm join-token worker
+
+# Em vm4 e vm5
+docker swarm join --token ... <ip>
+#+end_src
+
+*Caso ocorra um  desastre com a ~vm1~,  um dos outros dois  managers será eleito
+ Leader*. Mas isso não  é feito de forma arbitrária; é  utilizado o algoritmo de
+ consenso RAFT.
+
+*** Algoritmo de consenso RAFT
+
+Quando o  Leader falha,  os nós  remanescentes (managers  e workers)  votam para
+definir qual deve ser o novo Leader entre os nós managers.
+
+Para que o consenso na votação possa ser atingido:
+
+1. Deve-se suportar um máximo de $\frac{N-1}{2}$ falhas;
+2.  Deve   haver  um   mínimo  de  $\frac{N}{2}+1$   de  quórum   de  /managers/
+   remanescentes.
+
+(onde $N = $ número inicial de /managers/).
+
+Isso significa que, no caso de  ~vm1~ falhar, suportaremos no máximo, UMA falha,
+e precisamos  de um  mínimo de  DOIS managers  remanescentes (neste  caso, temos
+exatamente este número).
+
+Adicionalmente, *adicionar muitos  managers não é recomendado*, já  que a adição
+de novos  managers impacta  diretamente na  velocidade de  leitura e  escrita no
+cluster.
+
+A Docker recomenda sempre 3, 5 ou 7 managers, mas nunca mais que dez -- e sempre
+números ímpares, de forma que sempre haverá um consenso.
+
+
+
