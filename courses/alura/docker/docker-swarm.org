@@ -1,0 +1,1065 @@
+#+title: Docker Swarm: Orquestrador de containers
+
+* Dependências
+
+- Docker
+- Docker Machine
+- VirtualBox
+
+* Revisão de Docker
+
+É possível utilizar o [[https://labs.play-with-docker.com][Play with Docker]] para fazer alguns testes.
+
+* Docker Swarm
+
+Docker Swarm  resolve problemas  de consumo  excessivo de  recursos da  parte de
+múltiplos  contêineres, e  também de  KeepAlive (reiniciar  um contêiner  caso o
+mesmo seja encerrado de forma inesperada).
+
+Além  disso, o  Swarm  pode ser  usado para  executar  contêineres em  clusters,
+executando  um mesmo  conjunto de  contêineres  em várias  máquinas para  evitar
+sobrecarga de uma única máquina.
+
+O  Docker Swarm  é um  *orquestrador  de contêineres*,  e define  através de  um
+/dispatcher/ a máquina mais adequada para executar um contêiner.
+
+* Usando a Docker Machine
+
+*ATENÇÃO: Segundo o site oficial do Docker, o Docker Machine está depreciado.*
+
+A Docker  Machine cria algumas  máquinas virtuais  leves para testes  com Docker
+Swarm. Os  clusters serão criados com  essas máquinas virtuais criadas,  que são
+leves e já possuem Docker instalado.
+
+Para visualizar as máquinas ativas:
+
+#+begin_src bash
+docker-machine ls
+#+end_src
+
+Para criar uma VM:
+
+#+begin_src bash
+docker-machine create -d virtualbox vm1
+#+end_src
+
+Note que o driver utilizado é o ~virtualbox~.
+
+Podemos também gerenciar o status de execução das VMs:
+
+#+begin_src bash
+docker-machine start vm1
+docker-machine stop vm1
+#+end_src
+
+Finalmente, podemos também acessar uma VM através de SSH:
+
+#+begin_src bash
+docker-machine ssh vm1
+#+end_src
+
+
+*** Prováveis problemas
+
+Caso o VirtualBox falhe com ~E_ACCESSDENIED~:
+
+- Veja todas as máquinas criadas com ~docker-machine ls~;
+- Remova as desnecessárias com ~docker-machine rm -y <nome>~;
+-  Encontre  todos  os  "host-only  ethernet  adapters"  com  ~VBoxManage  list
+   hostonlyifs~;
+- Remova todos os adapters órfãos com ~VBoxManage hostonlyif remove <nome>~;
+- Vá até o diretório ~/etc/vbox~. Se não existir, crie-o;
+- Crie um arquivo ~networks.conf~, e adicione a linha a seguir:
+
+   #+begin_src conf
+,* 0.0.0.0/0 ::/0
+   #+end_src
+   
+- Crie uma nova máquina normalmente;
+- Execute o comando ~eval $(docker-machine env <nome>)~ para configurar o shell.
+
+O /downside/  desta solução é  que o passo ~Waiting  for an IP~  acaba demorando
+bastante.
+
+*** Usando Docker Swarm para serviços em nuvem
+
+A Docker  Machine aquis  erve apenas para  criar um ambiente  de VMs  locais com
+diversas máquinas,  mas pode ser utilizado  também com provedores de  serviço em
+nuvem.
+
+Por exemplo, usando o driver  ~amazonec2~, podemos criar diretamente máquinas na
+AWS, usando o serviço EC2.
+
+** Criando o swarm
+
+Vamos iniciar o cluster (swarm) a partir da máquina virtual ~vm1~.
+
+#+begin_src bash
+docker-machine ssh vm1
+
+# No shell da vm1...
+docker swarm init
+#+end_src
+
+O segundo comando mostrará um erro porque  não conseguirá selecionar um IP a ser
+anunciado, uma vez que o Docker Swarm  tem duas opções: o IP da máquina virtual,
+e  o  IP da  máquina  física,  disponível através  de  duas  interfaces de  rede
+diferentes.
+
+Por isso,  vamos discriminar o IP  a ser utilizado, o  que na verdade é  uma boa
+prática a se fazer.
+
+#+begin_src bash
+# Em vm1
+docker swarm init --advertise-addr <ip>
+#+end_src
+
+No console, será mostrado  que a máquina atual é um ~manager~  (por ter criado o
+swarm), e o nó (a máquina) terá também um ID específico.
+
+O console também mostrará um comando para adicionar /workers/ ao swarm.
+
+** Para saber o status da máquina
+
+Para saber se a máquina está em um swarm, use
+
+#+begin_src bash
+# Em vm1
+docker info
+#+end_src
+
+Com um  pouco de  esforço, será possível  ver a linha  ~Swarm: active~  em certo
+ponto do log mostrado.
+
+* Responsabilidade dos nós workers
+
+** Criando um worker
+
+Vamos criar mais duas máquinas virtuais.
+
+#+begin_src bash
+# No host
+docker-machine create -d virtualbox vm2
+docker-machine create -d virtualbox vm3
+#+end_src
+
+Vamos recuperar o token a ser utilizado para que um worker entre no Swarm.
+
+#+begin_src bash
+# Em vm1
+docker swarm join-token worker
+#+end_src
+
+Agora,  *vá  até  ~vm2~  e  ~vm3~  e cole  o  comando  mostrado  em  ~vm1~  para
+adicioná-los*.
+
+** Listando e removendo nós
+
+Para listar os nós do swarm:
+
+#+begin_src bash
+# Em vm1
+docker node ls
+#+end_src
+
+*NOTA:* Apenas um /manager/ pode visualizar ou alterar o estado do cluster.
+
+Para remover um nó  no swarm, o nó precisa estar com  status /Down/. Para tanto,
+primeiro precisamos que a ~vm3~, por exemplo, saia do cluster:
+
+#+begin_src bash
+# Em vm3
+docker swarm leave
+#+end_src
+
+Agora, poderemos efetivamente remover o nó do swarm:
+
+#+begin_src bash
+# Em vm1
+docker node rm <id_da_vm3>
+#+end_src
+
+Para  adicionar ~vm3~  novamente,  será  necessário executar  na  mesma o  mesmo
+processo anterior de adição através do comando de join com um token específico.
+
+** Subindo um serviço
+
+O comando lembra bastante o ~docker container run~, mas deve ser executado em um
+/manager/ porque workers não têm autonomia para mudar o estado do cluster.
+
+Além disso, é possível criar um contêiner em qualquer worker, mas o status desse
+contêiner não será anunciado para o  restante das máquinas, portanto não sendo o
+ideal para se trabalhar com Swarm.
+
+#+begin_src bash
+# Em vm1
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+Será mostrado em caso de sucesso que o serviço *convergiu*, ou seja, foi criado,
+portanto agora há um contêiner sendo executado no escopo do swarm.
+
+*NOTA:* O ~vm1~,  apesar de ser um  /manager/, não está isento,  neste ponto, de
+executar os serviços também.
+
+*** Descobrindo o IP de um worker
+
+#+begin_src bash
+# Em vm1
+docker node inspect vm2
+#+end_src
+
+** Tarefas e Routing Mesh
+
+Para listar os serviços:
+
+#+begin_src bash
+docker service ls
+#+end_src
+
+Pudemos observar ao criar o serviço que foi criada também uma tarefa.
+
+Uma *tarefa* é uma *instância de um serviço* sendo executado.
+
+Para observar as tarefas e onde estão sendo executadas:
+
+#+begin_src bash
+docker service ps <id do serviço>
+#+end_src
+
+Dessa forma, o  serviço poderá ser acessado  através de acesso direto  à VM (use
+~docker  inspect~  no  manager para  ver  o  IP  do  nó  em que  a  tarefa  está
+executando), mas também  através do IP do manager (~vm1~)  ou de /qualquer outro
+worker!/
+
+Esse redirecionamento é realizado através do processo de /routing mesh/.
+
+Isso também  significa que a  porta ~8080~, usada  pelo serviço em  questão, não
+pode ser reutilizada para outros serviços no cluster inteiro.
+
+Caso o  contêiner seja *forçosamente removido*  no nó original, será  criada uma
+*nova tarefa* para garantir a persistência do serviço novamente.
+
+* Gerenciando o cluster com managers
+
+Se, por exemplo,  fosse executado ~docker swarm leave --force~  em um manager, o
+estado do  swarm (e  consequentemente dos workers)  seria perdido.  Isso poderia
+inclusive ser análogo a uma situação de problema de hardware, por exemplo.
+
+Adicionalmente,  note que  os /workers/  não  podem subir  serviços, então  eles
+seriam  parcialmente  inutilizados. Todavia,  ainda  seria  possível acessar  os
+serviços através do IP dos workers que ainda estão funcionando.
+
+** Fazendo backup do Swarm
+
+Vamos reconfigurar tudo  do zero. Para tanto, executaremos  ~docker swarm leave~
+em todos os workers e prosseguiremos com a configuração:
+
+#+begin_src bash
+# Em vm1
+docker swarm init --advertise-addr <ip>
+
+# Em vm2
+docker swarm join --token ... <ip>
+
+# Em vm3
+docker swarm join --token ... <ip>
+
+# Em vm1
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+Para evitar que uma tragédia aconteça,  é possível, por exemplo, realizar backup
+direto dos arquivos em ~/var/lib/docker/swarm~, que existe na ~vm1~.
+
+Ao   recuperar   um   backup,   basta   colocar   os   arquivos   novamente   em
+~/var/lib/docker/swarm~. Em seguida, execute um comando como o a seguir:
+
+#+begin_src bash
+docker swarm init --force-new-cluster --advertise-addr <ip>
+#+end_src
+
+** Criando mais managers
+
+Vamos começar refazendo o cluster do zero.
+
+#+begin_src bash
+# Em todos os nós
+docker swarm leave --force
+
+# Em vm1
+docker swarm init --advertise-addr <ip>
+#+end_src
+
+Em ~vm1~, recupere o comando para adição de um novo manager:
+
+#+begin_src bash
+docker swarm join-token manager
+#+end_src
+
+Execute o comando  anterior em ~vm2~ e ~vm3~.  Com isso, as VMs ~1~  a ~3~ agora
+são managers.
+
+Vamos adicionar, agora, mais dois workers.
+
+#+begin_src bash
+# No host
+docker-machine -d virtualbox create vm4
+docker-machine -d virtualbox create vm5
+#+end_src
+
+Enquanto as VMs são criadas, vamos observar os hosts e seus status na ~vm1~.
+
+#+begin_src bash
+docker node ls --format "{{.Hostname}} {{.ManagerStatus}}"
+#+end_src
+
+Poderemos observar que ~vm1~ possui status  /Leader/, enquanto ~vm2~ e ~vm3~ são
+/Reachable/.
+
+Vamos adicionar ~vm4~ e ~vm5~ como /workers/ do cluster.
+
+#+begin_src bash
+# Em vm1
+docker swarm join-token worker
+
+# Em vm4 e vm5
+docker swarm join --token ... <ip>
+#+end_src
+
+*Caso ocorra um  desastre com a ~vm1~,  um dos outros dois  managers será eleito
+ Leader*. Mas isso não  é feito de forma arbitrária; é  utilizado o algoritmo de
+ consenso RAFT.
+
+** Algoritmo de consenso RAFT
+
+Quando o  Leader falha,  os nós  remanescentes (managers  e workers)  votam para
+definir qual deve ser o novo Leader entre os nós managers.
+
+Para que o consenso na votação possa ser atingido:
+
+1. Deve-se suportar um máximo de $\frac{N-1}{2}$ falhas;
+2.  Deve   haver  um   mínimo  de  $\frac{N}{2}+1$   de  quórum   de  /managers/
+   remanescentes.
+
+(onde $N = $ número inicial de /managers/).
+
+Isso significa que, no caso de  ~vm1~ falhar, suportaremos no máximo, UMA falha,
+e precisamos  de um  mínimo de  DOIS managers  remanescentes (neste  caso, temos
+exatamente este número).
+
+Adicionalmente, *adicionar muitos  managers não é recomendado*, já  que a adição
+de novos  managers impacta  diretamente na  velocidade de  leitura e  escrita no
+cluster.
+
+A Docker recomenda sempre 3, 5 ou 7 managers, mas nunca mais que dez -- e sempre
+números ímpares, de forma que sempre haverá um consenso.
+
+* Separando as responsabilidades
+
+A responsabilidade do *manager* é orquestrar  o swarm, enquanto os *workers* são
+responsáveis  por carregar  e executar  os contêineres.  Todavia, podem  existir
+situações em que um *manager* acabe executando serviços também.
+
+A ideia é adicionar restrições para que isso não ocorra.
+
+** Readicionando um manager
+
+Para remover  um nó /manager/  com segurança, primeiro precisamos  rebaixá-lo de
+/manager/ para /worker/:
+
+#+begin_src bash
+# Caso o nó em vm1 já não tenha sido removido, em vm1:
+docker swarm leave --force
+
+# Em vm2
+docker node demote vm1
+docker node rm vm1
+#+end_src
+
+Para readicionar a ~vm1~:
+
+#+begin_src bash
+# Em vm2
+docker swarm join-token manager
+
+# Em vm1
+docker swarm join --token ... <ip>
+#+end_src
+
+Vamos subir um serviço...
+
+#+begin_src bash
+# Em vm2
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+Podemos observar  que o  serviço foi  adicionado em ~vm1~,  o que  *não deveria*
+ocorrer no nosso caso!
+
+Por  padrão,   o  Docker  Swarm   permite  que  serviços  sejam   executados  em
+managers. Queremos que isso não ocorra.
+
+Temos duas formas de evitar que isso ocorra.
+
+*** Removendo todos os serviços
+
+#+begin_src bash
+docker service rm $(docker service ls -q)
+#+end_src
+
+** Restringindo nós
+
+Para evitar  que um nó não  execute serviços, precisamos trocar  seu /status/ de
+disponibilidade:
+
+#+begin_src bash
+# Em vm1
+docker node update --availability drain vm2
+#+end_src
+
+O  comando   anterior  trocará  o   status  de  ~AVAILABILITY~  da   ~vm2~  para
+/Drain/. Isso  significa que, caso  haja um serviço  em execução em  ~vm2~ nesse
+momento, este serviço será alocado para outro nó.
+
+Esta estratégia tem dois problemas:
+
+1. Isso apenas /muda  o problema de lugar/. O serviço  poderá ser realocado para
+   outro nó onde não queremos que  seja executado, e precisaremos mudar o status
+   de disponibilidade do outro nó também, e assim por diante.
+2. A  ideia é que  os managers  não executem o  serviço de ~barbearia~,  mas que
+   ainda sejam capazes de executar certos serviços. Se um nó tem disponibilidade
+   /Drain/, então nenhum serviço pode ser executado no mesmo.
+
+** Restringindo serviços
+
+Esta  possibilidade  é   menos  invasiva  que  a   anterior.  Nessa  estratégia,
+restringimos o serviço para que ele  não seja executado em determinados tipos de
+nós.
+
+Antes de mais nada, execute o serviço caso já não esteja em execução:
+
+#+begin_src bash
+# Em vm1
+docker service create -p 8080:3000 aluracursos/barbearia
+#+end_src
+
+De  forma  análoga   ao  gerenciamento  de  nós,  podemos   atualizar  dados  de
+serviços. Neste caso, vamos adicionar uma /constraint/ ao serviço criado:
+
+#+begin_src bash
+# Em vm1
+docker service update --constraint-add node.role==worker <id_do_serviço>
+#+end_src
+
+Caso fosse  aplicada alguma  /constraint/ impossível de  ser atendida,  o Docker
+atualizaria o serviço, mas avisaria que não há nenhum nó capaz de atender àquela
+/constraint/. E por consequência, não  haveria mais tarefas para aquele serviço,
+porque nenhum nó poderia atender àquela  exigência. Assim, o serviço não estaria
+mais acessível.
+
+*** Outras restrições
+
+Poderíamos usar também /constraints/ usando propriedades como ~id~ e ~hostname~,
+além de ~role~. Eis alguns exemplos.
+
+#+begin_src bash
+# Restringir o serviço para rodar em um nó de ID específico
+docker service update --constraint-add node.id==<id> <id_do_serviço>
+
+# Restringir o serviço para rodar apenas na vm4:
+docker service update --constraint-add node.hostname==vm4 <id_do_serviço>
+#+end_src
+
+*** Removendo restrições
+
+Podemos também remover  explicitamente /constraints/ de um  serviço. Para tanto,
+basta trocar a flag ~--constraint-add~ por ~--constraint-rm~.
+
+#+begin_src bash
+docker service update --constraint-rm node.hostname==vm4 <id_do_serviço>
+#+end_src
+
+* Serviços globais e replicados
+
+*Nós managers também podem agir como nós de tipo /workers/*.
+
+Alguns  serviços ainda  podem  rodar  em nós  de  tipo /manager/,  especialmente
+serviços de:
+
+- Monitoramento;
+- Segurança;
+- Serviços críticos em geral.
+
+** Serviços replicados
+
+Vamos começar removendo a constraint anterior  e então olhando para o serviço em
+execução.
+
+#+begin_src bash
+# Em vm1
+docker service update --constraint-rm node.role==worker <id_do_serviço>
+docker service ls
+#+end_src
+
+#+begin_src text
+ID                  NAME                MODE                REPLICAS            IMAGE                          PORTS
+c6gcw38fhcms        eloquent_mccarthy   replicated          1/1                 aluracursos/barbearia:latest   *:8080->3000/tcp
+#+end_src
+
+Podemos  observar que  o  serviço possui  modo ~replicated~  e  possu uma  única
+réplica.
+
+O Docker Swarm  possui um modo /replicado/  e um modo /global/.  O modo /global/
+envolve rodar um serviço em todos os nós, e será visto mais adiante.
+
+O modo  /replicado/ é  o tipo  padrão de um  serviço Swarm,  e opera  através da
+criação de  várias tarefas para  um mesmo serviço,  para que outra  tarefa possa
+responder a requisições, quando uma tarefa em específico ficar muito ocupada.
+
+Para aumentar o número de réplicas desse serviço:
+
+#+begin_src bash
+# Em vm1
+docker service update --replicas 4 <id_do_serviço>
+#+end_src
+
+Podemos observar agora como o serviço está operando através de várias tarefas:
+
+#+begin_src bash
+docker service ps <id_do_serviço>
+#+end_src
+
+*** Comando ~service scale~
+
+Outra forma de escalar um serviço é usando o comando ~scale~:
+
+#+begin_src bash
+docker service scale <id_do_serviço>=<numero_de_replicas>
+#+end_src
+
+Exemplo:
+
+#+begin_src bash
+# Em vm1
+docker service scale c6=5
+#+end_src
+
+** Serviços globais
+
+Vamos começar recriando o serviço em modo global.
+
+#+begin_src bash
+# Em vm1
+docker service rm <id_do_serviço>
+docker service create -p 8080:3000 --mode global aluracursos/barbearia
+#+end_src
+
+Note  a  flag  ~--mode  global~,  que substitui  o  padrão  ~--mode  replicated~
+(utilizado também quando o modo não é informado).
+
+Serão  criadas, neste  caso,  cinco  tarefas deste  serviço,  e  o serviço  será
+executado em cada nó.
+
+Serviços de  monitoramento e segurança  são exemplos  de serviços que  podem ser
+executados de forma global.
+
+* Driver Overlay
+
+** A rede ingress
+
+Vamos observar as redes de um nó.
+
+#+begin_src bash
+# Em vm1
+docker network ls
+#+end_src
+
+Temos alguns tipos de drivers na lista que aparece:
+
+- ~bridge~: Conecta contêineres dentro de um mesmo host.
+- ~host~: Realiza comunicação entre contêiner e a máquina que o hospeda.
+- ~null~: Nenhuma rede.
+- ~overlay~: Relacionado ao Swarm.
+
+A rede de nome ~ingress~ usa um  driver ~overlay~. Essa rede terá sempre o mesmo
+ID para todos os nós, desde que façam parte do swarm.
+
+Como temos essa única rede entre  todos os nós, podemos fazer comunicação direta
+entre os mesmos, com a segurança de uma rede criptografada via TLS.
+
+O driver  ~overlay~, portanto,  comunica seus dados  de maneira  criptografada e
+permite a comunicação entre diferentes hosts de um mesmo cluster.
+
+** Service Discovery
+
+Service Discovery é o ato de descobrir um  serviço a partir do nome do mesmo, ao
+invés do uso de um IP direto.
+
+É possível realizar Service Discovery através de uma rede ~overlay~.
+
+Vamos criar um novo serviço, dessa vez dando um nome a ele.
+
+#+begin_src bash
+# Em vm1
+docker service rm <id_do_servico>
+docker service create --name servico --replicas 2 alpine sleep 1d
+#+end_src
+
+Criamos um serviço chamado ~servico~, com  duas réplicas, tal que estes serviços
+sejam instâncias do Alpine Linux, que estará executando o comando ~sleep~ por um
+dia.
+
+#+begin_src bash
+# Em vm1
+docker service ps servico
+#+end_src
+
+As tarefas listadas no comando anterior possuem nomes específicos (~servico.1~ e
+~servico.2~), e  serão executadas em dois  nós diferentes (no meu  caso, ~vm2~ e
+~vm3~).
+
+Os  contêineres também  possuem nomes  em seus  respectivos nós.  Podemos vê-los
+através do comando ~docker container ls~ em cada nó.
+
+Faremos com que esses contêineres sejam capazes de se comunicarem via nome.
+
+Começaremos acessando um dos contêineres.
+
+#+begin_src bash
+# Em vm2
+docker exec -it servico.1.dyov2ee4oan516soi32c1e3lp sh
+
+# Em vm3
+docker exec -it servico.2.iwncerpgzsmlqtjpol9yku6a1 sh
+#+end_src
+
+Vamos tentar conectar via nome:
+
+#+begin_src bash
+# Em servico.1.dyov2ee4oan516soi32c1e3lp
+ping servico.2.iwncerpgzsmlqtjpol9yku6a1
+#+end_src
+
+#+begin_src text
+ping: bad address 'servico.2.iwncerpgzsmlqtjpol9yku6a1'
+#+end_src
+
+Não conseguimos encontrar o contêiner via  nome. Porém, se usarmos diretamente o
+IP do  contêiner em questão (visível  via ~ip addr~), podemos  realizar o ~ping~
+sem problemas.
+
+** User-Defined Overlay
+
+Existe uma forma de contornar esse problema de os contêineres não conseguirem se
+comunicar pelo nome.
+
+Começaremos removendo todos os serviços por enquanto.
+
+#+begin_src bash
+# Em vm1
+docker service rm `docker service ls -q`
+#+end_src
+
+Agora, assim como podemos criar redes com driver ~bridge~ locais, podemos também
+criar redes ~overlay~ definidas pelo usuário.
+
+#+begin_src bash
+# Em vm1
+docker network create -d overlay my_overlay
+#+end_src
+
+A rede  estará acessível imediatamente para  todos os nós *que  são managers* no
+swarm, com o mesmo ID.
+
+Para os /workers/, porém, a rede é criada  de forma /lazy/: a rede só existirá a
+partir  do momento  em que  algum contêiner  que utilize  essa rede  for alocado
+dentro do nó /worker/.
+
+Vamos criar mais um serviço, dessa vez utilizando a rede criada.
+
+#+begin_src bash
+# Em vm1
+docker service create --name servico --network my_overlay --replicas 2 alpine sleep 1d
+docker service ps servico
+#+end_src
+
+Na  minha  máquina,  os  dois  serviços   estão  sendo  executados  em  ~vm3~  e
+~vm4~. ~vm3~  já sabia da existência  da rede ~my_overlay~, mas  ~vm4~, sendo um
+/worker/, só listará a rede via comando ~docker network ls~ a partir de agora.
+
+Se formos até ~vm4~ e inspecionarmos a rede:
+
+#+begin_src bash
+# Em vm4
+docker network inspect my_overlay
+#+end_src
+
+Neste caso, poderemos ver  a segunda réplica da tarefa, mas  não poderemos ver a
+primeira.  Isso ocorre  porque  o  comando ~network  inspect~  mostra apenas  os
+contêineres que existem dentro do nó que o executou.
+
+Todavia, se acessarmos o terminal do Alpine deste serviço...
+
+#+begin_src bash
+# Em vm4
+docker exec -it servico.2.oa0z60kiomgwkcj46cba6lj9f sh
+
+# Em servico.2.oa0z60kiomgwkcj46cba6lj9f
+PS1='servico.2.oa0z60kiomgwkcj46cba6lj9f:\w \$ ' # para facilitar
+#+end_src
+
+...simultaneamente, em outro terminal...
+
+#+begin_src bash
+# Em vm3
+docker exec -it servico.1.tabil9myv4jsp0ieedym4hf5a sh
+
+# Em servico.1.tabil9myv4jsp0ieedym4hf5a
+PS1='servico.1.tabil9myv4jsp0ieedym4hf5a:\w \$ ' # para facilitar
+#+end_src
+
+#+begin_src bash
+# Em servico.2.oa0z60kiomgwkcj46cba6lj9f
+ping servico.1.tabil9myv4jsp0ieedym4hf5a
+#+end_src
+
+#+begin_src bash
+# Em servico.1.tabil9myv4jsp0ieedym4hf5a
+ping servico.2.oa0z60kiomgwkcj46cba6lj9f
+#+end_src
+
+Agora, o comando ~ping~ magicamente funciona entre ambos os contêineres.
+
+Essa característica só é possível graças à rede ~overlay~ definida pelo usuário;
+os serviços conseguem descobrir uns aos outros pelo nome.
+
+*** Conectando também contêineres locais
+
+É  possível também  conectar contêineres  locais à  rede ~overlay~.  Para tanto,
+basta adicionar a flag ~--attachable~ durante a criação da rede:
+
+#+begin_src bash
+docker network create -d overlay --attachable my_overlay
+#+end_src
+
+Dessa  forma, contêineres  fora do  swarm, porém  em execução  nos nós,  poderão
+também ser descobertos pela rede.
+
+* Deploy com Docker Stack
+
+** Lembrando do Docker Compose
+
+Considere o arquivo ~docker-compose.yml~ a seguir, que serve meramente para uso local:
+
+#+begin_src docker-compose
+version: "3"
+services:
+
+  redis:
+    image: redis:alpine
+    networks:
+      - frontend
+        
+  db:
+    image: postgres:9.4
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    environment:
+        POSTGRES_HOST_AUTH_METHOD: trust
+
+  vote:
+    image: dockersamples/examplevotingapp_vote:before
+    ports:
+      - 5000:80
+    networks:
+      - frontend
+    depends_on:
+      - redis
+
+  result:
+    image: dockersamples/examplevotingapp_result:before
+    ports:
+      - 5001:80
+    networks:
+      - backend
+    depends_on:
+      - db
+
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - db
+      - redis
+
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - 8080:8080
+    stop_grace_period: 1m30s
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db-data:
+#+end_src
+
+Vamos modificá-lo para que se adeque ao Docker Swarm.
+
+** Definindo o arquivo de composição
+
+A partir  de agora, utilizaremos  o arquivo ~docker-compose.yml~ para  subir não
+apenas meros contêineres, mas também serviços em um swarm.
+
+Neste caso, teremos um serviço responsável por ser o visualizador de uso dos nós
+e serviços, bancos de dados, Redis, e também o cerne da aplicação que envolve um
+aplicativo de exemplo para votação entre gatos e cachorros.
+
+Para tanto, vamos modificar o arquivo anterior até que ele fique mais próximo da
+arquitetura do Swarm. Isso pode ser  feito principalmente a partir da versão ~3~
+do arquivo ~docker-compose.yaml~.
+
+A propriedade ~deploy~  é relacionada ao Docker Swarm. Ela  definirá o número de
+réplicas e a política de reinício de um serviço, por exemplo.
+
+#+begin_src docker-compose :tangle docker-compose.yml :exports none
+version: "3"
+services:
+#+end_src
+
+*** Redis (cache)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  redis:
+    image: redis:alpine
+    networks:
+      - frontend
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+#+end_src
+
+O Redis possuirá apenas uma réplica e se reiniciará em caso de falha.
+
+*** Banco de dados (PostgreSQL 9.4)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  db:
+    image: postgres:9.4
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    environment:
+        POSTGRES_HOST_AUTH_METHOD: trust
+#+end_src
+
+Para o  banco de dados,  definimos /constraints/ a respeito  de qual tipo  de nó
+pode abrigá-lo (no caso, apenas /managers/).
+
+*** Aplicação de voto (Python)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  vote:
+    image: dockersamples/examplevotingapp_vote:before
+    ports:
+      - 5000:80
+    networks:
+      - frontend
+    depends_on:
+      - redis
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+#+end_src
+
+O  serviço de  votação em  si pode  rodar em  qualquer tipo  de nó,  reinicia-se
+mediante falha, e possui duas réplicas.
+
+*Curiosidade:* a definição de nós a receberem tarefas envolve o uso do algoritmo
+round-robin.
+
+*** Aplicação de placar (Node.js)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  result:
+    image: dockersamples/examplevotingapp_result:before
+    ports:
+      - 5001:80
+    networks:
+      - backend
+    depends_on:
+      - db
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+#+end_src
+
+Para a  aplicação de placar,  a mesma possuirá uma  única réplica e  reinicia em
+condição de falha.
+
+*** Worker da votação (C#)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - db
+      - redis
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels: [APP=VOTING]
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == worker]
+#+end_src
+
+O papel desse serviço é fazer a comunicação  entre o cache no Redis e o banco de
+dados em PostgreSQL.
+
+Por padrão, este serviço já é  do tipo replicado, colocado ali explicitamente. A
+aplicação  executa  com  apenas  uma  réplica,  e  definimos  uma  /label/  para
+identificá-lo com maior facilidade. No caso, a etiqueta será ~APP=VOTING~.
+
+Definimos também  uma política de reinício  em caso de falha,  e adicionamos uma
+constraint que define que este nó só pode ser instanciado em um worker.
+
+*** Monitorador do deployment
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - 8080:8080
+    stop_grace_period: 1m30s
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+#+end_src
+
+O monitorador do serviço só pode rodar  em um /manager/ para que tenha acesso ao
+socket do Docker. Adicionamos essa constraint.
+
+A propriedade ~stop_grace_period~  simplesmente define o tempo  máximo de espera
+quando a execução de um contêiner for interrompida adequadamente.
+
+*** Extra: Tangling
+
+Este  arquivo  permite   realizar  /tangling/  do  arquivo   do  Docker  Compose
+gerado. Realize /tangling/ aqui para obtê-lo.
+
+#+begin_src docker-compose :tangle docker-compose.yml :exports none
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db-data:
+#+end_src
+
+** Subindo a stack
+
+O primeiro  passo é efetivamente  mover o arquivo ~docker-compose.yml~  para uma
+máquina virtual  que seja um  /manager/. Poderemos  usar a mesma  arquitetura de
+máquinas virtuais que estávamos usando (3 managers + 2 workers).
+
+*** Copiando o arquivo
+
+Existem várias  formas de  fazer isso, inclusive  no curso é  mostrado o  uso do
+input direto usando ~cat~. Não farei  isso. O comando ~docker-machine~ possui um
+subcomando   ~scp~,  que   permite  copiar   arquivos  via   SSH  para   uma  VM
+qualquer. Vamos copiar o arquivo para a ~vm1~ então:
+
+#+begin_src bash
+# No host
+docker-machine scp localhost:./docker-compose.yml vm1:/home/docker/docker-compose.yml
+#+end_src
+
+Isso  copiará o  arquivo ~docker-compose.yml~  para  a pasta  ~home~ do  usuário
+~docker~ em ~vm1~.
+
+*** Fazendo o deploy
+
+/Detalhe: Aqui, meu computador chorou. :')/
+
+Queremos  fazer o  deploy de  uma pilha  de serviços,  então usaremos  o comando
+~docker stack~, constrastável com o ~docker compose~:
+
+#+begin_src bash
+# Em vm1
+docker stack deploy --compose-file docker-compose.yml vote
+#+end_src
+
+Estamos realizando  deploy a partir  de um arquivo Compose,  e daremos o  nome à
+stack de ~vote~.
+
+Assim que o deploy terminar, podemos visualizar as nossas stacks:
+
+#+begin_src bash
+docker stack ls
+#+end_src
+
+Podemos também listar todos os serviços, com um formato especial:
+
+#+begin_src bash
+docker service ls --format "{{.Name}} {{.Replicas}}"
+#+end_src
+
+Poderemos também observar o status dos  nós através do visualizer, na porta 8080
+(use ~docker inspect~ em qualquer VM para obter um IP de algum nó).
+
+Acesse também  o placar na  porta 5001  e a votação  na porta 5000.  Você poderá
+também inspecionar o /binding/ de portas via ~docker service ls~.
+
+Não  se esqueça  também  de  inspecionar cada  serviço  com  ~docker service  ps
+<nome>~.
+
+*** Removendo toda a stack de uma só vez
+
+Para remover absolutamente toda a stack, podemos usar o comando a seguir.
+
+#+begin_src bash
+docker stack rm vote
+#+end_src
+
+** Volumes no Swarm
+
+O  Docker e  o Docker  Swarm compartilham  o mesmo  driver *local*  para uso  de
+volumes,  isso porque  o Swarm  não  tem uma  solução nativa  para usar  volumes
+distribuídos entre nós.
+
+Existem soluções não-nativas, porém, disponíveis no [[https://hub.docker.com/search?q=&type=plugin][Dockerhub]].
+
+* Mais tópicos
+
+Para mais tópicos, consulte a documentação do [[https://docs.docker.com/swarm/][Docker Swarm]].
+
+* Extra: removendo tudo
+
+#+begin_src bash
+docker-machine rm `docker-machine ls -q`
+#+end_src
+
+Pronto, vai lá tomar café.
