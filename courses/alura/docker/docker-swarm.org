@@ -746,3 +746,320 @@ docker network create -d overlay --attachable my_overlay
 Dessa  forma, contêineres  fora do  swarm, porém  em execução  nos nós,  poderão
 também ser descobertos pela rede.
 
+* Deploy com Docker Stack
+
+** Lembrando do Docker Compose
+
+Considere o arquivo ~docker-compose.yml~ a seguir, que serve meramente para uso local:
+
+#+begin_src docker-compose
+version: "3"
+services:
+
+  redis:
+    image: redis:alpine
+    networks:
+      - frontend
+        
+  db:
+    image: postgres:9.4
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    environment:
+        POSTGRES_HOST_AUTH_METHOD: trust
+
+  vote:
+    image: dockersamples/examplevotingapp_vote:before
+    ports:
+      - 5000:80
+    networks:
+      - frontend
+    depends_on:
+      - redis
+
+  result:
+    image: dockersamples/examplevotingapp_result:before
+    ports:
+      - 5001:80
+    networks:
+      - backend
+    depends_on:
+      - db
+
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - db
+      - redis
+
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - 8080:8080
+    stop_grace_period: 1m30s
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db-data:
+#+end_src
+
+Vamos modificá-lo para que se adeque ao Docker Swarm.
+
+** Definindo o arquivo de composição
+
+A partir  de agora, utilizaremos  o arquivo ~docker-compose.yml~ para  subir não
+apenas meros contêineres, mas também serviços em um swarm.
+
+Neste caso, teremos um serviço responsável por ser o visualizador de uso dos nós
+e serviços, bancos de dados, Redis, e também o cerne da aplicação que envolve um
+aplicativo de exemplo para votação entre gatos e cachorros.
+
+Para tanto, vamos modificar o arquivo anterior até que ele fique mais próximo da
+arquitetura do Swarm. Isso pode ser  feito principalmente a partir da versão ~3~
+do arquivo ~docker-compose.yaml~.
+
+A propriedade ~deploy~  é relacionada ao Docker Swarm. Ela  definirá o número de
+réplicas e a política de reinício de um serviço, por exemplo.
+
+#+begin_src docker-compose :tangle docker-compose.yml :exports none
+version: "3"
+services:
+#+end_src
+
+*** Redis (cache)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  redis:
+    image: redis:alpine
+    networks:
+      - frontend
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+#+end_src
+
+O Redis possuirá apenas uma réplica e se reiniciará em caso de falha.
+
+*** Banco de dados (PostgreSQL 9.4)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  db:
+    image: postgres:9.4
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    environment:
+        POSTGRES_HOST_AUTH_METHOD: trust
+#+end_src
+
+Para o  banco de dados,  definimos /constraints/ a respeito  de qual tipo  de nó
+pode abrigá-lo (no caso, apenas /managers/).
+
+*** Aplicação de voto (Python)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  vote:
+    image: dockersamples/examplevotingapp_vote:before
+    ports:
+      - 5000:80
+    networks:
+      - frontend
+    depends_on:
+      - redis
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+#+end_src
+
+O  serviço de  votação em  si pode  rodar em  qualquer tipo  de nó,  reinicia-se
+mediante falha, e possui duas réplicas.
+
+*Curiosidade:* a definição de nós a receberem tarefas envolve o uso do algoritmo
+round-robin.
+
+*** Aplicação de placar (Node.js)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  result:
+    image: dockersamples/examplevotingapp_result:before
+    ports:
+      - 5001:80
+    networks:
+      - backend
+    depends_on:
+      - db
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+#+end_src
+
+Para a  aplicação de placar,  a mesma possuirá uma  única réplica e  reinicia em
+condição de falha.
+
+*** Worker da votação (C#)
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - db
+      - redis
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels: [APP=VOTING]
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: [node.role == worker]
+#+end_src
+
+O papel desse serviço é fazer a comunicação  entre o cache no Redis e o banco de
+dados em PostgreSQL.
+
+Por padrão, este serviço já é  do tipo replicado, colocado ali explicitamente. A
+aplicação  executa  com  apenas  uma  réplica,  e  definimos  uma  /label/  para
+identificá-lo com maior facilidade. No caso, a etiqueta será ~APP=VOTING~.
+
+Definimos também  uma política de reinício  em caso de falha,  e adicionamos uma
+constraint que define que este nó só pode ser instanciado em um worker.
+
+*** Monitorador do deployment
+
+#+begin_src docker-compose :tangle docker-compose.yml
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - 8080:8080
+    stop_grace_period: 1m30s
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+#+end_src
+
+O monitorador do serviço só pode rodar  em um /manager/ para que tenha acesso ao
+socket do Docker. Adicionamos essa constraint.
+
+A propriedade ~stop_grace_period~  simplesmente define o tempo  máximo de espera
+quando a execução de um contêiner for interrompida adequadamente.
+
+*** Extra: Tangling
+
+Este  arquivo  permite   realizar  /tangling/  do  arquivo   do  Docker  Compose
+gerado. Realize /tangling/ aqui para obtê-lo.
+
+#+begin_src docker-compose :tangle docker-compose.yml :exports none
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db-data:
+#+end_src
+
+** Subindo a stack
+
+O primeiro  passo é efetivamente  mover o arquivo ~docker-compose.yml~  para uma
+máquina virtual  que seja um  /manager/. Poderemos  usar a mesma  arquitetura de
+máquinas virtuais que estávamos usando (3 managers + 2 workers).
+
+*** Copiando o arquivo
+
+Existem várias  formas de  fazer isso, inclusive  no curso é  mostrado o  uso do
+input direto usando ~cat~. Não farei  isso. O comando ~docker-machine~ possui um
+subcomando   ~scp~,  que   permite  copiar   arquivos  via   SSH  para   uma  VM
+qualquer. Vamos copiar o arquivo para a ~vm1~ então:
+
+#+begin_src bash
+# No host
+docker-machine scp localhost:./docker-compose.yml vm1:/home/docker/docker-compose.yml
+#+end_src
+
+Isso  copiará o  arquivo ~docker-compose.yml~  para  a pasta  ~home~ do  usuário
+~docker~ em ~vm1~.
+
+*** Fazendo o deploy
+
+/Detalhe: Aqui, meu computador chorou. :')/
+
+Queremos  fazer o  deploy de  uma pilha  de serviços,  então usaremos  o comando
+~docker stack~, constrastável com o ~docker compose~:
+
+#+begin_src bash
+# Em vm1
+docker stack deploy --compose-file docker-compose.yml vote
+#+end_src
+
+Estamos realizando  deploy a partir  de um arquivo Compose,  e daremos o  nome à
+stack de ~vote~.
+
+Assim que o deploy terminar, podemos visualizar as nossas stacks:
+
+#+begin_src bash
+docker stack ls
+#+end_src
+
+Podemos também listar todos os serviços, com um formato especial:
+
+#+begin_src bash
+docker service ls --format "{{.Name}} {{.Replicas}}"
+#+end_src
+
+Poderemos também observar o status dos  nós através do visualizer, na porta 8080
+(use ~docker inspect~ em qualquer VM para obter um IP de algum nó).
+
+Acesse também  o placar na  porta 5001  e a votação  na porta 5000.  Você poderá
+também inspecionar o /binding/ de portas via ~docker service ls~.
+
+Não  se esqueça  também  de  inspecionar cada  serviço  com  ~docker service  ps
+<nome>~.
+
+*** Removendo toda a stack de uma só vez
+
+Para remover absolutamente toda a stack, podemos usar o comando a seguir.
+
+#+begin_src bash
+docker stack rm vote
+#+end_src
+
+** Volumes no Swarm
+
+O  Docker e  o Docker  Swarm compartilham  o mesmo  driver *local*  para uso  de
+volumes,  isso porque  o Swarm  não  tem uma  solução nativa  para usar  volumes
+distribuídos entre nós.
+
+Existem soluções não-nativas, porém, disponíveis no [[https://hub.docker.com/search?q=&type=plugin][Dockerhub]].
+
+* Mais tópicos
+
+Para mais tópicos, consulte a documentação do [[https://docs.docker.com/swarm/][Docker Swarm]].
+
+* Extra: removendo tudo
+
+#+begin_src bash
+docker-machine rm `docker-machine ls -q`
+#+end_src
+
+Pronto, vai lá tomar café.
