@@ -220,7 +220,7 @@ referência para data science e Python, mesmo.
 
 Cursos de [[https://cursos.alura.com.br/course/docker-criando-gerenciando-containers][Docker]] e [[https://cursos.alura.com.br/course/docker-swarm-cluster-container][Docker Swarm]] da Alura.
 
-**** COMMENT ~kubernetes~
+**** ~kubernetes~
 
 Cursos  de Kubernetes:  [[https://cursos.alura.com.br/course/kubernetes-pods-services-configmap][Pods, Services  e  ConfigMaps]] e  [[https://cursos.alura.com.br/course/kubernetes-deployments-volumes-escalabilidade][Deployments, Volumes  e
 Escalabilidade]] na Alura.
