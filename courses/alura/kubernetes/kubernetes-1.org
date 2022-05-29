@@ -1,0 +1,74 @@
+#+title: Kubernetes: Pods, Services e ConfigMaps
+
+* Conhecendo o Kubernetes
+
+** O que é o Kubernetes?
+
+Primeiro vamos falar de escalabilidade:
+
+- /Escalabilidade vertical/: Quando resolvemos um problema de limitação de poder
+  computacional comprando hardware mais potente.
+- /Escalabilidade  horizontal/: Quando  resolvemos um  problema de  limitação de
+  poder  computacional  adicionando  mais  máquinas  para  dividir  o  trabalho,
+  evitando sobrecarga de uma máquina só.
+
+O  Kubernetes  é capaz  de  lidar  com  questões de  escalabilidade  horizontal,
+justamente gerenciando  /clusters/. O Kubernetes  pode operar na AWS,  na Google
+Cloud Platform, na Azure ou mesmo com Minikube (localmente).
+
+** Arquitetura do Kubernetes
+
+O  Kubernetes não  é apenas  um  orquestrador de  contêineres, também  possuindo
+/resources/ prontos para cada tipo de caso.
+
+Exemplo: Para persistência de dados,  é possível utilizar um ~PersistentVolume~;
+para encapsular  contêineres, é possível usar  um ~Pod~ (uma vez  que Kubernetes
+não lida diretamente com os contêineres); etc.
+
+Com isso, é  possível construir aplicações complexas com  balanceamento de carga
+entre /pods/,  que podem estar sendo  gerenciados por um /ReplicaSet/,  que pode
+estar sendo gerenciado por um /deployment/,  e que portanto pode ser escalado. É
+possível  também  escalar  /pods/  horizontalmente  usando  um  /horizontal  pod
+autoscaler/.
+
+O  Kubernetes gerencia  um  cluster de  máquinas, e  as  máquinas podem  receber
+denominações diferentes. Uma máquina pode ser  um ~master~, capaz de coordenar e
+gerenciar o cluster, ou pode ser um  ~node~, que realizam a execução do trabalho
+duro.
+
+Em geral, uma máquina ~master~ é responsável por /gerenciar o cluster/, /manter
+e  atualizar o  estado  desejado/, e  /receber e  executar  novos comandos/.  Em
+contrapartida, o ~node~ é apenas incumbido de /executar as aplicações/.
+
+Um ~master~ possui um *Control Plane*, que possui os seguintes componentes:
+
+- A /API/, que recebe e executa os comandos via REST;
+- O /ControllerManager/, que mantém e atualiza o estado desejado;
+- O  /Scheduler/,  responsável  por   definir  quando  determinado  código  será
+  executado no cluster;
+- O ~etcd~, responsável por armazenar todos  os dados vitais do cluster, através
+  de um banco de dados chave-valor.
+
+Um *Node* possui os seguintes componentes:
+
+- O /kubelet/, responsável pela execução dos pods dentro do node;
+- O /kube-proxy/, responsável pela comunicação entre os nodes dentro do cluster.
+
+A /API/ do *Control Plane* é a responsável por efetuar toda a comunicação com os
+*Nodes*. Sendo assim, a comunicação externa é feita sempre com a /API/; para nos
+comunicarmos com a mesma, usamos uma ferramenta CLI chamada ~kubectl~.
+
+O ~kubectl~ é capaz  de enviar comandos de CRUD para a /API/,  e pode fazer isso
+de  forma declarativa  (com  arquivos de  definição)  ou imperativa  (executando
+comandos diretamente).
+
+* Criando o cluster
+
+* Criando e entendendo pods
+
+* Expondo pods com services
+
+* Aplicando services ao projeto
+
+* Definindo variáveis de ambiente
+
