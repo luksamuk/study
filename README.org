@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2021-11-27 sáb]
+Última atualização: [2022-05-29 dom]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -213,7 +213,34 @@ Cursos variados de várias plataformas.
 
 **** =machine-learning=
 
-Notas do [[https://www.udemy.com/course/masterclass-algoritmos-de-machine-learning/][Curso de Algoritmos de MACHINE LEARNING]] da Udemy.
+Notas  do  [[https://www.udemy.com/course/masterclass-algoritmos-de-machine-learning/][Curso  de Algoritmos  de  MACHINE  LEARNING]]  da  Udemy. Use  só  como
+referência para data science e Python, mesmo.
+
+**** ~docker~
+
+Cursos de [[https://cursos.alura.com.br/course/docker-criando-gerenciando-containers][Docker]] e [[https://cursos.alura.com.br/course/docker-swarm-cluster-container][Docker Swarm]] da Alura.
+
+**** COMMENT ~kubernetes~
+
+Cursos  de Kubernetes:  [[https://cursos.alura.com.br/course/kubernetes-pods-services-configmap][Pods, Services  e  ConfigMaps]] e  [[https://cursos.alura.com.br/course/kubernetes-deployments-volumes-escalabilidade][Deployments, Volumes  e
+Escalabilidade]] na Alura.
+
+**** COMMENT ~ci-cd~
+
+Cursos de [[https://cursos.alura.com.br/course/desenvolvimento-software-integracao-continua][Integração Contínua]] e [[https://cursos.alura.com.br/course/entrega-continua-confiabilidade-qualidade][Entrega Contínua]] na Alura.
+
+**** COMMENT ~microservices~
+
+Cursos  de  Microsserviços:  [[https://cursos.alura.com.br/course/microsservicos-padroes-projeto][Padrões  de  projeto]],  [[https://cursos.alura.com.br/course/fundamentos-microsservicos-aprofundando-conceitos][Explorando  os  Conceitos]]  e
+[[https://cursos.alura.com.br/course/Microsservicos-pratica-tomada-decisoes][Microsserviços na Prática]] da Alura.
+
+**** COMMENT ~jenkins~
+
+Cursos de [[https://cursos.alura.com.br/course/jenkins-integracao-continua][Jenkins]] e [[https://cursos.alura.com.br/course/pipeline-ci-jenkins-docker][Jenkins e Docker]] da Alura.
+
+**** COMMENT ~vagrant~
+
+Curso de [[https://cursos.alura.com.br/course/vagrant-gerenciando-maquinas-virtuais][Vagrant]] da Alura.
 
 * Licenciamento
 
