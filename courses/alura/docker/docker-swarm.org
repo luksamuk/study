@@ -564,4 +564,185 @@ executado em cada nó.
 Serviços de  monitoramento e segurança  são exemplos  de serviços que  podem ser
 executados de forma global.
 
+* Driver Overlay
+
+** A rede ingress
+
+Vamos observar as redes de um nó.
+
+#+begin_src bash
+# Em vm1
+docker network ls
+#+end_src
+
+Temos alguns tipos de drivers na lista que aparece:
+
+- ~bridge~: Conecta contêineres dentro de um mesmo host.
+- ~host~: Realiza comunicação entre contêiner e a máquina que o hospeda.
+- ~null~: Nenhuma rede.
+- ~overlay~: Relacionado ao Swarm.
+
+A rede de nome ~ingress~ usa um  driver ~overlay~. Essa rede terá sempre o mesmo
+ID para todos os nós, desde que façam parte do swarm.
+
+Como temos essa única rede entre  todos os nós, podemos fazer comunicação direta
+entre os mesmos, com a segurança de uma rede criptografada via TLS.
+
+O driver  ~overlay~, portanto,  comunica seus dados  de maneira  criptografada e
+permite a comunicação entre diferentes hosts de um mesmo cluster.
+
+** Service Discovery
+
+Service Discovery é o ato de descobrir um  serviço a partir do nome do mesmo, ao
+invés do uso de um IP direto.
+
+É possível realizar Service Discovery através de uma rede ~overlay~.
+
+Vamos criar um novo serviço, dessa vez dando um nome a ele.
+
+#+begin_src bash
+# Em vm1
+docker service rm <id_do_servico>
+docker service create --name servico --replicas 2 alpine sleep 1d
+#+end_src
+
+Criamos um serviço chamado ~servico~, com  duas réplicas, tal que estes serviços
+sejam instâncias do Alpine Linux, que estará executando o comando ~sleep~ por um
+dia.
+
+#+begin_src bash
+# Em vm1
+docker service ps servico
+#+end_src
+
+As tarefas listadas no comando anterior possuem nomes específicos (~servico.1~ e
+~servico.2~), e  serão executadas em dois  nós diferentes (no meu  caso, ~vm2~ e
+~vm3~).
+
+Os  contêineres também  possuem nomes  em seus  respectivos nós.  Podemos vê-los
+através do comando ~docker container ls~ em cada nó.
+
+Faremos com que esses contêineres sejam capazes de se comunicarem via nome.
+
+Começaremos acessando um dos contêineres.
+
+#+begin_src bash
+# Em vm2
+docker exec -it servico.1.dyov2ee4oan516soi32c1e3lp sh
+
+# Em vm3
+docker exec -it servico.2.iwncerpgzsmlqtjpol9yku6a1 sh
+#+end_src
+
+Vamos tentar conectar via nome:
+
+#+begin_src bash
+# Em servico.1.dyov2ee4oan516soi32c1e3lp
+ping servico.2.iwncerpgzsmlqtjpol9yku6a1
+#+end_src
+
+#+begin_src text
+ping: bad address 'servico.2.iwncerpgzsmlqtjpol9yku6a1'
+#+end_src
+
+Não conseguimos encontrar o contêiner via  nome. Porém, se usarmos diretamente o
+IP do  contêiner em questão (visível  via ~ip addr~), podemos  realizar o ~ping~
+sem problemas.
+
+** User-Defined Overlay
+
+Existe uma forma de contornar esse problema de os contêineres não conseguirem se
+comunicar pelo nome.
+
+Começaremos removendo todos os serviços por enquanto.
+
+#+begin_src bash
+# Em vm1
+docker service rm `docker service ls -q`
+#+end_src
+
+Agora, assim como podemos criar redes com driver ~bridge~ locais, podemos também
+criar redes ~overlay~ definidas pelo usuário.
+
+#+begin_src bash
+# Em vm1
+docker network create -d overlay my_overlay
+#+end_src
+
+A rede  estará acessível imediatamente para  todos os nós *que  são managers* no
+swarm, com o mesmo ID.
+
+Para os /workers/, porém, a rede é criada  de forma /lazy/: a rede só existirá a
+partir  do momento  em que  algum contêiner  que utilize  essa rede  for alocado
+dentro do nó /worker/.
+
+Vamos criar mais um serviço, dessa vez utilizando a rede criada.
+
+#+begin_src bash
+# Em vm1
+docker service create --name servico --network my_overlay --replicas 2 alpine sleep 1d
+docker service ps servico
+#+end_src
+
+Na  minha  máquina,  os  dois  serviços   estão  sendo  executados  em  ~vm3~  e
+~vm4~. ~vm3~  já sabia da existência  da rede ~my_overlay~, mas  ~vm4~, sendo um
+/worker/, só listará a rede via comando ~docker network ls~ a partir de agora.
+
+Se formos até ~vm4~ e inspecionarmos a rede:
+
+#+begin_src bash
+# Em vm4
+docker network inspect my_overlay
+#+end_src
+
+Neste caso, poderemos ver  a segunda réplica da tarefa, mas  não poderemos ver a
+primeira.  Isso ocorre  porque  o  comando ~network  inspect~  mostra apenas  os
+contêineres que existem dentro do nó que o executou.
+
+Todavia, se acessarmos o terminal do Alpine deste serviço...
+
+#+begin_src bash
+# Em vm4
+docker exec -it servico.2.oa0z60kiomgwkcj46cba6lj9f sh
+
+# Em servico.2.oa0z60kiomgwkcj46cba6lj9f
+PS1='servico.2.oa0z60kiomgwkcj46cba6lj9f:\w \$ ' # para facilitar
+#+end_src
+
+...simultaneamente, em outro terminal...
+
+#+begin_src bash
+# Em vm3
+docker exec -it servico.1.tabil9myv4jsp0ieedym4hf5a sh
+
+# Em servico.1.tabil9myv4jsp0ieedym4hf5a
+PS1='servico.1.tabil9myv4jsp0ieedym4hf5a:\w \$ ' # para facilitar
+#+end_src
+
+#+begin_src bash
+# Em servico.2.oa0z60kiomgwkcj46cba6lj9f
+ping servico.1.tabil9myv4jsp0ieedym4hf5a
+#+end_src
+
+#+begin_src bash
+# Em servico.1.tabil9myv4jsp0ieedym4hf5a
+ping servico.2.oa0z60kiomgwkcj46cba6lj9f
+#+end_src
+
+Agora, o comando ~ping~ magicamente funciona entre ambos os contêineres.
+
+Essa característica só é possível graças à rede ~overlay~ definida pelo usuário;
+os serviços conseguem descobrir uns aos outros pelo nome.
+
+*** Conectando também contêineres locais
+
+É  possível também  conectar contêineres  locais à  rede ~overlay~.  Para tanto,
+basta adicionar a flag ~--attachable~ durante a criação da rede:
+
+#+begin_src bash
+docker network create -d overlay --attachable my_overlay
+#+end_src
+
+Dessa  forma, contêineres  fora do  swarm, porém  em execução  nos nós,  poderão
+também ser descobertos pela rede.
 
