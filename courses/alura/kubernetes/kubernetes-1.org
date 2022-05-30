@@ -555,5 +555,161 @@ spec:
 
 * Aplicando services ao projeto
 
+** Acessando o portal
+
+Vamos  começar removendo  todos os  pods  em execução  e colocando  o portal  de
+notícias como ~NodePort~.
+
+#+begin_src bash
+kubectl delete pods --all
+kubectl delete svc --all
+#+end_src
+
+A partir  de agora, vamos trabalhar  só com o arquivo  ~portal-noticias.yaml~, e
+criar mais arquivos de acordo com o necessário.
+
+Definiremos labels e a porta do contêiner para fins de documentação.
+
+#+begin_src yaml
+# Em portal-noticias.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: portal-noticias
+  labels:
+    app: portal-noticias
+spec:
+  containers:
+    - name: portal-noticias-container
+      image: aluracursos/portal-noticias:1
+      ports:
+        - containerPort: 80
+#+end_src
+
+Agora    criaremos    o    serviço    para   o    portal    de    notícias    em
+~svc-portal-noticias.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-portal-noticias
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      #targetPort: 80
+      nodePort: 30000
+  selector:
+    app: portal-noticias
+#+end_src
+
+Vamos agora aplicar ambas as configurações.
+
+#+begin_src bash
+kubectl apply -f portal-noticias.yaml
+kubectl apply -f svc-portal-noticias.yaml
+#+end_src
+
+No Linux, veja o IP do nó com ~kubectl get node -o wide~, em ~INTERNAL-IP~.
+
+** Subindo o sistema
+
+Agora, vamos  criar um serviço e  um pod responsáveis pelo  sistema de notícias,
+onde as notícias  efetivamente farão o cadastro das notícias  que serão exibidas
+no portal.
+
+Vamos criar o pod com ~sistema-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sistema-noticias
+  labels:
+    app: sistema-noticias
+spec:
+  containers:
+    - name: sistema-noticias-container
+      image: aluracursos/sistema-noticias:1
+      ports:
+        - containerPort: 80
+#+end_src
+
+Em ~svc-sistema-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-sistema-noticias
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      nodePort: 30001
+  selector:
+    app: sistema-noticias
+#+end_src
+
+Aplicando:
+
+#+begin_src bash
+kubectl apply -f sistema-noticias.yaml
+kubectl apply -f svc-sistema-noticias.yaml
+#+end_src
+
+** Subindo o banco
+
+Agora, precisamos de um banco de dados para armazenar as notícias.
+
+Como o mesmo  será acessível dentro do cluster apenas,  podemos criar um serviço
+~ClusterIP~ para ele.
+
+Para isso, criaremos ~db-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+#+end_src
+
+Adicionalmente, definimos o serviço em ~svc-db-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-db-noticias
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+  selector:
+    app: db-noticias
+#+end_src
+
+Para aplicar:
+
+#+begin_src bash
+kubectl apply -f db-noticias.yaml
+kubectl apply -f svc-db-noticias.yaml
+#+end_src
+
+Se executarmos ~kubectl get pods~, veremos que ocorreu um erro ao criar o pod de
+~db-noticias~!
+
+Se  dermos ~describe~  neste pod,  veremos que  precisamos definir  variáveis de
+ambiente para o MySQL.
+
 * Definindo variáveis de ambiente
 
