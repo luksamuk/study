@@ -64,7 +64,231 @@ comandos diretamente).
 
 * Criando o cluster
 
+** Inicializando o cluster no Windows
+
+O  Docker  Desktop  já  possui  ferramentas para  inicialização  de  um  cluster
+Kubernetes embutido.
+
+Instale o  Docker Desktop, abra-o,  clique nas configurações, aba  Kubernetes, e
+marque Enable Kubernetes. Clique em Apply & Restart.
+
+Para verificar se está funcionando, abra o PowerShell e digite:
+
+#+begin_src powershell
+kubectl get nodes
+#+end_src
+
+** Inicializando o cluster no Linux
+
+Instale o ~kubectl~ manualmente (veja a [[https://kubernetes.io/docs/tasks/tools/install-kubectl/][documentação no site do Kubernetes]]);
+
+Para verificar se ele está funcionando:
+
+#+begin_src bash
+kubectl version --client
+#+end_src
+
+Caso seja executado  o ~kubectl get nodes~, haverá um  erro de conexão recusada,
+pois ainda não temos um cluster.
+
+Para criarmos um ambiente virtualizado com um cluster, instale o [[https://kubernetes.io/docs/tasks/tools/install-minikube/][Minikube]].
+
+Para  criar o  cluster  com o  Minikube, precisaremos  também  ter o  [[https://virtualbox.org][VirtualBox]]
+instalado, pois utilizaremos o mesmo como driver de VM.
+
+Para iniciar (será necessario executar a cada boot):
+
+#+begin_src bash
+minikube start --vm-driver=virtualbox
+#+end_src
+
+Para verificar se está executando:
+
+#+begin_src bash
+kubectl get nodes
+#+end_src
+
+** Inicializando o cluster no GCP
+
+Você pode criar seu cluster Kubernetes em https://cloud.google.com.
+
+*ATENÇÃO: VOCÊ PROVAVELMENTE VAI SER COBRADO POR ISSO. USE COM MUITA CAUTELA.*
+
 * Criando e entendendo pods
+
+** Entendendo o que são pods
+
+*Pods* são análogos aos /contêineres/ do Docker.
+
+Um /pod/ (cápsula) contém um ou mais  contêineres dentro de si. Na prática, isso
+significa  que  o   ~kubectl~  sempre  requisita,  de   maneira  declarativa  ou
+imperativa, a criação de um /pod/, que pode encapsular um ou mais contêineres.
+
+Sempre que um /pod/ é criado, este  /pod/ recebe um endereço IP. Dessa forma, um
+endereço IP não é  mais de um /contêiner/, e sim de um  /pod/ inteiro. Assim, as
+portas  dos  contêineres  nele  contidos são  mapeadas  automaticamente  para  o
+/pod/. Por isso mesmo, contêineres em um /pod/ não podem ter conflito de porta.
+
+Além disso,  um /pod/ para  de funcionar quando  todos os contêineres  dentro do
+mesmo  parem  de funcionar.  Nesse  caso,  o  Kubernetes  tem a  autonomia  para
+recriá-los.  Todavia,  eles   não  terão  o  mesmo  IP.  Isso   devido  a  outra
+característica dos /pods/: *eles são efêmeros*.
+
+/Pods/ também compartilham  /namespaces/ de rede e  de comunicação interprocesso
+(IPC),  e  podem  também  compartilhar   volumes.  Portanto,  eles  podem  fazer
+comunicação entre si via ~localhost~. Do contrário, podem fazer comunicações via
+IP do /pod/.
+
+** O primeiro pod
+
+Para criar um /pod/:
+
+#+begin_src bash
+kubectl run <nome-do-pod> --image=<nome-da-imagem>
+#+end_src
+
+No nosso caso:
+
+#+begin_src bash
+kubectl run nginx-pod --image=nginx:latest
+#+end_src
+
+Após a criação, poderemos consultar o status da criação do pod:
+
+#+begin_src bash
+kubectl get pods --watch
+#+end_src
+
+Extra: para deletar um pod:
+
+#+begin_src bash
+kubectl delete pod <nome-do-pod>
+#+end_src
+
+Para capturar informações do pod:
+
+#+begin_src bash
+kubectl describe pod <nome-do-pod>
+#+end_src
+
+Pela descrição, fica claro pelos eventos que a criação em si do pod foi agendada
+pelo Scheduler.
+
+Se, por exemplo, eu quisesse editar o pod para que o mesmo utilizasse uma versão
+específica do ~nginx~:
+
+#+begin_src bash
+kubectl edit pod nginx-pod
+#+end_src
+
+Extra: Para abrir no Emacs:
+
+#+begin_src bash
+export KUBE_EDITOR='emacsclient -a emacs'
+#+end_src
+
+Em ~spec>containers>image~, troque a imagem para ~nginx:1.0~. Isso, todavia, nos
+dará um  erro de ~ErrImagePull~ (se  consultarmos o pod via  ~describe~), porque
+esta /tag/ do ~nginx~ não existe.  O /status/ então muda para ~ImagePullBackOff~
+no ~get~.
+
+** Criando pods de maneira declarativa
+
+Criaremos todos os arquivos no diretório destas notas. Começaremos com o arquivo
+~primeiro-pod.yaml~.
+
+Precisamos informar uma ~apiVersion~, pois a  API era um programa unificado, mas
+agora foi desmembrado em mais partes (~alpha~, ~beta~ e ~stable~).
+
+No caso  da versão  ~stable~, existem grupos  denominados como  números inteiros
+(ex: ~v1~, que vamos utilizar).
+
+O tipo (~kind~) do recurso a ser criado será um ~Pod~.
+
+Em seguida, definimos  os metadados (~metadata~) do Pod, como  seu nome (~name~)
+-- /essa informação é obrigatória/.
+
+Agora, trataremos das especificações (~spec~).  Nesse caso, teremos um contêiner
+que possui um nome ~nginx-container~, e utilizar a imagem ~nginx:latest~.
+
+O arquivo ficará assim:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: primeiro-pod-declarativo
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+#+end_src
+
+Agora, basta pedirmos  para o Kubernetes aplicar nosso arquivo  de definição via
+console:
+
+#+begin_src bash
+kubectl apply -f primeiro-pod.yaml
+#+end_src
+
+Em seguida, vamos  trocar a imagem do contêiner para  ~nginx:stable~ e aplicar o
+arquivo novamente. Como o pod já foi criado, o mesmo será reconfigurado.
+
+** Iniciando o projeto
+
+Vamos  remover os  pods  anteriores.  Podemos remover  pods  definidos de  forma
+imperativa e também declarativa.
+
+#+begin_src bash
+kubectl delete pod nginx-pod
+kubectl delete -f primeiro-pod.yaml
+#+end_src
+
+Para  criar o  projeto, trabalharemos  em  cima de  um portal  de notícias,  mas
+seguindo todas as boas práticas do Kubernetes.
+
+Vamos criar um arquivo ~portal-noticias.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: portal-noticias
+spec:
+  containers:
+    - name: portal-noticias-container
+      image: aluracursos/portal-noticias:1
+#+end_src
+
+Vamos acessar essa aplicação. A primeira forma de fazer isso é via ~describe~.
+
+#+begin_src bash
+kubectl describe pod portal-noticias
+#+end_src
+
+Se  tentarmos acessar  esse IP,  veremos que  algo está  errado, por  existe uma
+demora no processo.
+
+Podemos acessar diretamente o /pod/ para avaliar se tudo está funcionando:
+
+#+begin_src bash
+kubectl exec -it portal-noticias -- bash
+#+end_src
+
+Se dermos um ~curl~ para avaliar, dentro do pod, se a página é retornada...
+
+#+begin_src bash
+# Em portal-noticias
+curl localhost
+#+end_src
+
+...veremos  que a  página  é retornada  como esperado.  Porém,  isso não  ocorre
+externamente.
+
+Isso  ocorre --  se  verificarmos no  ~describe~ --  porque  o IP  anteriormente
+descrito só  funciona para  acesso *dentro  do cluster*. Mais  do que  isso, não
+existe  mapeamento  entre  o IP  do  /pod/  e  o  contêiner em  si!  Igualmente,
+precisaremos permitir que o IP também seja acessível ao mundo externo.
 
 * Expondo pods com services
 
