@@ -292,6 +292,267 @@ precisaremos permitir que o IP também seja acessível ao mundo externo.
 
 * Expondo pods com services
 
+** Conhecendo services
+
+Podemos ver mais dados de pods com o comando:
+
+#+begin_src bash
+kubectl get pods -o wide
+#+end_src
+
+Como não  temos controle sobre  o IP de um  /pod/, precisamos de  uma estratégia
+para que  possamos referenciar sempre  um mesmo /pod/,  ou além disso,  para que
+possamos garantir que /pods/ possam referenciar-se dentro do cluster.
+
+Para resolver isso, vamos usar um /service/.
+
+Um  /service/ é  uma  abstração  para expor  aplicações  executando  um ou  mais
+/pods/. É  capaz de prover  IPs fixos para comunicação,  e também prover  um DNS
+para  um ou  mais /pods/.  Além disso,  são capazes  de fazer  /balanceamento de
+carga/.
+
+Um  /serviço/  pode  possuir um  dos  três  seguintes  tipos,  cada um  com  sua
+finalidade específica:
+
+- ~ClusterIP~;
+- ~NodePort~;
+- ~LoadBalancer~.
+
+** Criando um Cluster IP
+
+Um serviço  do tipo ~ClusterIP~  serve para  fazer a comunicação  entre diversos
+/pods/ dentro de  um mesmo cluster. Um  serviço diz respeito sempre  a um /pod/,
+portanto, para se comunicar com outro  /pod/, ambos devem ter serviços atrelados
+que permitam esse tipo de comunicação.
+
+O ~ClusterIP~ serve, portanto, apenas para comunicação /interna/.
+
+Vamos   começar  com   um   arquivo   de  definição   para   o  primeiro   /pod/
+(~pod-1.yaml~).    Dessa   vez,    deixamos   claro    usando   a    propriedade
+~spec.containers[0].ports[0].containerPort~ que a porta escutada é a porta ~80~,
+para o container ~container-pod-1~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+spec:
+  containers:
+    - name: container-pod-1
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+Vamos criar o segundo /pod/ (~pod-2.yaml~):
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-2
+spec:
+  containers:
+    - name: container-pod-2
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+Agora, basta aplicarmos ambos os arquivos.
+
+#+begin_src bash
+kubectl apply -f pod-1.yaml
+kubectl apply -f pod-2.yaml
+#+end_src
+
+Agora, teremos três pods em execução: ~portal-noticias~, ~pod-1~ e ~pod-2~.
+
+O  próximo  passo  será  criar  uma maneira  estável  de  nos  comunicarmos  com
+~pod-2~. Para tanto, vamos criar um serviço para esse pod em ~svc-pod-2.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-2
+spec:
+  type: ClusterIP
+#+end_src
+
+Agora, temos a questão principal: para que o serviço saiba, de fato, que precisa
+se comunicar com  o recurso do ~pod-2~, precisamos /etiquetar/  o nosso ~pod-2~,
+usando  /labels/. Para  tanto, vamos  fazer  modificações em  ~pod-2.yaml~ e  em
+~svc-pod-2.yaml~:
+
+#+begin_src yaml
+# pod-2.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-2
+  labels:
+    app: segundo-pod
+spec:
+  containers:
+    - name: container-pod-2
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+Veja  que as  /labels/ são  relações chave-valor  relativamente livres.  Temos a
+liberdade para defini-las como quisermos. O importante é manter a semântica.
+
+#+begin_src yaml
+# svc-pod-2.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-2
+spec:
+  type: ClusterIP
+  selector:
+    app: segundo-pod
+  ports:
+    - port: 80
+#+end_src
+
+O atributo /selector/ do serviço fará uma seleção de acordo com os /labels/ para
+selecionar os recursos  do serviço. Igualmente, o atributo /ports/  define que o
+serviço ouve na porta 80, mas também despacha para os /pods/ a ele associados na
+porta 80.
+
+Podemos inspecionar o serviço e o pod:
+
+#+begin_src bash
+kubectl get pods
+kubectl describe pod pod-2
+
+kubectl get svc
+kubectl describe svc svc-pod-2
+#+end_src
+
+Vamos tentar nos conectar a ~pod-2~ através de ~pod-1~:
+
+#+begin_src bash
+kubectl exec -it pod-1 -- bash
+
+# Em pod-1
+curl <ip-do-pod-2>:80
+#+end_src
+
+Caso deletemos ~pod-2~, o serviço continuará em execução, ouvindo na porta ~80~,
+mas  não terá  para  onde despachar  quaisquer requisições  nessa  porta, o  que
+ocasionará uma conexão recusada.
+
+Caso fosse  necessário o  serviço ouvir  em outra porta,  por exemplo,  na 9000,
+e ainda despachar para o pod na porta 80, usaríamos como propriedade o seguinte:
+
+#+begin_src yaml
+ports:
+  - port: 9000
+    targetPort: 80
+#+end_src
+
+** Criando um Node Port
+
+Um serviço do tipo ~NodePort~ permite  realizar comunicação com o mundo externo,
+e também funciona dentro do cluster como um ~ClusterIP~.
+
+Vamos expor o ~pod-1~ para o mundo.
+
+#+begin_src yaml
+# pod-1.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+  labels:
+    app: primeiro-pod
+spec:
+  containers:
+    - name: container-pod-1
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+#+begin_src yaml
+# svc-pod-1.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-1
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+  selector:
+    app: primeiro-pod
+#+end_src
+
+Vamos observar os serviços:
+
+#+begin_src bash
+kubectl get svc
+#+end_src
+
+Poderemos observar  que o /pod/  agora possui um  endereço IP estável  dentro do
+cluster (~CLUSTER-IP~).
+
+Podemos também analisar os dados do /node/:
+
+#+begin_src bash
+kubectl get nodes -o wide
+#+end_src
+
+Adicionalmente, podemos definir uma porta externa para o nó dessa forma:
+
+#+begin_src yaml
+  ports:
+    - port: 80
+      nodePort: 30000
+#+end_src
+
+Do contrário,  a porta  será arbitrária.  A porta externa  a ser  utilizada pode
+estar entre ~30000~ e ~32767~.
+
+Para   o    *Windows*,   ocorre    /binding/   automático   do    cluster   para
+~localhost~. Portanto, o ~NodePort~ é automaticamente acessível via ~localhost~.
+
+Para o *Linux*, execute novamente o comando a seguir, e observe o ~INTERNAL-IP~:
+
+#+begin_src bash
+kubectl get nodes -o wide
+#+end_src
+
+O  ~INTERNAL-IP~ descreve  o endereço  IP que  pode ser  utilizado para  acessar
+nossos recursos.
+
+** Criando um Load Balancer
+
+O  ~LoadBalancer~  age  exatamente  como  um  ~ClusterIP~,  porém  integrando-se
+automaticamente ao /load balancer/ do provedor (AWS, GCP, Azure, etc).
+
+Vamos  trabalhar com  uma modificação  do ~svc-pod-1.yml~,  que poderíamos,  por
+exemplo, criar no GCP. Vamos criar um arquivo ~svc-pod-1-loadbalancer.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-1-loadbalancer
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      nodePort: 30000
+    selector:
+      app: primeiro-pod
+#+end_src
+
 * Aplicando services ao projeto
 
 * Definindo variáveis de ambiente
