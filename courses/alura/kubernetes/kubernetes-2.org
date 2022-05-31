@@ -74,7 +74,194 @@ kubectl get replicasets
 
 ** Conhecendo Deployments
 
+Um /Deployment/ é  uma camada acima do /ReplicaSet/. Definir  um /Deployment/ é,
+automaticamente, definir também um /ReplicaSet/.
+
+Vamos começar criando um /Deployment/, com ~nginx-deployment.yaml~.
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  template:
+    metadata:
+      name: nginx-pod
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx-container
+          image: nginx:stable
+          ports:
+            - containerPort: 80
+  selector:
+    matchLabels:
+      app: nginx-pod
+#+end_src
+
+Veja que o /Deployment/ é muito similar à definição de um /ReplicaSet/.
+
+#+begin_src bash
+kubectl apply -f nginx-deployment.yaml
+#+end_src
+
+A  grande  vantagem  de um  /Deployment/  é  que  ele  permite um  *controle  de
+versionamento* das nossas imagens e pods.
+
+Podemos ver o histórico de mudanças do /Deployment/ com:
+
+#+begin_src bash
+kubectl rollout history deployment nginx-deployment
+#+end_src
+
+Imagine que queiramos mudar a versão da imagem do ~nginx~ para ~nginx:latest~ em
+vez de ~nginx:stable~.
+
+Nesse caso, fazemos a modificação e aplicamos da seguinte forma:
+
+#+begin_src bash
+kubectl apply -f nginx-deployment.yaml --record
+#+end_src
+
+Caso usemos  o comando  de histórico, veremos  que ~CHANGE-CAUSE~  será definido
+para  a versão  2.  Para elaborarmos  o último  ~CHANGE-CAUSE~,  podemos usar  o
+comando:
+
+#+begin_src bash
+kubectl annotate deployment nginx-deployment kubernetes.io/change-cause="Definindo a imagem com versão latest"
+#+end_src
+
+Sendo assim, para retornarmos para uma versão anterior no /Deployment/:
+
+#+begin_src bash
+kubectl rollout undo deployment nginx-deployment --to-revision=1
+kubectl annotate deployment nginx-deployment kubernetes.io/change-cause="Rollback para a imagem com versão stable"
+#+end_src
+
 ** Aplicando Deployments ao projeto
+
+Vamos aplicar /Deployments/ ao portal, ao sistema e também ao banco de dados.
+
+Começaremos deletando primeiro  o /Deployment/ criado anteriormente,  e também o
+/ReplicaSet/ do portal.
+
+#+begin_src bash
+kubectl delete deployment nginx-deployment
+kubectl delete -f portal-noticias-replicaset.yaml
+#+end_src
+
+Vamos criar o  /Deployment/ para o portal. A declaração  é praticamente idêntica
+ao     do     /ReplicaSet/;     portanto,    vamos     remover     o     arquivo
+~portal-noticias-replicaset.yaml~,           criar           o           arquivo
+~portal-noticias-deployment.yaml~,  e colocar  nele o  conteúdo do  /ReplicaSet/
+apagado, porém de forma adaptada:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl annotate deployment portal-noticias-deployment kubernetes.io/change-cause="Criando portal de notícias na versão 1"
+#+end_src
+
+Vamos fazer a mesma coisa para o sistema de notícias e para o banco de dados.
+
+~sistema-noticias-deployment.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sistema-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: sistema-noticias
+      labels:
+        app: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sistema-noticias
+#+end_src
+
+~db-noticias-deployment.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: db-noticias
+      labels:
+        app: db-noticias
+    spec:
+      containers:
+        - name: db-noticias-container
+          image: aluracursos/mysql-db:1
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - configMapRef:
+                name: db-configmap
+  selector:
+    matchLabels:
+      app: db-noticias
+#+end_src
+
+Veja que não definimos o número de replicas aqui, o que já as qualifica como ~1~.
+
+Agora, no console:
+
+#+begin_src bash
+kubectl delete pod sistema-noticias
+kubectl delete pod db-noticias
+kubectl apply -f sistema-noticias-deployment.yaml
+kubectl apply -f db-noticias-deployment.yaml
+kubectl annotate deployment sistema-noticias-deployment kubernetes.io/change-cause="Subindo o sistema na versão 1"
+kubectl annotate deployment db-noticias-deployment kubernetes.io/change-cause="Subindo o banco de dados na versão 1"
+#+end_src
+
+Como  os  /pods/  são  efêmeros,  *todos  os  dados  do  banco  de  dados  foram
+apagados*. Precisamos persistir os dados com volumes persistentes e similares.
 
 * Persistindo dados com o Kubernetes
 
