@@ -1,0 +1,85 @@
+#+title: Kubernetes: Deployments, Volumes e Escalabilidade
+
+Esta é uma continuação do [[./kubernetes-1.org][curso anterior]].
+
+* Conhecendo ReplicaSets e Deployments
+
+Para mitigar  a questão da  efemeridade dos  /pods/, podemos usar  ReplicaSets e
+Deployments.
+
+** Conhecendo ReplicaSets
+
+Caso um  /pod/ falhe, será o  fim da vida do  mesmo. Para criar outro  /pod/ que
+assuma o  lugar do primeiro, precisamos  de uma estrutura que  gerencie isso. Aí
+que entram os *ReplicaSets*.
+
+Assim como  um /pod/  encapsula um  ou mais contêineres,  um /ReplicaSet/  é uma
+estrutura que  encapsula um ou  mais /pods/, e  também gerencia a  quantidade de
+réplicas existentes para um /pod/, de acordo com uma quantidade esperada.
+
+Além  disso, o  /ReplicaSet/ é  capaz  de fazer  um balanceamento  de carga  das
+requisições entre as réplicas existentes.
+
+Vamos criar um ReplicaSet para o portal em ~portal-noticias-replicaset.yaml~.
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: portal-noticias-replicaset
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+Veja que a versão da API será ~apps/v1~ ao invés de apenas ~v1~.
+
+Além disso, parte  de ~portal-noticias.yaml~ acaba fazendo  parte da propriedade
+~spec~  do ReplicaSet,  na forma  de  uma ~template~.  Esse ~template~  descreve
+justamente um padrão para a criação de um /pod/ neste ReplicaSet.
+
+Além  disso, informamos  um número  de réplicas  que desejamos  gerenciar (três,
+nesse caso), e  no ~selector~ do ReplicaSet, usamos  a propriedade ~matchLabels~
+para deixar  claro ao  Kubernetes que  o ReplicaSet  gerencia /pods/  cujo label
+~app~ iguala-se a  ~portal-noticias~. Do contrário, o Kubernetes  não saberá que
+deve gerenciar /pods/ semelhantes ao template.
+
+Vamos aplicar.
+
+#+begin_src bash
+kubectl apply -f portal-noticias-replicaset.yaml
+#+end_src
+
+Para verificarmos os status dos ReplicaSets:
+
+#+begin_src bash
+kubectl get replicasets
+#+end_src
+
+** Conhecendo Deployments
+
+** Aplicando Deployments ao projeto
+
+* Persistindo dados com o Kubernetes
+
+* Storage Classes e StatefulSets
+
+* Checando status com Probes
+
+* Como escalar com o Horizontal Pod Autoscaler
