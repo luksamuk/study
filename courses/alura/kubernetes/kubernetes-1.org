@@ -713,3 +713,296 @@ ambiente para o MySQL.
 
 * Definindo variáveis de ambiente
 
+** Utilizando variáveis de ambiente
+
+Precisamos definir variáveis de ambiente para  que o contêiner do banco de dados
+opere como deveria.
+
+Vamos editar ~db-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+      env:
+        - name: "MYSQL_ROOT_PASSWORD"
+          value: "q1w2e3r4"
+        - name: "MYSQL_DATABASE"
+          value: "empresa"
+        - name: "MYSQL_PASSWORD"
+          value: "q1w2e3r4"
+#+end_src
+
+Agora, vamos deletar o pod e recriá-lo:
+
+#+begin_src bash
+kubectl delete pod db-noticias
+kubectl apply -f db-noticias.yaml
+#+end_src
+
+Para  verificarmos  que  ele  está  executando  como  deveria,  podemos  acessar
+diretamente o MySQL:
+
+#+begin_src bash
+kubectl exec -it db-noticias -- mysql -u root -p
+# Entre com a senha q1w2e3r4
+#+end_src
+
+Todavia, o sistema de  notícias ainda não sabe se conectar  ao banco. Para isso,
+precisamos definir variáveis de ambiente para isso em ~sistema-noticias.yaml~.
+
+Além  disso, as  variáveis  de  ambiente estão  muito  acopladas  no arquivo  de
+configuração. Seria  interessante definir  um arquivo  separado para  isso, para
+deixar a definição do /pod/ de banco de dados o mais genérica possível.
+
+** Criando um ConfigMap
+
+Vamos extrair as configurações de variáveis  de ambiente para fora do arquivo de
+configuração do /pod/ de banco de dados.
+
+Para isso,  vamos usar  um ~ConfigMap~. Assim,  evitamos acoplamento  dos nossos
+recursos com informações de configuração.  Assim, ele permite a *reutilização* e
+o *desacoplamento*, pois diversos pods podem usar um ou mais /ConfigMaps/.
+
+Vamos criar um arquivo ~db-configmap.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-configmap
+data:
+  MYSQL_ROOT_PASSWORD: q1w2e3r4
+  MYSQL_DATABASE: empresa
+  MYSQL_PASSWORD: q1w2e3r4
+#+end_src
+
+#+begin_src bash
+kubectl apply -f db-configmap.yaml
+#+end_src
+
+Podemos procurar os ConfigMaps com:
+
+#+begin_src bash
+kubectl get configmap
+#+end_src
+
+** Aplicando o ConfigMap ao projeto
+
+Precisamos, agora, importar os valores do ConfigMap para dentro do /pod/.
+
+Para tanto, vamos editar a configuração do /pod/ em ~db-noticias.yaml~, usando a
+propriedade ~valueFrom~  para determinar o  uso de  cada variável de  ambiente a
+partir do ConfigMap apropriado.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+      env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: db-configmap
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: db-configmap
+              key: MYSQL_DATABASE
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: db-configmap
+              key: MYSQL_PASSWORD
+#+end_src
+
+Como todos  os valores  vêm do  mesmo ConfigMap, podemos  enxugar um  pouco mais
+essas declarações,  já que elas podem  ficar extensas muito rápido.  Nesse caso,
+vamos nos valer do  fato de que as variáveis de ambiente têm  o exato mesmo nome
+das variáveis declaradas no ConfigMap:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+      envFrom:
+        - configMapRef:
+            name: db-configmap
+#+end_src
+
+Agora, basta parar o /pod/ e subi-lo novamente para usar o ConfigMap.
+
+#+begin_src bash
+kubectl delete pod db-noticias
+kubectl apply -f db-noticias.yaml
+#+end_src
+
+Para verificarmos que tudo está certo:
+
+#+begin_src bash
+kubectl exec -it db-noticias -- mysql -u root -p
+# Insira a senha "q1w2e3r4"
+
+# No console MySQL
+show databases;
+#+end_src
+
+*** Comunicando o sistema com o banco
+
+Agora,  precisamos referenciar  o  banco  no sistema  de  notícias. Para  tanto,
+precisaremos definir algumas variáveis de  ambiente para que ele possa encontrar
+o banco.
+
+Vamos criar um ConfigMap em  ~sistema-configmap.yaml~ para nosso sistema e vamos
+utilizá-lo.
+
+#+begin_src yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sistema-configmap
+data:
+  HOST_DB: svc-db-noticias:3306
+  USER_DB: root
+  PASS_DB: q1w2e3r4
+  DATABASE_DB: empresa
+#+end_src
+
+Veja que,  para definir  ~HOST_DB~, usamos  diretamente o  nome do  serviço, que
+poderá ser capturado via DNS dentro do cluster. Independentemente do IP do /pod/
+do banco  de dados, referenciar ~svc-db-noticias~  redirecionará automaticamente
+para o local certo do serviço.
+
+Vamos aplicar o ConfigMap.
+
+#+begin_src bash
+kubectl apply -f sistema-configmap.yaml
+#+end_src
+
+Em seguida, vamos  aplicar o ConfigMap em ~sistema-noticias.yaml~  e reiniciar o
+/pod/ manualmente.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sistema-noticias
+  labels:
+    app: sistema-noticias
+spec:
+  containers:
+    - name: sistema-noticias-container
+      image: aluracursos/sistema-noticias:1
+      ports:
+        - containerPort: 80
+      envFrom:
+        - configMapRef:
+            name: sistema-configmap
+#+end_src
+
+#+begin_src bash
+kubectl delete pod sistema-noticias
+kubectl apply -f sistema-noticias.yaml
+#+end_src
+
+*** Comunicando o painel com o sistema
+
+Agora,  queremos que  o  painel  mostre as  notícias  que  forem cadastradas  no
+sistema.
+
+Para isso, precisamos definir a  variável ~IP_SISTEMA~. Dessa forma, vamos fazer
+mais um ConfigMap, dessa vez para o portal, em ~portal-configmap.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-configmap
+data:
+  IP_SISTEMA: http://192.168.59.101:30001
+#+end_src
+
+Em ~portal-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sistema-noticias
+  labels:
+    app: sistema-noticias
+spec:
+  containers:
+    - name: sistema-noticias-container
+      image: aluracursos/sistema-noticias:1
+      ports:
+        - containerPort: 80
+      envFrom:
+        - configMapRef:
+            name: sistema-configmap
+#+end_src
+
+Será possível agora ver as notícias no portal.
+
+* Extra
+
+Não gostei de como o ConfigMap do  portal orienta a conectar por meio externo ao
+sistema de notícias.
+
+Pensei em criar mais um serviço de tipo ClusterIP (o que é desnecessário, porque
+o NodePort já resolve o problema) para  conexão interna do portal com o sistema,
+mas isso não vai ser possível por uma questão de *arquitetura do portal*.
+
+O portal  simplesmente recupera  as notícias  do sistema,  porém ele  depende do
+sistema tendo um IP fixo! Isso porque, mesmo estando hospedado no mesmo cluster,
+a  porcaria do  sistema feito  em  PHP só  renderiza  a página  para o  cliente,
+esperando o IP que colocamos no ConfigMap.
+
+Em outras  palavras, mesmo  que seja  possível recuperar  as notícias  dentro do
+pod...
+
+#+begin_src bash
+kubectl exec -it portal-noticias -- bash
+
+# Em portal-noticias
+curl svc-sistema-noticias/noticias.php
+#+end_src
+
+...a página  em PHP, ao  invés de  renderizar as notícias  /server-side/, apenas
+cospe código para  requisitar as notícias no /client-side/ através  de um IP que
+possa ser resolvido *no browser*.
+
+E, se resolve no browser, bye bye DNS interno do /cluster/.
+
+Então... não tem jeito, só refatorando parte do sistema mesmo. E eu não pretendo
+encostar em PHP para isso.
+
+
