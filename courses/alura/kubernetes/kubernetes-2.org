@@ -265,7 +265,270 @@ apagados*. Precisamos persistir os dados com volumes persistentes e similares.
 
 * Persistindo dados com o Kubernetes
 
+Quando  o /pod/  é  encerrado,  todos os  arquivos  nele  criados são  perdidos,
+justamente por conta da efemeridade do mesmo.
+
+Primeiro, trataremos da  persistência de dados no âmbito de  um /contêiner/ para
+então partirmos para a persistência de dados no próprio /pod/.
+
+Sabemos  que   podemos  compartilhar  dados  entre   /contêineres/,  mas  agora,
+precisamos, no  Kubernetes, compartilhar dados  entre /contêineres/ de  um mesmo
+/pod/.
+
+Para isso, temos recursos como:
+- /Volumes/;
+- /PersistentVolumes/;
+- /PersistentVolumeClaims/;
+- /StorageClasses/.
+
+** Persistindo dados com volumes (e volumes no Linux)
+
+Vamos partir  do problema mais  básico: temos contêineres  dentro de um  /pod/ e
+queremos compartilhar  arquivos entre  eles. No  Docker, criaríamos  volumes; no
+Kubernetes,  fazemos a  mesma coisa,  criando  um /Volume/  para os  contêineres
+dentro do /pod/.
+
+O problema de criar este /Volume/, porém, é que seu ciclo de vida, apesar de ser
+independente dos contêineres, *é dependente do ciclo de vida do /pod/* que, como
+vimos, é efêmero.
+
+Existem vários tipos de volumes, e eles podem ser verificados na [[https://kubernetes.io/docs/concepts/storage/volumes][documentação do
+Kubernetes]].  Para esta  situação, vamos  utilizar o  tipo de  volume ~hostPath~,
+muito similar aos volumes utilizados anteriormente com Docker.
+
+O  ~hostPath~, basicamente,  monta um  arquivo ou  diretório do  /filesystem/ do
+/host/, em que  o Kubernetes está executando, dentro do  /pod/; enquanto o /pod/
+estiver vivo, este volume existirá.
+
+Para  exemplificar  a criação  do  volume,  vamos  criar  primeiro um  /pod/  em
+~pod-volume.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-volume
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-volume
+    - name: jenkins-container
+      image: jenkins/jenkins:alpine
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-volume
+  volumes:
+    - name: primeiro-volume
+      hostPath:
+        path: /home/primeiro-volume
+        type: Directory
+#+end_src
+
+Adicionalmente, *como  estamos usando ~minikube~*, precisamos  acessar a máquina
+virtual via SSH e  criar o diretório que será montado  -- afinal, *nossa máquina
+virtual do Minikube funcionará como host.*
+
+#+begin_src bash
+minikube ssh
+
+# Dentro da VM...
+sudo mkdir /home/primeiro-volume
+exit
+#+end_src
+
+Vamos aplicar agora.
+
+#+begin_src bash
+kubectl apply -f pod-volume.yaml
+#+end_src
+
+Almejamos criar dois contêineres dentro  do nosso /pod/, e compartilhar arquivos
+entre eles com um volume.
+
+A princípio,  veja que os  volumes são definidos  no escopo da  especificação do
+/pod/, e  não dos contêineres, o  que se justifica  por seu ciclo de  vida estar
+atrelado ao /pod/.
+
+Além   disso,  especificamos   seu   tipo  diretamente   como  uma   propriedade
+(~hostPath~),  apontando   para  um  diretório   no  diretório  atual   do  host
+(~primeiro-volume~), e também o tipo da montagem como ~Directory~.
+
+Veja  também  que, para  cada  /pod/,  especificamos  um  ponto de  montagem  de
+~primeiro-volume~ no caminho ~/volume-dentro-do-container~.
+
+(*ATENÇÃO:* Essa opção  não funcionará no Windows caso esteja  sendo utilizado o
+WSL  2! Além  disso, em  Settings >  Resources >  FILE SHARING,  será necessário
+adicionar o diretório sendo compartilhado.)
+
+Para acessar diretamente  um contêiner dentro de um /pod/,  basta especificar no
+comando ~exec~. Por exemplo:
+
+#+begin_src bash
+kubectl exec -it pod-volume --container nginx-container -- bash
+#+end_src
+
+O  volume também  será  mostrado  na descrição  do  pod  (~kubectl describe  pod
+pod-volume~).
+
+Um detalhe do ~hostPath~ é que o volume existe, de fato, apenas enquanto o /pod/
+existe.  Todavia, caso  o /pod/  deixe de  existir, os  arquivos continuarão  no
+diretório do host que foi montado dentro dos /pods/.
+
+** Persistência com PersistentVolumes
+
+Para utilizar  um /PersistentVolume/  e um  /PersistentVolumeClaim/ em  um Cloud
+Provider (por exemplo, Google Cloud Platform):
+
+Inicialmente, é necessário criar um  /disco/ (abstração do cloud provider), para
+armazenamento efetivo dos dados.
+
+O /PersistentVolume/ consome do disco, para que os dados sejam nele persistidos.
+
+Por  exemplo, imaginemos  que  temos um  disco  de  10GB, e  que  temos então  a
+definição do /PersistentVolume/ no arquivo ~pv.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-1
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  gcePersistentDisk:
+    pdName: pv-disk
+  storageClassName: standard
+#+end_src
+
+Temos, então, um /PersistentVolume/ que utilizará  10GB de disco, com um modo de
+operação ~ReadWriteOnce~, o que significa que será dada a permissão de leitura e
+escrita a apenas um /pod/ por vez.
+
+Além  disso, como  tipo do  volume, utilizaremos  o ~gcePersistentDisk~  (Google
+Cloud Engine Persistent Disk). A documentação sobre volumes do Kubernetes mostra
+todos os dados sobre cada tipo de volume,  e para este tipo, não é diferente. em
+~pdName~, apontamos o nome do disco utilizado (criado no GCP como ~pv-disk~).
+
+Por  fim,  como um  /PersistentVolumeClaim/  será  utilizado, determinaremos  um
+~storageClassName~ de nome ~standard~.
+
+Após aplicar o arquivo, podemos consultar os /PersistentVolumes/ com o comando:
+
+#+begin_src bash
+kubectl get pv
+#+end_src
+
+Agora,    podemos   criar    um   /PersistentVolumeClaim/    para   que    nosso
+/PersistentVolume/  tenha  um  ~CLAIM~ atribuído.  Esse  /PersistentVolumeClaim/
+possibilita o uso e o acesso a  um /PersistentVolume/ de acordo com a demanda do
+/pod/, sendo efetivamente a entidade à qual amarraremos o /pod/ em si.
+
+Vamos criar o arquivo ~pvc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+#+end_src
+
+Para  deixarmos  claro  que  o   /PersistentVolume/  anterior  é  acessado  pelo
+/PersistentVolumeClaim/    recentemente   definido,    precisamos   adequar    a
+especificação do /PVC/  ao /PV/. Este é  um /binding/ diferente do  que já vinha
+sendo feito até agora (através de /labels/).
+
+Para  tanto,  o   /PV/  e  o  /PVC/   precisam  ter  o  mesmo   modo  de  acesso
+(~accessModes~), a  mesma capacidade  (~storage~), e assim,  o /PVC/  saberá que
+estamos usando  o /PV/  declarado anteriormente.  Por fim,  ambos usam  também o
+mesmo ~storageClassName~.
+
+Podemos avaliar os /PersistentVolumeClaims/ criados com:
+
+#+begin_src bash
+kubectl get pvc
+#+end_src
+
+Observe que o ~STATUS~  será igual a /Bound/ -- portanto, o  /PVC/ foi ligado ao
+/PV/  --,  e  os  demais  dados  apresentados também  conferem  com  o  que  foi
+especificado para o /PVC/ e o /PV/.
+
+Agora,   basta  criar   um   /pod/  que   vai  acessar   o   disco  através   do
+/PersistentVolume/.
+
+Vejamos agora o arquivo ~pod-pv.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-pv
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-pv
+  volumes:
+    - name: primeiro-pv
+      persistentVolumeClaim:
+        claimName: pvc-1
+#+end_src
+
+Veja que a ideia é exatamente a mesma de ~pod-volume.yaml~. Todavia, ao declarar
+o  volume  em   ~volumes~,  temos  que  ~primeiro-pv~  estará   associado  a  um
+/PersistentVolumeClaim/, mais especificamente ~pvc-1~, declarado anteriormente.
+
+Após aplicar o arquivo e navegarmos até a pasta, podemos usar o volume diretamente.
+
+#+begin_src bash
+kubectl exec -it pod-pv -- bash
+
+# Em pod-pv...
+cd /volume-dentro-do-container
+touch arquivo-persistente
+#+end_src
+
+A característica mais  interessante aqui é que,  *por mais que o  /pod/ deixe de
+xistir,  os   arquivos  ainda  continuarão   a  existir.*  Dessa   forma,  temos
+armazenamento persistente que *não está associado* ao tempo de vida do /pod/.
+
+*** Extra: configuração estática vs. configuração dinâmica
+
+No  Minerva,  após  fazer  a  conversão  da  configuração  usando  ~kompose~,  a
+ferramenta cria um /PersistentVolumeClaim/,  mas nenhum /PersistentVolume/. Essa
+é  uma configuração  de criação  de /PV/  *dinâmico*, em  que o  próprio cluster
+Kubernetes provê armazenamento baseado nas definições de /StorageClass/ (que, no
+Minerva, também deixamos o Kubernetes atribuir).
+
+No caso  anterior, usamos uma  criação de /PV/  *estático*, porque a  intenção é
+mostrar como  isso poderia ser  feito com o  Google Cloud Platform.  Nesse caso,
+será interessante deixarmos bem explícito o disco que estamos usando, bem como o
+tipo do /PersistentVolume/.
+
+O interessante do /PersistentVolumeClaim/ é que  ele permite abstrair tudo o que
+se refere à conexão com  um /PersistentVolume/. Assim, o /PersistentVolume/ pode
+ficar atrelado à configuração da plataforma sendo utilizada.
+
 * Storage Classes e StatefulSets
+
+** Utilizando Storage Classes
+
+** Conhecendo StatefulSets
+
+** Utilizando um StatefulSet
 
 * Checando status com Probes
 
