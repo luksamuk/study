@@ -526,9 +526,343 @@ ficar atrelado à configuração da plataforma sendo utilizada.
 
 ** Utilizando Storage Classes
 
+Com   /StorageClasses/,    poderemos   criar   /PersistentVolumes/    e   discos
+*dinamicamente*. Isso  ocorrerá quando fizermos o  /binding/ de um /Pod/  com um
+/PersistentVolumeClaim/, através do /StorageClass/, e não diretamente através do
+/PersistentVolume/.
+
+Primeiramente  precisamos entender  como  o /StorageClass/  é definido.  Podemos
+inclusive consultar a [[https://kubernetes.io/docs/concepts/storage/storage-classes][documentação de Storage Classes]] do Kubernetes.
+
+Existem vários provisionadores de /StorageClasses/ para Kubernetes. Um deles é o
+/GCEPersistentDisk/.
+
+A própria  documentação possui  receitas de  como criar  esses tipos  de Storage
+Classes. Suponha o arquivo ~sc.yaml~:
+
+#+begin_src yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: slow
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-standard
+  fstype: ext4
+  replication-type: none
+#+end_src
+
+Este Storage Class basicamente define que  queremos provisionar um disco de tipo
+padrão no Google Cloud Platform, com sistema de arquivos ~ext4~, sem réplicas, e
+de nome ~slow~. Mais informações sobre o GCE PD podem ser vistas na documentação
+oficial.
+
+Após aplicar o arquivo, podemos observar as Storage Classes com:
+
+#+begin_src bash
+kubectl get sc
+#+end_src
+
+Poderemos ver, inclusive, que existe um  Storage Class chamado ~standard~, e que
+este é o Storage Class padrão.
+
+Para   criar    discos   e   /PersistentVolumes/   automaticamente,    é   muito
+simples.  Considere  a  definição   de  um  /PersistentVolumeClaim/  do  arquivo
+~pvc-sc.yaml~ (este arquivo é uma cópia de ~pvc.yaml~, mas com modificações):
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-2
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: slow
+#+end_src
+
+Após  carregar este  /PersistentVolumeClaim/,  podemos  consultar os  Persistent
+Volume Claims e  os Persistent Volumes e  observar que o volume e  o claim foram
+criados, sem precisarmos definir mais nada:
+
+#+begin_src bash
+kubectl get pvc
+kubectl get pv
+#+end_src
+
+Para criarmos um /pod/ que utilize este /PersistentVolume/, via arquivo ~pod-sc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-sc
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-pv
+  volumes:
+    - name: primeiro-pv
+      persistentVolumeClaim:
+        claimName: pvc-2
+#+end_src
+
+Veja que a diferença prática deste arquivo para ~pod-pv.yaml~ é meramente o nome
+do               /PersistentVolumeClaim/,              definido               em
+~spec.volumes[0].persistentVolumeClaim.claimName~.
+
+Os dados  do /pod/ serão, então,  armazenados permanentemente, até que  o volume
+seja explicitamente removido.
+
+Caso  seja  necessário  remover  todos  os  /Pods/,  /PersistentVolumeClaims/  e
+/StorageClasses/:
+
+#+begin_src bash
+kubectl delete pod --all
+kubectl delete pvc --all
+kubectl delete sc --all
+#+end_src
+
 ** Conhecendo StatefulSets
 
+Nosso problema inicial  é que temos um /Deployment/ do  sistema de notícias, mas
+quando um /Pod/ falha, o /Deployment/ recria-o via /ReplicaSet/, mas os arquivos
+são perdidos.
+
+Por  isso, precisamos  ter uma  maneira  que garanta  que, quando  o /Pod/  seja
+reiniciado, os arquivos sejam persistidos.
+
+*ATENÇÃO: Um /StatefulSet/ não cria  volumes automaticamente! Isso será visto em
+breve.*
+
+Todavia,   o    Kubernetes   tem    um   facilitador   ainda    maior,   chamado
+/StatefulSet/.  Basicamente,  um  /StatefulSet/  funciona de  forma  similar  ao
+/Deployment/, porém para /Pods/ que precisam manter seu estado. Assim, quando um
+/Pod/ falha e reinicia em um /StatefulSet/, os dados são mantidos.
+
+Para  que  isso ocorra,  fazemos  com  que, quando  declaramos  um  /Pod/ em  um
+/StatefulSet/, precisamos  também associá-lo  a um  /PersistentVolumeClaim/, que
+também o associará a um /PersistentVolume/; e isso, conseguiremos fazer de forma
+mais enxuta.
+
+Adicionalmente,  em  um  /StatefulSet/,   cada  /Pod/  ganha  uma  identificação
+ordinal. Assim,  caso o  /Pod/ falhe,  um novo  o substituirá,  mas com  a mesma
+identificação para fins de reuso do /PersistentVolumeClaim/ do /Pod/ que falhou.
+
+Para começar, precisaremos apenas dos seguintes arquivos a partir daqui:
+
+- ~db-configmap.yaml~: /ConfigMap/ para o banco de dados;
+- ~portal-configmap.yaml~: /ConfigMap/ para o portal;
+- ~portal-noticias-deployment.yaml~:  /Deployment/ para  o  portal de  notícias,
+  capaz  de realizar  o  versionamento  do /ReplicaSet/  do  mesmo e,  portanto,
+  produzir seus /Pods/ a partir de um template;
+- ~sistema-configmap.yaml~: /ConfigMap/ para o sistema de notícias;
+- ~sistema-noticias-deployment.yaml~: /Deployment/  para o sistema  de notícias,
+  capaz  de realizar  o  versionamento  do /ReplicaSet/  do  mesmo e,  portanto,
+  produzir seus /Pods/ a partir de um template;
+- ~svc-db-noticias.yaml~: /Service/  para o  banco de  dados, que  define-o como
+  acessível por outros /Pods/ via /ClusterIP/;
+- ~svc-portal-noticias.yaml~: /Service/ para o  portal de notícias, que define-o
+  como acessível externamente via /NodePort/;
+- ~svc-sistema-noticias.yaml~:  /Service/  para  o   sistema  de  notícias,  que
+  define-o como acessível externamente via /NodePort/.
+
+  Vamos criar o arquivo ~sistema-noticias-statefulset.yaml~.
+
+  #+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+  #+end_src
+
+O /StatefulSet/ é muito similar ao  /Deployment/, sendo então um substituto para
+o mesmo. Todavia,  podemos observar que estamos explicitando o  serviço que será
+utilizado para este /StatefulSet/ através da propriedade ~spec.serviceName~, que
+nada mais é que o serviço já anteriormente criado (~svc-sistema-noticias~).
+
+#+begin_src bash
+kubectl apply -f sistema-noticias-statefulset.yaml
+kubectl delete deployment sistema-noticias-deployment
+#+end_src
+
+Após  subir  este /StatefulSet/,  poderemos  observar  que, após  cadastrar  uma
+notícia no  sistema, se removermos  o /pod/  -- que será  criado de novo  --, as
+imagens continuarão sem aparecer.
+
+Como já sabemos,  o /StatefulSet/ precisa de um /PersistentVolumeClaim/  e de um
+/PersistentVolume/. No entanto...
+
+#+begin_src bash
+kubectl get pvc
+kubectl get pv
+#+end_src
+
+...podemos  observar  que  não  há  nenhum  /PersistentVolumeClaim/,  e  nem  um
+/PersistentVolume/  configurados. Isso  pode ser  resolvido de  maneira elegante
+diretamente em um /StorageClass/.
+
 ** Utilizando um StatefulSet
+
+Poderemos  observar  o  seguinte:  ao  matarmos   o  /Pod/  para  que  ele  seja
+substituído, perdemos  as imagens  das notícias  e também  a nossa  sessão. Para
+armazenar esses elementos, precisamos  criar dois /PersistentVolumeClaims/, para
+dois /PersistentVolumes/: um  para armazenar imagens, e outro  para armazenar as
+sessões.
+
+Vamos  começar   resolvendo  o  problema   para  imagens,  através   do  arquivo
+~imagens-pvc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: imagens-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+#+end_src
+
+Vamos criar agora o /claim/ de armazenamento de sessão, em ~sessao-pvc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sessao-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+#+end_src
+
+Para   utilizarmos   os   /PersistentVolumeClaims/  no   /pod/,   vamos   editar
+~sistema-noticias-statefulset.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+          volumeMounts:
+            - name: imagens
+              mountPath: /var/www/html/uploads
+            - name: sessao
+              mountPath: /tmp
+      volumes:
+        - name: imagens
+          persistentVolumeClaim:
+            claimName: imagens-pvc
+        - name: sessao
+          persistentVolumeClaim:
+            claimName: sessao-pvc
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+#+end_src
+
+Veja que criamos a chave ~spec.template.spec.containers[0].volumeMounts~, em que
+realizamos  as   montagens  de  volumes.   Em  seguida,  definimos   volumes  em
+~spec.template.spec.volumes~,  ou   mais  especificamente,  definimos   a  quais
+/PersistentVolumeClaims/ cada volume esperado está ligado.
+
+Aplicando os arquivos:
+
+#+begin_src bash
+kubectl apply -f imagens-pvc.yaml
+kubectl apply -f sessao-pvc.yaml
+#+end_src
+
+Podemos observar que os /PersistentVolumeClaims/  já estão com status de ~Bound~
+através do comando:
+
+#+begin_src bash
+kubectl get pvc
+#+end_src
+
+Se observarmos os /PersistentVolumes/ mais a fundo...
+
+#+begin_src bash
+kubectl get pv
+#+end_src
+
+...os volues já foram criados automaticamente.  Isso ocorre porque já temos, por
+padrão, um /StorageClass/ (chamado ~standard~):
+
+#+begin_src bash
+kubectl get sc
+#+end_src
+
+Como definimos um /PersistentVolumeClaim/  sem definirmos quais volumes queremos
+utilizar, o  Kubernetes automaticamente  cria, por intermédio  do /StorageClass/
+padrão,  um  /PersistentVolume/ *dinâmico*.  Assim,  não  precisaremos criar  um
+/PersistentVolume/ manualmente, porque o /StorageClass/ o fará automaticamente.
+
+Basta agora remover e aplicar nosso /StatefulSet/:
+
+#+begin_src bash
+kubectl delete -f sistema-noticias-statefulset.yaml
+kubectl apply -f sistema-noticias-statefulset.yaml
+#+end_src
+
+Para experimentar, primeiro  cadastre uma nova notícia no sistema,  e veja se as
+informações e a imagem da notícia aparecem no portal.
+
+Após isso,  para testar  se a  persistência realmente  está funcionando,  mate o
+/pod/ e  acesse novamente o portal.  Se as imagens e  as informações aparecerem,
+está tudo certo.
+
+#+begin_src bash
+kubectl delete pod sistema-noticias-statefulset-0
+#+end_src
 
 * Checando status com Probes
 
