@@ -866,4 +866,268 @@ kubectl delete pod sistema-noticias-statefulset-0
 
 * Checando status com Probes
 
+** Conhecendo Probes
+
+A princípio, mesmo que um /pod/  esteja saudável e funcionando, o Kubernetes não
+tem como  saber automaticamente se  a aplicação  dentro do mesmo  está realmente
+operando de forma  esperada, ou se precisa ser reiniciada.
+
+Por exemplo,  imagine um único /pod/  de um /ReplicaSet/ retornando  um erro 500
+para uma requisição, enquanto isso não ocorre com os outros /pods/.
+
+Para   resolver   este   problemas,    podemos   utilizar   /LivenessProbes/   e
+/ReadinessProbes/.
+
+Para  um /LivenessProbe/,  por exemplo,  podemos definir  diretamente dentro  da
+especificação do contêiner a prova de que aquele aplicativo está vivo.
+
+** Utilizando Liveness Probes
+
+Vamos  começar aplicando  um  /LivenessProbe/  ao /pod/  do  portal de  notícias
+(~portal-noticias-deployment.yaml~).
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+Veja         que          inserimos         agora          a         propriedade
+~spec.template.spec.containers[0].livenessProbe~.
+
+Neste ~livenessProbe~, como critério  de /liveness/, utilizaremos uma requisição
+GET (padrão do Kubernetes; indica sucesso caso o código de retorno da requisição
+seja maior ou igual a 200 e menor que 400).
+
+Realizaremos a  requisição GET (~httpGet~)  no caminho ~/~,  e na porta  ~80~ do
+contêiner. A requisição será realizada  a cada dez segundos (~periodSeconds~), e
+será tolerado  um número  máximo de  até três  falhas antes  de o  contêiner ser
+reiniciado   (~failureThreshold~).   Adicionalmente,    devido   ao   tempo   de
+inicialização do contêiner,  as checagens só começarão a acontecer  a partir dos
+20 segundos de vida do contêiner (~initialDelaySeconds~).
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl describe pod portal-noticias-deployment
+#+end_src
+
+Vamos adicionar o mesmo /LivenessProbe/ a ~sistema-noticias-statefulset.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+          volumeMounts:
+            - name: imagens
+              mountPath: /var/www/html/uploads
+            - name: sessao
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+      volumes:
+        - name: imagens
+          persistentVolumeClaim:
+            claimName: imagens-pvc
+        - name: sessao
+          persistentVolumeClaim:
+            claimName: sessao-pvc
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+#+end_src
+
+#+begin_src bash
+kubectl apply -f sistema-noticias-statefulset.yaml
+#+end_src
+
+** Utilizando Readiness Probes
+
+Podemos definir um  /ReadinessProbe/ também, para determinar  quando o contêiner
+do /pod/ estará pronto para receber novas requisições.
+
+Vamos modificar o ~portal-noticias-deployment.yaml~:
+
+#+begin_src yaml
+
+#+end_src
+
+A  declaração é  idêntica  ao /LivenessProbe/,  e funciona  da  mesma forma  com
+relação às requisições.  Todavia, temos algumas diferenças: o ~failureThreshold~
+indica que, caso o teste não  consiga ser executado naquela quantidade de vezes,
+após atingir este limite, as requisições  serão enviadas mesmo assim, passando a
+ignorar  o /ReadinessProbe/  --  por  isso, usamos  um  número  maior para  este
+/probe/. Além disso, o /delay/ inicial é reduzido por motivos evidentes.
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 3
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+Replicando este /ReadinessProbe/ em ~sistema-noticias-statefulset.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+          volumeMounts:
+            - name: imagens
+              mountPath: /var/www/html/uploads
+            - name: sessao
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /inserir_noticias.php
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 3
+      volumes:
+        - name: imagens
+          persistentVolumeClaim:
+            claimName: imagens-pvc
+        - name: sessao
+          persistentVolumeClaim:
+            claimName: sessao-pvc
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+#+end_src
+
+Nesse  caso, trocamos  o  caminho  das requisições  do  /ReadinessProbe/ para  a
+inserção de notícias na rota ~/inserir_noticias.php~.
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl apply -f sistema-noticias-statefulset.yaml
+#+end_src
+
+Para  outras formas  de declarar  /LivenessProbes/ e  /ReadinessProbes/, veja  a
+[[https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/][documentação oficial]].
+
+** Startup Probes
+
+/StartupProbes/ são voltados para aplicações legadas, que exigem tempo adicional
+para inicializar na primeira vez.
+
+Para maiores informações, consulte a [[https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-startup-probes][documentação oficial]].
+
 * Como escalar com o Horizontal Pod Autoscaler
+
+** Escalando pods automaticamente
+
+** Utilizando o HPA no Windows
+
+** Utilizando o HPA no Linux
+
+** VerticalPodAutoscaler
+
