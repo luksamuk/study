@@ -1,3 +1,4 @@
+
 #+title: Kubernetes: Deployments, Volumes e Escalabilidade
 
 Esta é uma continuação do [[./kubernetes-1.org][curso anterior]].
@@ -663,6 +664,7 @@ Para começar, precisaremos apenas dos seguintes arquivos a partir daqui:
   capaz  de realizar  o  versionamento  do /ReplicaSet/  do  mesmo e,  portanto,
   produzir seus /Pods/ a partir de um template;
 - ~sistema-configmap.yaml~: /ConfigMap/ para o sistema de notícias;
+- ~db-noticias-deployment.yaml~: /Deployment/ para o banco de dados;
 - ~sistema-noticias-deployment.yaml~: /Deployment/  para o sistema  de notícias,
   capaz  de realizar  o  versionamento  do /ReplicaSet/  do  mesmo e,  portanto,
   produzir seus /Pods/ a partir de um template;
@@ -998,17 +1000,6 @@ do /pod/ estará pronto para receber novas requisições.
 Vamos modificar o ~portal-noticias-deployment.yaml~:
 
 #+begin_src yaml
-
-#+end_src
-
-A  declaração é  idêntica  ao /LivenessProbe/,  e funciona  da  mesma forma  com
-relação às requisições.  Todavia, temos algumas diferenças: o ~failureThreshold~
-indica que, caso o teste não  consiga ser executado naquela quantidade de vezes,
-após atingir este limite, as requisições  serão enviadas mesmo assim, passando a
-ignorar  o /ReadinessProbe/  --  por  isso, usamos  um  número  maior para  este
-/probe/. Além disso, o /delay/ inicial é reduzido por motivos evidentes.
-
-#+begin_src yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1047,6 +1038,14 @@ spec:
     matchLabels:
       app: portal-noticias
 #+end_src
+
+
+A  declaração é  idêntica  ao /LivenessProbe/,  e funciona  da  mesma forma  com
+relação às requisições.  Todavia, temos algumas diferenças: o ~failureThreshold~
+indica que, caso o teste não  consiga ser executado naquela quantidade de vezes,
+após atingir este limite, as requisições  serão enviadas mesmo assim, passando a
+ignorar  o /ReadinessProbe/  --  por  isso, usamos  um  número  maior para  este
+/probe/. Além disso, o /delay/ inicial é reduzido por motivos evidentes.
 
 Replicando este /ReadinessProbe/ em ~sistema-noticias-statefulset.yaml~:
 
@@ -1125,9 +1124,360 @@ Para maiores informações, consulte a [[https://kubernetes.io/docs/tasks/config
 
 ** Escalando pods automaticamente
 
+Com um volume  muito grande de acessos,  um /pod/ pode consumir  mais recursos e
+ficar sobrecarregado. Por isso,  é interessante possibilitarmos a escalabilidade
+horizontal dos /pods/, especialmente de forma automática.
+
+Isso pode ser feito com um /HorizontalPodAutoscaler/, cuja documentação pode ser
+vista no [[https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/][site oficial do Kubernetes]].
+
+O  /HorizontalPodAutoscaler/ é  um recurso  capaz de  automaticamente escalar  o
+número de  /pods/ em um  /Deployment/, um  /ReplicaSet/ ou um  /StatefulSet/ com
+base  na  observação da  CPU,  ou  com base  em  métricas  customizadas que  não
+utilizaremos aqui.
+
+Vamos fazer um /HorizontalPodAutoscaler/ para nosso portal de notícias mas, para
+isso, como o uso de CPU é  usado como métrica, precisamos informar ao Kubernetes
+quanto  um  contêiner específico  (nesse  caso,  no  /Deployment/ do  portal  de
+notícias), consome em média de recursos.
+
+Vamos modificar ~portal-noticias-deployment.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 3
+          resources:
+            requests:
+              cpu: 10m
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+Alinhado aos  nossos /Probes/,  temos agora  uma propriedade  ~resources~. Nesta
+propriedade, definimos que  nosso /Pod/ requer 10 /milicores/ de  CPU, em termos
+de recursos.
+
+#+begin_comment
+Veja que  definimos o uso de  CPU em termos  de /milicores/. De acordo  com [[https://stackoverflow.com/questions/50369737/how-are-hardware-resources-defined-in-kubernetes-cpu-and-ram][esse
+link]], um milicore, em termos do Kubernetes,  corresponde a um milésimo do uso de
+um  CPU virtual  (de uma  máquina  virtual).  Um  /pod/ que  use 1000  milicores
+utiliza, portanto, um core inteiro de um CPU virtual.
+#+end_comment
+
+Agora,  sim, podemos  fazer um  /HorizontalPodAutoscaler/ para  os /pods/  desse
+contêiner. Ele também é um objeto da  API do Kubernetes, por isso, podemos criar
+uma definição para o mesmo em ~portal-noticias-hpa.yaml~:
+
+#+begin_src yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: portal-noticias-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: portal-noticias-deployment
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+#+end_src
+
+Veja  que   usamos  a   versão  ~autoscaling/v2~  da   API  (no   curso,  usamos
+~autoscaling/v2beta2~,  mas de  acordo com  a  própria documentação  do site  do
+Kubernetes,  este objeto  já se  encontra estável  na versão  aqui utilizada  --
+Minikube 1.25.2,  com Kubernetes  1.23.3; veja a  documentação do  Minikube para
+realizar upgrades).
+
+Aqui,  temos algumas  novas características.  Precisamos definir  o /target/  de
+escalabilidade a ser referenciado (~scaleTargetRef~). Nele, precisamos definir a
+versão da API do objeto escalado (a mesma do /Deployment/: ~apps/v1~), o tipo do
+objeto escalado (~kind~), e finalmente, seu nome (~name~).
+
+Definimos também um  número mínimo e máximo de réplicas.  No nosso caso, teremos
+um minimo de uma réplica, e nunca mais que dez réplicas.
+
+Além disso, definimos as métricas  utilizadas para escalabilidade (~metrics~). A
+métrica aqui  definida (poderia  ser várias)  tem um  tipo /Resource/,  que está
+relacionado a  consumo de recursos da  máquina. Tratamos do CPU  (~name~ igual a
+~cpu~). E, como ~target~ dessa métrica,  vamos falar da utilização do recurso de
+CPU (~type~ igual  a /Utilization/): especificamos que, caso o  uso médio de CPU
+corresponda  a   mais  de   50%  do   que  o   /pod/  requisita   para  execução
+(~averageUtilization~ igual a 50), realizaremos a escalabilidade do recurso.
+
+Na prática, isso significa que, caso um  /pod/ use mais de cinco milicores (dado
+que cada /pod/ do portal requisita dez milicores), o /pod/ será replicado.
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl apply -f portal-noticias-hpa.yaml
+#+end_src
+
+Podemos agora verificar nossos /HorizontalPodAutoscalers/:
+
+#+begin_src bash
+kubectl get hpa
+#+end_src
+
+Todavia, podemos  identificar um problema  aqui: em ~TARGETS~, o  Kubernetes não
+consegue identificar o uso de CPU!
+
+Se tentarmos descrever o nosso /HorizontalPodAutoscaler/...
+
+#+begin_src bash
+kubectl describe hpa portal-noticias-hpa
+#+end_src
+
+...veremos que  o Autoscaler foi incapaz  de recuperar as métricas  de CPU. Além
+disso, ele também nos  diz que essa métrica é inválida e  que não foi encontrada
+em um /servidor de métricas/.
+
+Precisamos  fazer  com  que  este elemento  esteja  acessível,  assim  poderemos
+utilizar nossas métricas.
+
 ** Utilizando o HPA no Windows
+
+Existe um repositório  próprio do Kubernetes contendo o servidor  de métricas em
+https://github.com/kubernetes-sigs/metrics-server.  Para tanto,  precisaremos ir
+até essa página e baixar o /release/ mais novo.
+
+Basta baixar o  arquivo ~components.yaml~, arrastar para o  projeto e aplicá-lo,
+mas antes disso, realize uma modificação na seção de /Deployment/ desse arquivo,
+em ~spec.spec.containers[0].args~:
+
+#+begin_src yaml
+---
+...
+kind: Deployment
+...
+spec:
+  ...
+  spec:
+    ...
+    containers:
+      - name: metrics-server
+        args:
+          - --cert-dir=/tmp
+          - --secure-port=4443
+          - --kubelet-insecure-tls
+#+end_src
+
+A nova  /flag/ será ~--kubelet-insecure-tls~.  Colocamos essa /flag/  porque não
+desejamos fazer verificação de certificados na conexão.
+
+#+begin_src bash
+kubectl apply -f components.yaml
+#+end_src
+
+O /HPA/ ainda assim poderá continuar dizendo  que o uso de CPU é desconhecido, e
+isso é normal. Nesse caso, precisaremos /esperar/ que todas as informações sejam
+carregadas, para que o /HPA/ possa ler os detalhes de consumo de CPU.
+
+Para testar, podemos construir um script  /bash/ (que pode ser executado via Git
+Bash) para teste de stress (~stress.sh~):
+
+#+begin_src bash
+#!/bin/bash
+
+for i in {1..10000}; do
+    curl localhost:30000
+    sleep $1
+done
+#+end_src
+
+Execute o seguinte em três instâncias do Git Shell:
+
+#+begin_src bash
+sh ./stress.sh 0.001 > out.txt
+#+end_src
 
 ** Utilizando o HPA no Linux
 
+No caso do Linux e do Minikube, basta utilizarmos o Minikube diretamente com seu
+conjunto de /addons/.
+
+Para uma lista dos /addons/ do Minikube:
+
+#+begin_src bash
+minikube addons list
+#+end_src
+
+Existe um /addon/  chamado ~metrics-server~, que é justamente  o que precisamos!
+Para tanto, basta que habilitemos este /addon/:
+
+#+begin_src bash
+minikube addons enable metrics-server
+#+end_src
+
+Assim que  o /HPA/ terminar de  sincronizar com o servidor  de métricas, teremos
+nosso /HPA/ funcionando como deveria.
+
+Neste momento, vamos pegar o IP do nosso /cluster/, através do comando:
+
+#+begin_src bash
+kubectl get node -o wide
+#+end_src
+
+Em  seguida, vamos  fazer  o teste  de  /stress/ no  nosso  Kubernetes. Tomei  a
+liberdade  de fazer  algumas modificações  no  script aqui  utilizado, para  não
+precisar  abrir  três consoles  ao  mesmo  tempo.  Basta  salvar o  seguinte  em
+~stress.sh~:
+
+#+begin_src bash
+#!/bin/bash
+
+SLEEP_TIME=$1
+
+function stress_test() {
+    for i in {1..10000}; do
+	curl -s 192.168.59.101:30000
+	sleep $SLEEP_TIME
+    done
+}
+
+stress_test & stress_test
+#+end_src
+
+Veja que utilizei o IP do /cluster/ no meu computador aqui.
+
+Para executar, vamos ser mais bonzinhos. Estou usando uma latência menor, e você
+poderá  observar  que  estou  executando  ~stress_test~  apenas  duas  vezes  em
+paralelo, ao invés de três.
+
+#+begin_src bash
+chmod +x stress.sh
+./stress.sh 0.01 > out.txt
+#+end_src
+
+Para ver  a evolução do /scaling/,  estou usando também a  ferramenta [[https://k9scli.io/][k9s]], neste
+ponto, para observar  o que está acontecendo. Algo legal  dessa ferramenta é que
+ela se integra bem ao ~metrics-server~ do Minikube.
+
 ** VerticalPodAutoscaler
 
+Além  do  /HorizontalPodAutoscaler/,  o   Kubernetes  possui  um  outro  recurso
+customizado, chamado /VerticalPodAutoscaler/. Esse  recurso remove a necessidade
+de  definir  os  limites  e  pedidos por  recursos  do  sistema,  como  mostrado
+anteriormente.
+
+Quando   usamos    um   /VerticalPodAutoscaler/,   ele   define    os   consumos
+automaticamente, com base  na utilização de cada  um dos nós, e  em quanto desse
+recurso ainda está disponível.
+
+Para maiores informações, [[https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler][veja a página do /VerticalPodAutoscaler/]].
+
+Veja também sobre o uso do /VerticalPodAutoscaler/ no [[https://cloud.google.com/kubernetes-engine/docs/concepts/verticalpodautoscaler][Google Cloud Platform]] e no
+[[https://docs.aws.amazon.com/eks/latest/userguide/vertical-pod-autoscaler.html][Amazon Web Services]].
+
+* Projeto do Curso
+
+Primeiro inicie o Minikube.
+
+#+begin_src bash
+minikube start --vm-driver=virtualbox
+#+end_src
+
+Não  se   esqueça  de  iniciar   o  Minikube  e   de  adicionar  o   /addon/  de
+~metrics-server~!
+
+#+begin_src bash
+minikube addons enable metrics-server
+#+end_src
+
+Caso queira  executar novamente  o projeto  do curso, use  apenas os  arquivos a
+seguir:
+
+- /ConfigMaps/
+  - ~db-configmap.yaml~;
+  - ~portal-configmap.yaml~;
+  - ~sistema-configmap.yaml~;
+- /PersistentVolumeClaims/
+  - ~imagens-pvc.yaml~;
+  - ~sessao-pvc.yaml~;
+- Banco de dados (/Deployment/ e /Service/)
+  - ~db-noticias-deployment.yaml~;
+  - ~svc-db-noticias.yaml~;
+- Sistema de Notícias (/StatefulSet/ e /Service/)
+  - ~sistema-noticias-statefulset.yaml~;
+  - ~svc-sistema-noticias.yaml~;
+- Portal (/Deployment/, /Service/ e /HorizontalPodAutoscaler/)
+  - ~portal-noticias-deployment.yaml~;
+  - ~svc-portal-noticias.yaml~;
+  - ~portal-noticias-hpa.yaml~.
+
+** Para usar o driver KVM2
+
+O KVM2 integra direto com o Kernel do Linux. É bom usar.
+
+No caso específico do Void Linux,  você precisará instalar ~libvirt~ e ~dbus~, e
+também  habilitar os serviços ~dbus~, ~libvirtd~, ~virtlockd~ e ~virtlogd~:
+
+#+begin_src bash
+xi dbus libvirt
+cd /var/service
+sudo ln -s /etc/sv/dbus dbus
+sudo ln -s /etc/sv/libvirtd libvirtd
+sudo ln -s /etc/sv/virtlockd virtlockd
+sudo ln -s /etc/sv/virtlogd virtlogd
+#+end_src
+
+Além  disso,  adicione seu  usuário ao  grupo ~libvirt~ e reinicie o computador:
+
+#+begin_src bash
+sudo usermod -g libvirt $USER
+sudo reboot now
+#+end_src
+
+Finalmente, inicie um /cluster/ com Minikube usando KVM2:
+
+#+begin_src bash
+minikube start --vm-driver=kvm2
+#+end_src
+
+** Para encerrar tudo com Minikube
+
+#+begin_src bash
+minikube stop
+minikube delete
+#+end_src
+
+Pronto, vai lá tomar dois cafés.

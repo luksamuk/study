@@ -31,6 +31,9 @@ spec:
             periodSeconds: 10
             failureThreshold: 5
             initialDelaySeconds: 3
+          resources:
+            requests:
+              cpu: 10m
   replicas: 3
   selector:
     matchLabels:
