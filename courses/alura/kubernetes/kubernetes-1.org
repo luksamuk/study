@@ -1,0 +1,1008 @@
+#+title: Kubernetes: Pods, Services e ConfigMaps
+
+* Conhecendo o Kubernetes
+
+** O que é o Kubernetes?
+
+Primeiro vamos falar de escalabilidade:
+
+- /Escalabilidade vertical/: Quando resolvemos um problema de limitação de poder
+  computacional comprando hardware mais potente.
+- /Escalabilidade  horizontal/: Quando  resolvemos um  problema de  limitação de
+  poder  computacional  adicionando  mais  máquinas  para  dividir  o  trabalho,
+  evitando sobrecarga de uma máquina só.
+
+O  Kubernetes  é capaz  de  lidar  com  questões de  escalabilidade  horizontal,
+justamente gerenciando  /clusters/. O Kubernetes  pode operar na AWS,  na Google
+Cloud Platform, na Azure ou mesmo com Minikube (localmente).
+
+** Arquitetura do Kubernetes
+
+O  Kubernetes não  é apenas  um  orquestrador de  contêineres, também  possuindo
+/resources/ prontos para cada tipo de caso.
+
+Exemplo: Para persistência de dados,  é possível utilizar um ~PersistentVolume~;
+para encapsular  contêineres, é possível usar  um ~Pod~ (uma vez  que Kubernetes
+não lida diretamente com os contêineres); etc.
+
+Com isso, é  possível construir aplicações complexas com  balanceamento de carga
+entre /pods/,  que podem estar sendo  gerenciados por um /ReplicaSet/,  que pode
+estar sendo gerenciado por um /deployment/,  e que portanto pode ser escalado. É
+possível  também  escalar  /pods/  horizontalmente  usando  um  /horizontal  pod
+autoscaler/.
+
+O  Kubernetes gerencia  um  cluster de  máquinas, e  as  máquinas podem  receber
+denominações diferentes. Uma máquina pode ser  um ~master~, capaz de coordenar e
+gerenciar o cluster, ou pode ser um  ~node~, que realizam a execução do trabalho
+duro.
+
+Em geral, uma máquina ~master~ é responsável por /gerenciar o cluster/, /manter
+e  atualizar o  estado  desejado/, e  /receber e  executar  novos comandos/.  Em
+contrapartida, o ~node~ é apenas incumbido de /executar as aplicações/.
+
+Um ~master~ possui um *Control Plane*, que possui os seguintes componentes:
+
+- A /API/, que recebe e executa os comandos via REST;
+- O /ControllerManager/, que mantém e atualiza o estado desejado;
+- O  /Scheduler/,  responsável  por   definir  quando  determinado  código  será
+  executado no cluster;
+- O ~etcd~, responsável por armazenar todos  os dados vitais do cluster, através
+  de um banco de dados chave-valor.
+
+Um *Node* possui os seguintes componentes:
+
+- O /kubelet/, responsável pela execução dos pods dentro do node;
+- O /kube-proxy/, responsável pela comunicação entre os nodes dentro do cluster.
+
+A /API/ do *Control Plane* é a responsável por efetuar toda a comunicação com os
+*Nodes*. Sendo assim, a comunicação externa é feita sempre com a /API/; para nos
+comunicarmos com a mesma, usamos uma ferramenta CLI chamada ~kubectl~.
+
+O ~kubectl~ é capaz  de enviar comandos de CRUD para a /API/,  e pode fazer isso
+de  forma declarativa  (com  arquivos de  definição)  ou imperativa  (executando
+comandos diretamente).
+
+* Criando o cluster
+
+** Inicializando o cluster no Windows
+
+O  Docker  Desktop  já  possui  ferramentas para  inicialização  de  um  cluster
+Kubernetes embutido.
+
+Instale o  Docker Desktop, abra-o,  clique nas configurações, aba  Kubernetes, e
+marque Enable Kubernetes. Clique em Apply & Restart.
+
+Para verificar se está funcionando, abra o PowerShell e digite:
+
+#+begin_src powershell
+kubectl get nodes
+#+end_src
+
+** Inicializando o cluster no Linux
+
+Instale o ~kubectl~ manualmente (veja a [[https://kubernetes.io/docs/tasks/tools/install-kubectl/][documentação no site do Kubernetes]]);
+
+Para verificar se ele está funcionando:
+
+#+begin_src bash
+kubectl version --client
+#+end_src
+
+Caso seja executado  o ~kubectl get nodes~, haverá um  erro de conexão recusada,
+pois ainda não temos um cluster.
+
+Para criarmos um ambiente virtualizado com um cluster, instale o [[https://kubernetes.io/docs/tasks/tools/install-minikube/][Minikube]].
+
+Para  criar o  cluster  com o  Minikube, precisaremos  também  ter o  [[https://virtualbox.org][VirtualBox]]
+instalado, pois utilizaremos o mesmo como driver de VM.
+
+Para iniciar (será necessario executar a cada boot):
+
+#+begin_src bash
+minikube start --vm-driver=virtualbox
+#+end_src
+
+Para verificar se está executando:
+
+#+begin_src bash
+kubectl get nodes
+#+end_src
+
+** Inicializando o cluster no GCP
+
+Você pode criar seu cluster Kubernetes em https://cloud.google.com.
+
+*ATENÇÃO: VOCÊ PROVAVELMENTE VAI SER COBRADO POR ISSO. USE COM MUITA CAUTELA.*
+
+* Criando e entendendo pods
+
+** Entendendo o que são pods
+
+*Pods* são análogos aos /contêineres/ do Docker.
+
+Um /pod/ (cápsula) contém um ou mais  contêineres dentro de si. Na prática, isso
+significa  que  o   ~kubectl~  sempre  requisita,  de   maneira  declarativa  ou
+imperativa, a criação de um /pod/, que pode encapsular um ou mais contêineres.
+
+Sempre que um /pod/ é criado, este  /pod/ recebe um endereço IP. Dessa forma, um
+endereço IP não é  mais de um /contêiner/, e sim de um  /pod/ inteiro. Assim, as
+portas  dos  contêineres  nele  contidos são  mapeadas  automaticamente  para  o
+/pod/. Por isso mesmo, contêineres em um /pod/ não podem ter conflito de porta.
+
+Além disso,  um /pod/ para  de funcionar quando  todos os contêineres  dentro do
+mesmo  parem  de funcionar.  Nesse  caso,  o  Kubernetes  tem a  autonomia  para
+recriá-los.  Todavia,  eles   não  terão  o  mesmo  IP.  Isso   devido  a  outra
+característica dos /pods/: *eles são efêmeros*.
+
+/Pods/ também compartilham  /namespaces/ de rede e  de comunicação interprocesso
+(IPC),  e  podem  também  compartilhar   volumes.  Portanto,  eles  podem  fazer
+comunicação entre si via ~localhost~. Do contrário, podem fazer comunicações via
+IP do /pod/.
+
+** O primeiro pod
+
+Para criar um /pod/:
+
+#+begin_src bash
+kubectl run <nome-do-pod> --image=<nome-da-imagem>
+#+end_src
+
+No nosso caso:
+
+#+begin_src bash
+kubectl run nginx-pod --image=nginx:latest
+#+end_src
+
+Após a criação, poderemos consultar o status da criação do pod:
+
+#+begin_src bash
+kubectl get pods --watch
+#+end_src
+
+Extra: para deletar um pod:
+
+#+begin_src bash
+kubectl delete pod <nome-do-pod>
+#+end_src
+
+Para capturar informações do pod:
+
+#+begin_src bash
+kubectl describe pod <nome-do-pod>
+#+end_src
+
+Pela descrição, fica claro pelos eventos que a criação em si do pod foi agendada
+pelo Scheduler.
+
+Se, por exemplo, eu quisesse editar o pod para que o mesmo utilizasse uma versão
+específica do ~nginx~:
+
+#+begin_src bash
+kubectl edit pod nginx-pod
+#+end_src
+
+Extra: Para abrir no Emacs:
+
+#+begin_src bash
+export KUBE_EDITOR='emacsclient -a emacs'
+#+end_src
+
+Em ~spec>containers>image~, troque a imagem para ~nginx:1.0~. Isso, todavia, nos
+dará um  erro de ~ErrImagePull~ (se  consultarmos o pod via  ~describe~), porque
+esta /tag/ do ~nginx~ não existe.  O /status/ então muda para ~ImagePullBackOff~
+no ~get~.
+
+** Criando pods de maneira declarativa
+
+Criaremos todos os arquivos no diretório destas notas. Começaremos com o arquivo
+~primeiro-pod.yaml~.
+
+Precisamos informar uma ~apiVersion~, pois a  API era um programa unificado, mas
+agora foi desmembrado em mais partes (~alpha~, ~beta~ e ~stable~).
+
+No caso  da versão  ~stable~, existem grupos  denominados como  números inteiros
+(ex: ~v1~, que vamos utilizar).
+
+O tipo (~kind~) do recurso a ser criado será um ~Pod~.
+
+Em seguida, definimos  os metadados (~metadata~) do Pod, como  seu nome (~name~)
+-- /essa informação é obrigatória/.
+
+Agora, trataremos das especificações (~spec~).  Nesse caso, teremos um contêiner
+que possui um nome ~nginx-container~, e utilizar a imagem ~nginx:latest~.
+
+O arquivo ficará assim:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: primeiro-pod-declarativo
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+#+end_src
+
+Agora, basta pedirmos  para o Kubernetes aplicar nosso arquivo  de definição via
+console:
+
+#+begin_src bash
+kubectl apply -f primeiro-pod.yaml
+#+end_src
+
+Em seguida, vamos  trocar a imagem do contêiner para  ~nginx:stable~ e aplicar o
+arquivo novamente. Como o pod já foi criado, o mesmo será reconfigurado.
+
+** Iniciando o projeto
+
+Vamos  remover os  pods  anteriores.  Podemos remover  pods  definidos de  forma
+imperativa e também declarativa.
+
+#+begin_src bash
+kubectl delete pod nginx-pod
+kubectl delete -f primeiro-pod.yaml
+#+end_src
+
+Para  criar o  projeto, trabalharemos  em  cima de  um portal  de notícias,  mas
+seguindo todas as boas práticas do Kubernetes.
+
+Vamos criar um arquivo ~portal-noticias.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: portal-noticias
+spec:
+  containers:
+    - name: portal-noticias-container
+      image: aluracursos/portal-noticias:1
+#+end_src
+
+Vamos acessar essa aplicação. A primeira forma de fazer isso é via ~describe~.
+
+#+begin_src bash
+kubectl describe pod portal-noticias
+#+end_src
+
+Se  tentarmos acessar  esse IP,  veremos que  algo está  errado, por  existe uma
+demora no processo.
+
+Podemos acessar diretamente o /pod/ para avaliar se tudo está funcionando:
+
+#+begin_src bash
+kubectl exec -it portal-noticias -- bash
+#+end_src
+
+Se dermos um ~curl~ para avaliar, dentro do pod, se a página é retornada...
+
+#+begin_src bash
+# Em portal-noticias
+curl localhost
+#+end_src
+
+...veremos  que a  página  é retornada  como esperado.  Porém,  isso não  ocorre
+externamente.
+
+Isso  ocorre --  se  verificarmos no  ~describe~ --  porque  o IP  anteriormente
+descrito só  funciona para  acesso *dentro  do cluster*. Mais  do que  isso, não
+existe  mapeamento  entre  o IP  do  /pod/  e  o  contêiner em  si!  Igualmente,
+precisaremos permitir que o IP também seja acessível ao mundo externo.
+
+* Expondo pods com services
+
+** Conhecendo services
+
+Podemos ver mais dados de pods com o comando:
+
+#+begin_src bash
+kubectl get pods -o wide
+#+end_src
+
+Como não  temos controle sobre  o IP de um  /pod/, precisamos de  uma estratégia
+para que  possamos referenciar sempre  um mesmo /pod/,  ou além disso,  para que
+possamos garantir que /pods/ possam referenciar-se dentro do cluster.
+
+Para resolver isso, vamos usar um /service/.
+
+Um  /service/ é  uma  abstração  para expor  aplicações  executando  um ou  mais
+/pods/. É  capaz de prover  IPs fixos para comunicação,  e também prover  um DNS
+para  um ou  mais /pods/.  Além disso,  são capazes  de fazer  /balanceamento de
+carga/.
+
+Um  /serviço/  pode  possuir um  dos  três  seguintes  tipos,  cada um  com  sua
+finalidade específica:
+
+- ~ClusterIP~;
+- ~NodePort~;
+- ~LoadBalancer~.
+
+** Criando um Cluster IP
+
+Um serviço  do tipo ~ClusterIP~  serve para  fazer a comunicação  entre diversos
+/pods/ dentro de  um mesmo cluster. Um  serviço diz respeito sempre  a um /pod/,
+portanto, para se comunicar com outro  /pod/, ambos devem ter serviços atrelados
+que permitam esse tipo de comunicação.
+
+O ~ClusterIP~ serve, portanto, apenas para comunicação /interna/.
+
+Vamos   começar  com   um   arquivo   de  definição   para   o  primeiro   /pod/
+(~pod-1.yaml~).    Dessa   vez,    deixamos   claro    usando   a    propriedade
+~spec.containers[0].ports[0].containerPort~ que a porta escutada é a porta ~80~,
+para o container ~container-pod-1~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+spec:
+  containers:
+    - name: container-pod-1
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+Vamos criar o segundo /pod/ (~pod-2.yaml~):
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-2
+spec:
+  containers:
+    - name: container-pod-2
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+Agora, basta aplicarmos ambos os arquivos.
+
+#+begin_src bash
+kubectl apply -f pod-1.yaml
+kubectl apply -f pod-2.yaml
+#+end_src
+
+Agora, teremos três pods em execução: ~portal-noticias~, ~pod-1~ e ~pod-2~.
+
+O  próximo  passo  será  criar  uma maneira  estável  de  nos  comunicarmos  com
+~pod-2~. Para tanto, vamos criar um serviço para esse pod em ~svc-pod-2.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-2
+spec:
+  type: ClusterIP
+#+end_src
+
+Agora, temos a questão principal: para que o serviço saiba, de fato, que precisa
+se comunicar com  o recurso do ~pod-2~, precisamos /etiquetar/  o nosso ~pod-2~,
+usando  /labels/. Para  tanto, vamos  fazer  modificações em  ~pod-2.yaml~ e  em
+~svc-pod-2.yaml~:
+
+#+begin_src yaml
+# pod-2.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-2
+  labels:
+    app: segundo-pod
+spec:
+  containers:
+    - name: container-pod-2
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+Veja  que as  /labels/ são  relações chave-valor  relativamente livres.  Temos a
+liberdade para defini-las como quisermos. O importante é manter a semântica.
+
+#+begin_src yaml
+# svc-pod-2.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-2
+spec:
+  type: ClusterIP
+  selector:
+    app: segundo-pod
+  ports:
+    - port: 80
+#+end_src
+
+O atributo /selector/ do serviço fará uma seleção de acordo com os /labels/ para
+selecionar os recursos  do serviço. Igualmente, o atributo /ports/  define que o
+serviço ouve na porta 80, mas também despacha para os /pods/ a ele associados na
+porta 80.
+
+Podemos inspecionar o serviço e o pod:
+
+#+begin_src bash
+kubectl get pods
+kubectl describe pod pod-2
+
+kubectl get svc
+kubectl describe svc svc-pod-2
+#+end_src
+
+Vamos tentar nos conectar a ~pod-2~ através de ~pod-1~:
+
+#+begin_src bash
+kubectl exec -it pod-1 -- bash
+
+# Em pod-1
+curl <ip-do-pod-2>:80
+#+end_src
+
+Caso deletemos ~pod-2~, o serviço continuará em execução, ouvindo na porta ~80~,
+mas  não terá  para  onde despachar  quaisquer requisições  nessa  porta, o  que
+ocasionará uma conexão recusada.
+
+Caso fosse  necessário o  serviço ouvir  em outra porta,  por exemplo,  na 9000,
+e ainda despachar para o pod na porta 80, usaríamos como propriedade o seguinte:
+
+#+begin_src yaml
+ports:
+  - port: 9000
+    targetPort: 80
+#+end_src
+
+** Criando um Node Port
+
+Um serviço do tipo ~NodePort~ permite  realizar comunicação com o mundo externo,
+e também funciona dentro do cluster como um ~ClusterIP~.
+
+Vamos expor o ~pod-1~ para o mundo.
+
+#+begin_src yaml
+# pod-1.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+  labels:
+    app: primeiro-pod
+spec:
+  containers:
+    - name: container-pod-1
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+#+end_src
+
+#+begin_src yaml
+# svc-pod-1.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-1
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+  selector:
+    app: primeiro-pod
+#+end_src
+
+Vamos observar os serviços:
+
+#+begin_src bash
+kubectl get svc
+#+end_src
+
+Poderemos observar  que o /pod/  agora possui um  endereço IP estável  dentro do
+cluster (~CLUSTER-IP~).
+
+Podemos também analisar os dados do /node/:
+
+#+begin_src bash
+kubectl get nodes -o wide
+#+end_src
+
+Adicionalmente, podemos definir uma porta externa para o nó dessa forma:
+
+#+begin_src yaml
+  ports:
+    - port: 80
+      nodePort: 30000
+#+end_src
+
+Do contrário,  a porta  será arbitrária.  A porta externa  a ser  utilizada pode
+estar entre ~30000~ e ~32767~.
+
+Para   o    *Windows*,   ocorre    /binding/   automático   do    cluster   para
+~localhost~. Portanto, o ~NodePort~ é automaticamente acessível via ~localhost~.
+
+Para o *Linux*, execute novamente o comando a seguir, e observe o ~INTERNAL-IP~:
+
+#+begin_src bash
+kubectl get nodes -o wide
+#+end_src
+
+O  ~INTERNAL-IP~ descreve  o endereço  IP que  pode ser  utilizado para  acessar
+nossos recursos.
+
+** Criando um Load Balancer
+
+O  ~LoadBalancer~  age  exatamente  como  um  ~ClusterIP~,  porém  integrando-se
+automaticamente ao /load balancer/ do provedor (AWS, GCP, Azure, etc).
+
+Vamos  trabalhar com  uma modificação  do ~svc-pod-1.yml~,  que poderíamos,  por
+exemplo, criar no GCP. Vamos criar um arquivo ~svc-pod-1-loadbalancer.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-pod-1-loadbalancer
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      nodePort: 30000
+    selector:
+      app: primeiro-pod
+#+end_src
+
+* Aplicando services ao projeto
+
+** Acessando o portal
+
+Vamos  começar removendo  todos os  pods  em execução  e colocando  o portal  de
+notícias como ~NodePort~.
+
+#+begin_src bash
+kubectl delete pods --all
+kubectl delete svc --all
+#+end_src
+
+A partir  de agora, vamos trabalhar  só com o arquivo  ~portal-noticias.yaml~, e
+criar mais arquivos de acordo com o necessário.
+
+Definiremos labels e a porta do contêiner para fins de documentação.
+
+#+begin_src yaml
+# Em portal-noticias.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: portal-noticias
+  labels:
+    app: portal-noticias
+spec:
+  containers:
+    - name: portal-noticias-container
+      image: aluracursos/portal-noticias:1
+      ports:
+        - containerPort: 80
+#+end_src
+
+Agora    criaremos    o    serviço    para   o    portal    de    notícias    em
+~svc-portal-noticias.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-portal-noticias
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      #targetPort: 80
+      nodePort: 30000
+  selector:
+    app: portal-noticias
+#+end_src
+
+Vamos agora aplicar ambas as configurações.
+
+#+begin_src bash
+kubectl apply -f portal-noticias.yaml
+kubectl apply -f svc-portal-noticias.yaml
+#+end_src
+
+No Linux, veja o IP do nó com ~kubectl get node -o wide~, em ~INTERNAL-IP~.
+
+** Subindo o sistema
+
+Agora, vamos  criar um serviço e  um pod responsáveis pelo  sistema de notícias,
+onde as notícias  efetivamente farão o cadastro das notícias  que serão exibidas
+no portal.
+
+Vamos criar o pod com ~sistema-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sistema-noticias
+  labels:
+    app: sistema-noticias
+spec:
+  containers:
+    - name: sistema-noticias-container
+      image: aluracursos/sistema-noticias:1
+      ports:
+        - containerPort: 80
+#+end_src
+
+Em ~svc-sistema-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-sistema-noticias
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      nodePort: 30001
+  selector:
+    app: sistema-noticias
+#+end_src
+
+Aplicando:
+
+#+begin_src bash
+kubectl apply -f sistema-noticias.yaml
+kubectl apply -f svc-sistema-noticias.yaml
+#+end_src
+
+** Subindo o banco
+
+Agora, precisamos de um banco de dados para armazenar as notícias.
+
+Como o mesmo  será acessível dentro do cluster apenas,  podemos criar um serviço
+~ClusterIP~ para ele.
+
+Para isso, criaremos ~db-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+#+end_src
+
+Adicionalmente, definimos o serviço em ~svc-db-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-db-noticias
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+  selector:
+    app: db-noticias
+#+end_src
+
+Para aplicar:
+
+#+begin_src bash
+kubectl apply -f db-noticias.yaml
+kubectl apply -f svc-db-noticias.yaml
+#+end_src
+
+Se executarmos ~kubectl get pods~, veremos que ocorreu um erro ao criar o pod de
+~db-noticias~!
+
+Se  dermos ~describe~  neste pod,  veremos que  precisamos definir  variáveis de
+ambiente para o MySQL.
+
+* Definindo variáveis de ambiente
+
+** Utilizando variáveis de ambiente
+
+Precisamos definir variáveis de ambiente para  que o contêiner do banco de dados
+opere como deveria.
+
+Vamos editar ~db-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+      env:
+        - name: "MYSQL_ROOT_PASSWORD"
+          value: "q1w2e3r4"
+        - name: "MYSQL_DATABASE"
+          value: "empresa"
+        - name: "MYSQL_PASSWORD"
+          value: "q1w2e3r4"
+#+end_src
+
+Agora, vamos deletar o pod e recriá-lo:
+
+#+begin_src bash
+kubectl delete pod db-noticias
+kubectl apply -f db-noticias.yaml
+#+end_src
+
+Para  verificarmos  que  ele  está  executando  como  deveria,  podemos  acessar
+diretamente o MySQL:
+
+#+begin_src bash
+kubectl exec -it db-noticias -- mysql -u root -p
+# Entre com a senha q1w2e3r4
+#+end_src
+
+Todavia, o sistema de  notícias ainda não sabe se conectar  ao banco. Para isso,
+precisamos definir variáveis de ambiente para isso em ~sistema-noticias.yaml~.
+
+Além  disso, as  variáveis  de  ambiente estão  muito  acopladas  no arquivo  de
+configuração. Seria  interessante definir  um arquivo  separado para  isso, para
+deixar a definição do /pod/ de banco de dados o mais genérica possível.
+
+** Criando um ConfigMap
+
+Vamos extrair as configurações de variáveis  de ambiente para fora do arquivo de
+configuração do /pod/ de banco de dados.
+
+Para isso,  vamos usar  um ~ConfigMap~. Assim,  evitamos acoplamento  dos nossos
+recursos com informações de configuração.  Assim, ele permite a *reutilização* e
+o *desacoplamento*, pois diversos pods podem usar um ou mais /ConfigMaps/.
+
+Vamos criar um arquivo ~db-configmap.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-configmap
+data:
+  MYSQL_ROOT_PASSWORD: q1w2e3r4
+  MYSQL_DATABASE: empresa
+  MYSQL_PASSWORD: q1w2e3r4
+#+end_src
+
+#+begin_src bash
+kubectl apply -f db-configmap.yaml
+#+end_src
+
+Podemos procurar os ConfigMaps com:
+
+#+begin_src bash
+kubectl get configmap
+#+end_src
+
+** Aplicando o ConfigMap ao projeto
+
+Precisamos, agora, importar os valores do ConfigMap para dentro do /pod/.
+
+Para tanto, vamos editar a configuração do /pod/ em ~db-noticias.yaml~, usando a
+propriedade ~valueFrom~  para determinar o  uso de  cada variável de  ambiente a
+partir do ConfigMap apropriado.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+      env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: db-configmap
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: db-configmap
+              key: MYSQL_DATABASE
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: db-configmap
+              key: MYSQL_PASSWORD
+#+end_src
+
+Como todos  os valores  vêm do  mesmo ConfigMap, podemos  enxugar um  pouco mais
+essas declarações,  já que elas podem  ficar extensas muito rápido.  Nesse caso,
+vamos nos valer do  fato de que as variáveis de ambiente têm  o exato mesmo nome
+das variáveis declaradas no ConfigMap:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-noticias
+  labels:
+    app: db-noticias
+spec:
+  containers:
+    - name: db-noticias-container
+      image: aluracursos/mysql-db:1
+      ports:
+        - containerPort: 3306
+      envFrom:
+        - configMapRef:
+            name: db-configmap
+#+end_src
+
+Agora, basta parar o /pod/ e subi-lo novamente para usar o ConfigMap.
+
+#+begin_src bash
+kubectl delete pod db-noticias
+kubectl apply -f db-noticias.yaml
+#+end_src
+
+Para verificarmos que tudo está certo:
+
+#+begin_src bash
+kubectl exec -it db-noticias -- mysql -u root -p
+# Insira a senha "q1w2e3r4"
+
+# No console MySQL
+show databases;
+#+end_src
+
+*** Comunicando o sistema com o banco
+
+Agora,  precisamos referenciar  o  banco  no sistema  de  notícias. Para  tanto,
+precisaremos definir algumas variáveis de  ambiente para que ele possa encontrar
+o banco.
+
+Vamos criar um ConfigMap em  ~sistema-configmap.yaml~ para nosso sistema e vamos
+utilizá-lo.
+
+#+begin_src yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sistema-configmap
+data:
+  HOST_DB: svc-db-noticias:3306
+  USER_DB: root
+  PASS_DB: q1w2e3r4
+  DATABASE_DB: empresa
+#+end_src
+
+Veja que,  para definir  ~HOST_DB~, usamos  diretamente o  nome do  serviço, que
+poderá ser capturado via DNS dentro do cluster. Independentemente do IP do /pod/
+do banco  de dados, referenciar ~svc-db-noticias~  redirecionará automaticamente
+para o local certo do serviço.
+
+Vamos aplicar o ConfigMap.
+
+#+begin_src bash
+kubectl apply -f sistema-configmap.yaml
+#+end_src
+
+Em seguida, vamos  aplicar o ConfigMap em ~sistema-noticias.yaml~  e reiniciar o
+/pod/ manualmente.
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sistema-noticias
+  labels:
+    app: sistema-noticias
+spec:
+  containers:
+    - name: sistema-noticias-container
+      image: aluracursos/sistema-noticias:1
+      ports:
+        - containerPort: 80
+      envFrom:
+        - configMapRef:
+            name: sistema-configmap
+#+end_src
+
+#+begin_src bash
+kubectl delete pod sistema-noticias
+kubectl apply -f sistema-noticias.yaml
+#+end_src
+
+*** Comunicando o painel com o sistema
+
+Agora,  queremos que  o  painel  mostre as  notícias  que  forem cadastradas  no
+sistema.
+
+Para isso, precisamos definir a  variável ~IP_SISTEMA~. Dessa forma, vamos fazer
+mais um ConfigMap, dessa vez para o portal, em ~portal-configmap.yaml~.
+
+#+begin_src yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-configmap
+data:
+  IP_SISTEMA: http://192.168.59.101:30001
+#+end_src
+
+Em ~portal-noticias.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sistema-noticias
+  labels:
+    app: sistema-noticias
+spec:
+  containers:
+    - name: sistema-noticias-container
+      image: aluracursos/sistema-noticias:1
+      ports:
+        - containerPort: 80
+      envFrom:
+        - configMapRef:
+            name: sistema-configmap
+#+end_src
+
+Será possível agora ver as notícias no portal.
+
+* Extra
+
+Não gostei de como o ConfigMap do  portal orienta a conectar por meio externo ao
+sistema de notícias.
+
+Pensei em criar mais um serviço de tipo ClusterIP (o que é desnecessário, porque
+o NodePort já resolve o problema) para  conexão interna do portal com o sistema,
+mas isso não vai ser possível por uma questão de *arquitetura do portal*.
+
+O portal  simplesmente recupera  as notícias  do sistema,  porém ele  depende do
+sistema tendo um IP fixo! Isso porque, mesmo estando hospedado no mesmo cluster,
+a  porcaria do  sistema feito  em  PHP só  renderiza  a página  para o  cliente,
+esperando o IP que colocamos no ConfigMap.
+
+Em outras  palavras, mesmo  que seja  possível recuperar  as notícias  dentro do
+pod...
+
+#+begin_src bash
+kubectl exec -it portal-noticias -- bash
+
+# Em portal-noticias
+curl svc-sistema-noticias/noticias.php
+#+end_src
+
+...a página  em PHP, ao  invés de  renderizar as notícias  /server-side/, apenas
+cospe código para  requisitar as notícias no /client-side/ através  de um IP que
+possa ser resolvido *no browser*.
+
+E, se resolve no browser, bye bye DNS interno do /cluster/.
+
+Então... não tem jeito, só refatorando parte do sistema mesmo. E eu não pretendo
+encostar em PHP para isso.
+
+

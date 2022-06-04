@@ -1,0 +1,1483 @@
+
+#+title: Kubernetes: Deployments, Volumes e Escalabilidade
+
+Esta é uma continuação do [[./kubernetes-1.org][curso anterior]].
+
+* Conhecendo ReplicaSets e Deployments
+
+Para mitigar  a questão da  efemeridade dos  /pods/, podemos usar  ReplicaSets e
+Deployments.
+
+** Conhecendo ReplicaSets
+
+Caso um  /pod/ falhe, será o  fim da vida do  mesmo. Para criar outro  /pod/ que
+assuma o  lugar do primeiro, precisamos  de uma estrutura que  gerencie isso. Aí
+que entram os *ReplicaSets*.
+
+Assim como  um /pod/  encapsula um  ou mais contêineres,  um /ReplicaSet/  é uma
+estrutura que  encapsula um ou  mais /pods/, e  também gerencia a  quantidade de
+réplicas existentes para um /pod/, de acordo com uma quantidade esperada.
+
+Além  disso, o  /ReplicaSet/ é  capaz  de fazer  um balanceamento  de carga  das
+requisições entre as réplicas existentes.
+
+Vamos criar um ReplicaSet para o portal em ~portal-noticias-replicaset.yaml~.
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: portal-noticias-replicaset
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+Veja que a versão da API será ~apps/v1~ ao invés de apenas ~v1~.
+
+Além disso, parte  de ~portal-noticias.yaml~ acaba fazendo  parte da propriedade
+~spec~  do ReplicaSet,  na forma  de  uma ~template~.  Esse ~template~  descreve
+justamente um padrão para a criação de um /pod/ neste ReplicaSet.
+
+Além  disso, informamos  um número  de réplicas  que desejamos  gerenciar (três,
+nesse caso), e  no ~selector~ do ReplicaSet, usamos  a propriedade ~matchLabels~
+para deixar  claro ao  Kubernetes que  o ReplicaSet  gerencia /pods/  cujo label
+~app~ iguala-se a  ~portal-noticias~. Do contrário, o Kubernetes  não saberá que
+deve gerenciar /pods/ semelhantes ao template.
+
+Vamos aplicar.
+
+#+begin_src bash
+kubectl apply -f portal-noticias-replicaset.yaml
+#+end_src
+
+Para verificarmos os status dos ReplicaSets:
+
+#+begin_src bash
+kubectl get replicasets
+#+end_src
+
+** Conhecendo Deployments
+
+Um /Deployment/ é  uma camada acima do /ReplicaSet/. Definir  um /Deployment/ é,
+automaticamente, definir também um /ReplicaSet/.
+
+Vamos começar criando um /Deployment/, com ~nginx-deployment.yaml~.
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  template:
+    metadata:
+      name: nginx-pod
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx-container
+          image: nginx:stable
+          ports:
+            - containerPort: 80
+  selector:
+    matchLabels:
+      app: nginx-pod
+#+end_src
+
+Veja que o /Deployment/ é muito similar à definição de um /ReplicaSet/.
+
+#+begin_src bash
+kubectl apply -f nginx-deployment.yaml
+#+end_src
+
+A  grande  vantagem  de um  /Deployment/  é  que  ele  permite um  *controle  de
+versionamento* das nossas imagens e pods.
+
+Podemos ver o histórico de mudanças do /Deployment/ com:
+
+#+begin_src bash
+kubectl rollout history deployment nginx-deployment
+#+end_src
+
+Imagine que queiramos mudar a versão da imagem do ~nginx~ para ~nginx:latest~ em
+vez de ~nginx:stable~.
+
+Nesse caso, fazemos a modificação e aplicamos da seguinte forma:
+
+#+begin_src bash
+kubectl apply -f nginx-deployment.yaml --record
+#+end_src
+
+Caso usemos  o comando  de histórico, veremos  que ~CHANGE-CAUSE~  será definido
+para  a versão  2.  Para elaborarmos  o último  ~CHANGE-CAUSE~,  podemos usar  o
+comando:
+
+#+begin_src bash
+kubectl annotate deployment nginx-deployment kubernetes.io/change-cause="Definindo a imagem com versão latest"
+#+end_src
+
+Sendo assim, para retornarmos para uma versão anterior no /Deployment/:
+
+#+begin_src bash
+kubectl rollout undo deployment nginx-deployment --to-revision=1
+kubectl annotate deployment nginx-deployment kubernetes.io/change-cause="Rollback para a imagem com versão stable"
+#+end_src
+
+** Aplicando Deployments ao projeto
+
+Vamos aplicar /Deployments/ ao portal, ao sistema e também ao banco de dados.
+
+Começaremos deletando primeiro  o /Deployment/ criado anteriormente,  e também o
+/ReplicaSet/ do portal.
+
+#+begin_src bash
+kubectl delete deployment nginx-deployment
+kubectl delete -f portal-noticias-replicaset.yaml
+#+end_src
+
+Vamos criar o  /Deployment/ para o portal. A declaração  é praticamente idêntica
+ao     do     /ReplicaSet/;     portanto,    vamos     remover     o     arquivo
+~portal-noticias-replicaset.yaml~,           criar           o           arquivo
+~portal-noticias-deployment.yaml~,  e colocar  nele o  conteúdo do  /ReplicaSet/
+apagado, porém de forma adaptada:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl annotate deployment portal-noticias-deployment kubernetes.io/change-cause="Criando portal de notícias na versão 1"
+#+end_src
+
+Vamos fazer a mesma coisa para o sistema de notícias e para o banco de dados.
+
+~sistema-noticias-deployment.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sistema-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: sistema-noticias
+      labels:
+        app: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sistema-noticias
+#+end_src
+
+~db-noticias-deployment.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: db-noticias
+      labels:
+        app: db-noticias
+    spec:
+      containers:
+        - name: db-noticias-container
+          image: aluracursos/mysql-db:1
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - configMapRef:
+                name: db-configmap
+  selector:
+    matchLabels:
+      app: db-noticias
+#+end_src
+
+Veja que não definimos o número de replicas aqui, o que já as qualifica como ~1~.
+
+Agora, no console:
+
+#+begin_src bash
+kubectl delete pod sistema-noticias
+kubectl delete pod db-noticias
+kubectl apply -f sistema-noticias-deployment.yaml
+kubectl apply -f db-noticias-deployment.yaml
+kubectl annotate deployment sistema-noticias-deployment kubernetes.io/change-cause="Subindo o sistema na versão 1"
+kubectl annotate deployment db-noticias-deployment kubernetes.io/change-cause="Subindo o banco de dados na versão 1"
+#+end_src
+
+Como  os  /pods/  são  efêmeros,  *todos  os  dados  do  banco  de  dados  foram
+apagados*. Precisamos persistir os dados com volumes persistentes e similares.
+
+* Persistindo dados com o Kubernetes
+
+Quando  o /pod/  é  encerrado,  todos os  arquivos  nele  criados são  perdidos,
+justamente por conta da efemeridade do mesmo.
+
+Primeiro, trataremos da  persistência de dados no âmbito de  um /contêiner/ para
+então partirmos para a persistência de dados no próprio /pod/.
+
+Sabemos  que   podemos  compartilhar  dados  entre   /contêineres/,  mas  agora,
+precisamos, no  Kubernetes, compartilhar dados  entre /contêineres/ de  um mesmo
+/pod/.
+
+Para isso, temos recursos como:
+- /Volumes/;
+- /PersistentVolumes/;
+- /PersistentVolumeClaims/;
+- /StorageClasses/.
+
+** Persistindo dados com volumes (e volumes no Linux)
+
+Vamos partir  do problema mais  básico: temos contêineres  dentro de um  /pod/ e
+queremos compartilhar  arquivos entre  eles. No  Docker, criaríamos  volumes; no
+Kubernetes,  fazemos a  mesma coisa,  criando  um /Volume/  para os  contêineres
+dentro do /pod/.
+
+O problema de criar este /Volume/, porém, é que seu ciclo de vida, apesar de ser
+independente dos contêineres, *é dependente do ciclo de vida do /pod/* que, como
+vimos, é efêmero.
+
+Existem vários tipos de volumes, e eles podem ser verificados na [[https://kubernetes.io/docs/concepts/storage/volumes][documentação do
+Kubernetes]].  Para esta  situação, vamos  utilizar o  tipo de  volume ~hostPath~,
+muito similar aos volumes utilizados anteriormente com Docker.
+
+O  ~hostPath~, basicamente,  monta um  arquivo ou  diretório do  /filesystem/ do
+/host/, em que  o Kubernetes está executando, dentro do  /pod/; enquanto o /pod/
+estiver vivo, este volume existirá.
+
+Para  exemplificar  a criação  do  volume,  vamos  criar  primeiro um  /pod/  em
+~pod-volume.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-volume
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-volume
+    - name: jenkins-container
+      image: jenkins/jenkins:alpine
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-volume
+  volumes:
+    - name: primeiro-volume
+      hostPath:
+        path: /home/primeiro-volume
+        type: Directory
+#+end_src
+
+Adicionalmente, *como  estamos usando ~minikube~*, precisamos  acessar a máquina
+virtual via SSH e  criar o diretório que será montado  -- afinal, *nossa máquina
+virtual do Minikube funcionará como host.*
+
+#+begin_src bash
+minikube ssh
+
+# Dentro da VM...
+sudo mkdir /home/primeiro-volume
+exit
+#+end_src
+
+Vamos aplicar agora.
+
+#+begin_src bash
+kubectl apply -f pod-volume.yaml
+#+end_src
+
+Almejamos criar dois contêineres dentro  do nosso /pod/, e compartilhar arquivos
+entre eles com um volume.
+
+A princípio,  veja que os  volumes são definidos  no escopo da  especificação do
+/pod/, e  não dos contêineres, o  que se justifica  por seu ciclo de  vida estar
+atrelado ao /pod/.
+
+Além   disso,  especificamos   seu   tipo  diretamente   como  uma   propriedade
+(~hostPath~),  apontando   para  um  diretório   no  diretório  atual   do  host
+(~primeiro-volume~), e também o tipo da montagem como ~Directory~.
+
+Veja  também  que, para  cada  /pod/,  especificamos  um  ponto de  montagem  de
+~primeiro-volume~ no caminho ~/volume-dentro-do-container~.
+
+(*ATENÇÃO:* Essa opção  não funcionará no Windows caso esteja  sendo utilizado o
+WSL  2! Além  disso, em  Settings >  Resources >  FILE SHARING,  será necessário
+adicionar o diretório sendo compartilhado.)
+
+Para acessar diretamente  um contêiner dentro de um /pod/,  basta especificar no
+comando ~exec~. Por exemplo:
+
+#+begin_src bash
+kubectl exec -it pod-volume --container nginx-container -- bash
+#+end_src
+
+O  volume também  será  mostrado  na descrição  do  pod  (~kubectl describe  pod
+pod-volume~).
+
+Um detalhe do ~hostPath~ é que o volume existe, de fato, apenas enquanto o /pod/
+existe.  Todavia, caso  o /pod/  deixe de  existir, os  arquivos continuarão  no
+diretório do host que foi montado dentro dos /pods/.
+
+** Persistência com PersistentVolumes
+
+Para utilizar  um /PersistentVolume/  e um  /PersistentVolumeClaim/ em  um Cloud
+Provider (por exemplo, Google Cloud Platform):
+
+Inicialmente, é necessário criar um  /disco/ (abstração do cloud provider), para
+armazenamento efetivo dos dados.
+
+O /PersistentVolume/ consome do disco, para que os dados sejam nele persistidos.
+
+Por  exemplo, imaginemos  que  temos um  disco  de  10GB, e  que  temos então  a
+definição do /PersistentVolume/ no arquivo ~pv.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-1
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  gcePersistentDisk:
+    pdName: pv-disk
+  storageClassName: standard
+#+end_src
+
+Temos, então, um /PersistentVolume/ que utilizará  10GB de disco, com um modo de
+operação ~ReadWriteOnce~, o que significa que será dada a permissão de leitura e
+escrita a apenas um /pod/ por vez.
+
+Além  disso, como  tipo do  volume, utilizaremos  o ~gcePersistentDisk~  (Google
+Cloud Engine Persistent Disk). A documentação sobre volumes do Kubernetes mostra
+todos os dados sobre cada tipo de volume,  e para este tipo, não é diferente. em
+~pdName~, apontamos o nome do disco utilizado (criado no GCP como ~pv-disk~).
+
+Por  fim,  como um  /PersistentVolumeClaim/  será  utilizado, determinaremos  um
+~storageClassName~ de nome ~standard~.
+
+Após aplicar o arquivo, podemos consultar os /PersistentVolumes/ com o comando:
+
+#+begin_src bash
+kubectl get pv
+#+end_src
+
+Agora,    podemos   criar    um   /PersistentVolumeClaim/    para   que    nosso
+/PersistentVolume/  tenha  um  ~CLAIM~ atribuído.  Esse  /PersistentVolumeClaim/
+possibilita o uso e o acesso a  um /PersistentVolume/ de acordo com a demanda do
+/pod/, sendo efetivamente a entidade à qual amarraremos o /pod/ em si.
+
+Vamos criar o arquivo ~pvc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+#+end_src
+
+Para  deixarmos  claro  que  o   /PersistentVolume/  anterior  é  acessado  pelo
+/PersistentVolumeClaim/    recentemente   definido,    precisamos   adequar    a
+especificação do /PVC/  ao /PV/. Este é  um /binding/ diferente do  que já vinha
+sendo feito até agora (através de /labels/).
+
+Para  tanto,  o   /PV/  e  o  /PVC/   precisam  ter  o  mesmo   modo  de  acesso
+(~accessModes~), a  mesma capacidade  (~storage~), e assim,  o /PVC/  saberá que
+estamos usando  o /PV/  declarado anteriormente.  Por fim,  ambos usam  também o
+mesmo ~storageClassName~.
+
+Podemos avaliar os /PersistentVolumeClaims/ criados com:
+
+#+begin_src bash
+kubectl get pvc
+#+end_src
+
+Observe que o ~STATUS~  será igual a /Bound/ -- portanto, o  /PVC/ foi ligado ao
+/PV/  --,  e  os  demais  dados  apresentados também  conferem  com  o  que  foi
+especificado para o /PVC/ e o /PV/.
+
+Agora,   basta  criar   um   /pod/  que   vai  acessar   o   disco  através   do
+/PersistentVolume/.
+
+Vejamos agora o arquivo ~pod-pv.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-pv
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-pv
+  volumes:
+    - name: primeiro-pv
+      persistentVolumeClaim:
+        claimName: pvc-1
+#+end_src
+
+Veja que a ideia é exatamente a mesma de ~pod-volume.yaml~. Todavia, ao declarar
+o  volume  em   ~volumes~,  temos  que  ~primeiro-pv~  estará   associado  a  um
+/PersistentVolumeClaim/, mais especificamente ~pvc-1~, declarado anteriormente.
+
+Após aplicar o arquivo e navegarmos até a pasta, podemos usar o volume diretamente.
+
+#+begin_src bash
+kubectl exec -it pod-pv -- bash
+
+# Em pod-pv...
+cd /volume-dentro-do-container
+touch arquivo-persistente
+#+end_src
+
+A característica mais  interessante aqui é que,  *por mais que o  /pod/ deixe de
+xistir,  os   arquivos  ainda  continuarão   a  existir.*  Dessa   forma,  temos
+armazenamento persistente que *não está associado* ao tempo de vida do /pod/.
+
+*** Extra: configuração estática vs. configuração dinâmica
+
+No  Minerva,  após  fazer  a  conversão  da  configuração  usando  ~kompose~,  a
+ferramenta cria um /PersistentVolumeClaim/,  mas nenhum /PersistentVolume/. Essa
+é  uma configuração  de criação  de /PV/  *dinâmico*, em  que o  próprio cluster
+Kubernetes provê armazenamento baseado nas definições de /StorageClass/ (que, no
+Minerva, também deixamos o Kubernetes atribuir).
+
+No caso  anterior, usamos uma  criação de /PV/  *estático*, porque a  intenção é
+mostrar como  isso poderia ser  feito com o  Google Cloud Platform.  Nesse caso,
+será interessante deixarmos bem explícito o disco que estamos usando, bem como o
+tipo do /PersistentVolume/.
+
+O interessante do /PersistentVolumeClaim/ é que  ele permite abstrair tudo o que
+se refere à conexão com  um /PersistentVolume/. Assim, o /PersistentVolume/ pode
+ficar atrelado à configuração da plataforma sendo utilizada.
+
+* Storage Classes e StatefulSets
+
+** Utilizando Storage Classes
+
+Com   /StorageClasses/,    poderemos   criar   /PersistentVolumes/    e   discos
+*dinamicamente*. Isso  ocorrerá quando fizermos o  /binding/ de um /Pod/  com um
+/PersistentVolumeClaim/, através do /StorageClass/, e não diretamente através do
+/PersistentVolume/.
+
+Primeiramente  precisamos entender  como  o /StorageClass/  é definido.  Podemos
+inclusive consultar a [[https://kubernetes.io/docs/concepts/storage/storage-classes][documentação de Storage Classes]] do Kubernetes.
+
+Existem vários provisionadores de /StorageClasses/ para Kubernetes. Um deles é o
+/GCEPersistentDisk/.
+
+A própria  documentação possui  receitas de  como criar  esses tipos  de Storage
+Classes. Suponha o arquivo ~sc.yaml~:
+
+#+begin_src yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: slow
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-standard
+  fstype: ext4
+  replication-type: none
+#+end_src
+
+Este Storage Class basicamente define que  queremos provisionar um disco de tipo
+padrão no Google Cloud Platform, com sistema de arquivos ~ext4~, sem réplicas, e
+de nome ~slow~. Mais informações sobre o GCE PD podem ser vistas na documentação
+oficial.
+
+Após aplicar o arquivo, podemos observar as Storage Classes com:
+
+#+begin_src bash
+kubectl get sc
+#+end_src
+
+Poderemos ver, inclusive, que existe um  Storage Class chamado ~standard~, e que
+este é o Storage Class padrão.
+
+Para   criar    discos   e   /PersistentVolumes/   automaticamente,    é   muito
+simples.  Considere  a  definição   de  um  /PersistentVolumeClaim/  do  arquivo
+~pvc-sc.yaml~ (este arquivo é uma cópia de ~pvc.yaml~, mas com modificações):
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-2
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: slow
+#+end_src
+
+Após  carregar este  /PersistentVolumeClaim/,  podemos  consultar os  Persistent
+Volume Claims e  os Persistent Volumes e  observar que o volume e  o claim foram
+criados, sem precisarmos definir mais nada:
+
+#+begin_src bash
+kubectl get pvc
+kubectl get pv
+#+end_src
+
+Para criarmos um /pod/ que utilize este /PersistentVolume/, via arquivo ~pod-sc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-sc
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:latest
+      volumeMounts:
+        - mountPath: /volume-dentro-do-container
+          name: primeiro-pv
+  volumes:
+    - name: primeiro-pv
+      persistentVolumeClaim:
+        claimName: pvc-2
+#+end_src
+
+Veja que a diferença prática deste arquivo para ~pod-pv.yaml~ é meramente o nome
+do               /PersistentVolumeClaim/,              definido               em
+~spec.volumes[0].persistentVolumeClaim.claimName~.
+
+Os dados  do /pod/ serão, então,  armazenados permanentemente, até que  o volume
+seja explicitamente removido.
+
+Caso  seja  necessário  remover  todos  os  /Pods/,  /PersistentVolumeClaims/  e
+/StorageClasses/:
+
+#+begin_src bash
+kubectl delete pod --all
+kubectl delete pvc --all
+kubectl delete sc --all
+#+end_src
+
+** Conhecendo StatefulSets
+
+Nosso problema inicial  é que temos um /Deployment/ do  sistema de notícias, mas
+quando um /Pod/ falha, o /Deployment/ recria-o via /ReplicaSet/, mas os arquivos
+são perdidos.
+
+Por  isso, precisamos  ter uma  maneira  que garanta  que, quando  o /Pod/  seja
+reiniciado, os arquivos sejam persistidos.
+
+*ATENÇÃO: Um /StatefulSet/ não cria  volumes automaticamente! Isso será visto em
+breve.*
+
+Todavia,   o    Kubernetes   tem    um   facilitador   ainda    maior,   chamado
+/StatefulSet/.  Basicamente,  um  /StatefulSet/  funciona de  forma  similar  ao
+/Deployment/, porém para /Pods/ que precisam manter seu estado. Assim, quando um
+/Pod/ falha e reinicia em um /StatefulSet/, os dados são mantidos.
+
+Para  que  isso ocorra,  fazemos  com  que, quando  declaramos  um  /Pod/ em  um
+/StatefulSet/, precisamos  também associá-lo  a um  /PersistentVolumeClaim/, que
+também o associará a um /PersistentVolume/; e isso, conseguiremos fazer de forma
+mais enxuta.
+
+Adicionalmente,  em  um  /StatefulSet/,   cada  /Pod/  ganha  uma  identificação
+ordinal. Assim,  caso o  /Pod/ falhe,  um novo  o substituirá,  mas com  a mesma
+identificação para fins de reuso do /PersistentVolumeClaim/ do /Pod/ que falhou.
+
+Para começar, precisaremos apenas dos seguintes arquivos a partir daqui:
+
+- ~db-configmap.yaml~: /ConfigMap/ para o banco de dados;
+- ~portal-configmap.yaml~: /ConfigMap/ para o portal;
+- ~portal-noticias-deployment.yaml~:  /Deployment/ para  o  portal de  notícias,
+  capaz  de realizar  o  versionamento  do /ReplicaSet/  do  mesmo e,  portanto,
+  produzir seus /Pods/ a partir de um template;
+- ~sistema-configmap.yaml~: /ConfigMap/ para o sistema de notícias;
+- ~db-noticias-deployment.yaml~: /Deployment/ para o banco de dados;
+- ~sistema-noticias-deployment.yaml~: /Deployment/  para o sistema  de notícias,
+  capaz  de realizar  o  versionamento  do /ReplicaSet/  do  mesmo e,  portanto,
+  produzir seus /Pods/ a partir de um template;
+- ~svc-db-noticias.yaml~: /Service/  para o  banco de  dados, que  define-o como
+  acessível por outros /Pods/ via /ClusterIP/;
+- ~svc-portal-noticias.yaml~: /Service/ para o  portal de notícias, que define-o
+  como acessível externamente via /NodePort/;
+- ~svc-sistema-noticias.yaml~:  /Service/  para  o   sistema  de  notícias,  que
+  define-o como acessível externamente via /NodePort/.
+
+  Vamos criar o arquivo ~sistema-noticias-statefulset.yaml~.
+
+  #+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+  #+end_src
+
+O /StatefulSet/ é muito similar ao  /Deployment/, sendo então um substituto para
+o mesmo. Todavia,  podemos observar que estamos explicitando o  serviço que será
+utilizado para este /StatefulSet/ através da propriedade ~spec.serviceName~, que
+nada mais é que o serviço já anteriormente criado (~svc-sistema-noticias~).
+
+#+begin_src bash
+kubectl apply -f sistema-noticias-statefulset.yaml
+kubectl delete deployment sistema-noticias-deployment
+#+end_src
+
+Após  subir  este /StatefulSet/,  poderemos  observar  que, após  cadastrar  uma
+notícia no  sistema, se removermos  o /pod/  -- que será  criado de novo  --, as
+imagens continuarão sem aparecer.
+
+Como já sabemos,  o /StatefulSet/ precisa de um /PersistentVolumeClaim/  e de um
+/PersistentVolume/. No entanto...
+
+#+begin_src bash
+kubectl get pvc
+kubectl get pv
+#+end_src
+
+...podemos  observar  que  não  há  nenhum  /PersistentVolumeClaim/,  e  nem  um
+/PersistentVolume/  configurados. Isso  pode ser  resolvido de  maneira elegante
+diretamente em um /StorageClass/.
+
+** Utilizando um StatefulSet
+
+Poderemos  observar  o  seguinte:  ao  matarmos   o  /Pod/  para  que  ele  seja
+substituído, perdemos  as imagens  das notícias  e também  a nossa  sessão. Para
+armazenar esses elementos, precisamos  criar dois /PersistentVolumeClaims/, para
+dois /PersistentVolumes/: um  para armazenar imagens, e outro  para armazenar as
+sessões.
+
+Vamos  começar   resolvendo  o  problema   para  imagens,  através   do  arquivo
+~imagens-pvc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: imagens-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+#+end_src
+
+Vamos criar agora o /claim/ de armazenamento de sessão, em ~sessao-pvc.yaml~:
+
+#+begin_src yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sessao-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+#+end_src
+
+Para   utilizarmos   os   /PersistentVolumeClaims/  no   /pod/,   vamos   editar
+~sistema-noticias-statefulset.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+          volumeMounts:
+            - name: imagens
+              mountPath: /var/www/html/uploads
+            - name: sessao
+              mountPath: /tmp
+      volumes:
+        - name: imagens
+          persistentVolumeClaim:
+            claimName: imagens-pvc
+        - name: sessao
+          persistentVolumeClaim:
+            claimName: sessao-pvc
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+#+end_src
+
+Veja que criamos a chave ~spec.template.spec.containers[0].volumeMounts~, em que
+realizamos  as   montagens  de  volumes.   Em  seguida,  definimos   volumes  em
+~spec.template.spec.volumes~,  ou   mais  especificamente,  definimos   a  quais
+/PersistentVolumeClaims/ cada volume esperado está ligado.
+
+Aplicando os arquivos:
+
+#+begin_src bash
+kubectl apply -f imagens-pvc.yaml
+kubectl apply -f sessao-pvc.yaml
+#+end_src
+
+Podemos observar que os /PersistentVolumeClaims/  já estão com status de ~Bound~
+através do comando:
+
+#+begin_src bash
+kubectl get pvc
+#+end_src
+
+Se observarmos os /PersistentVolumes/ mais a fundo...
+
+#+begin_src bash
+kubectl get pv
+#+end_src
+
+...os volues já foram criados automaticamente.  Isso ocorre porque já temos, por
+padrão, um /StorageClass/ (chamado ~standard~):
+
+#+begin_src bash
+kubectl get sc
+#+end_src
+
+Como definimos um /PersistentVolumeClaim/  sem definirmos quais volumes queremos
+utilizar, o  Kubernetes automaticamente  cria, por intermédio  do /StorageClass/
+padrão,  um  /PersistentVolume/ *dinâmico*.  Assim,  não  precisaremos criar  um
+/PersistentVolume/ manualmente, porque o /StorageClass/ o fará automaticamente.
+
+Basta agora remover e aplicar nosso /StatefulSet/:
+
+#+begin_src bash
+kubectl delete -f sistema-noticias-statefulset.yaml
+kubectl apply -f sistema-noticias-statefulset.yaml
+#+end_src
+
+Para experimentar, primeiro  cadastre uma nova notícia no sistema,  e veja se as
+informações e a imagem da notícia aparecem no portal.
+
+Após isso,  para testar  se a  persistência realmente  está funcionando,  mate o
+/pod/ e  acesse novamente o portal.  Se as imagens e  as informações aparecerem,
+está tudo certo.
+
+#+begin_src bash
+kubectl delete pod sistema-noticias-statefulset-0
+#+end_src
+
+* Checando status com Probes
+
+** Conhecendo Probes
+
+A princípio, mesmo que um /pod/  esteja saudável e funcionando, o Kubernetes não
+tem como  saber automaticamente se  a aplicação  dentro do mesmo  está realmente
+operando de forma  esperada, ou se precisa ser reiniciada.
+
+Por exemplo,  imagine um único /pod/  de um /ReplicaSet/ retornando  um erro 500
+para uma requisição, enquanto isso não ocorre com os outros /pods/.
+
+Para   resolver   este   problemas,    podemos   utilizar   /LivenessProbes/   e
+/ReadinessProbes/.
+
+Para  um /LivenessProbe/,  por exemplo,  podemos definir  diretamente dentro  da
+especificação do contêiner a prova de que aquele aplicativo está vivo.
+
+** Utilizando Liveness Probes
+
+Vamos  começar aplicando  um  /LivenessProbe/  ao /pod/  do  portal de  notícias
+(~portal-noticias-deployment.yaml~).
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+Veja         que          inserimos         agora          a         propriedade
+~spec.template.spec.containers[0].livenessProbe~.
+
+Neste ~livenessProbe~, como critério  de /liveness/, utilizaremos uma requisição
+GET (padrão do Kubernetes; indica sucesso caso o código de retorno da requisição
+seja maior ou igual a 200 e menor que 400).
+
+Realizaremos a  requisição GET (~httpGet~)  no caminho ~/~,  e na porta  ~80~ do
+contêiner. A requisição será realizada  a cada dez segundos (~periodSeconds~), e
+será tolerado  um número  máximo de  até três  falhas antes  de o  contêiner ser
+reiniciado   (~failureThreshold~).   Adicionalmente,    devido   ao   tempo   de
+inicialização do contêiner,  as checagens só começarão a acontecer  a partir dos
+20 segundos de vida do contêiner (~initialDelaySeconds~).
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl describe pod portal-noticias-deployment
+#+end_src
+
+Vamos adicionar o mesmo /LivenessProbe/ a ~sistema-noticias-statefulset.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+          volumeMounts:
+            - name: imagens
+              mountPath: /var/www/html/uploads
+            - name: sessao
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+      volumes:
+        - name: imagens
+          persistentVolumeClaim:
+            claimName: imagens-pvc
+        - name: sessao
+          persistentVolumeClaim:
+            claimName: sessao-pvc
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+#+end_src
+
+#+begin_src bash
+kubectl apply -f sistema-noticias-statefulset.yaml
+#+end_src
+
+** Utilizando Readiness Probes
+
+Podemos definir um  /ReadinessProbe/ também, para determinar  quando o contêiner
+do /pod/ estará pronto para receber novas requisições.
+
+Vamos modificar o ~portal-noticias-deployment.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 3
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+
+A  declaração é  idêntica  ao /LivenessProbe/,  e funciona  da  mesma forma  com
+relação às requisições.  Todavia, temos algumas diferenças: o ~failureThreshold~
+indica que, caso o teste não  consiga ser executado naquela quantidade de vezes,
+após atingir este limite, as requisições  serão enviadas mesmo assim, passando a
+ignorar  o /ReadinessProbe/  --  por  isso, usamos  um  número  maior para  este
+/probe/. Além disso, o /delay/ inicial é reduzido por motivos evidentes.
+
+Replicando este /ReadinessProbe/ em ~sistema-noticias-statefulset.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sistema-noticias-statefulset
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sistema-noticias
+      name: sistema-noticias
+    spec:
+      containers:
+        - name: sistema-noticias-container
+          image: aluracursos/sistema-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: sistema-configmap
+          volumeMounts:
+            - name: imagens
+              mountPath: /var/www/html/uploads
+            - name: sessao
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /inserir_noticias.php
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 3
+      volumes:
+        - name: imagens
+          persistentVolumeClaim:
+            claimName: imagens-pvc
+        - name: sessao
+          persistentVolumeClaim:
+            claimName: sessao-pvc
+  selector:
+    matchLabels:
+      app: sistema-noticias
+  serviceName: svc-sistema-noticias
+#+end_src
+
+Nesse  caso, trocamos  o  caminho  das requisições  do  /ReadinessProbe/ para  a
+inserção de notícias na rota ~/inserir_noticias.php~.
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl apply -f sistema-noticias-statefulset.yaml
+#+end_src
+
+Para  outras formas  de declarar  /LivenessProbes/ e  /ReadinessProbes/, veja  a
+[[https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/][documentação oficial]].
+
+** Startup Probes
+
+/StartupProbes/ são voltados para aplicações legadas, que exigem tempo adicional
+para inicializar na primeira vez.
+
+Para maiores informações, consulte a [[https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-startup-probes][documentação oficial]].
+
+* Como escalar com o Horizontal Pod Autoscaler
+
+** Escalando pods automaticamente
+
+Com um volume  muito grande de acessos,  um /pod/ pode consumir  mais recursos e
+ficar sobrecarregado. Por isso,  é interessante possibilitarmos a escalabilidade
+horizontal dos /pods/, especialmente de forma automática.
+
+Isso pode ser feito com um /HorizontalPodAutoscaler/, cuja documentação pode ser
+vista no [[https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/][site oficial do Kubernetes]].
+
+O  /HorizontalPodAutoscaler/ é  um recurso  capaz de  automaticamente escalar  o
+número de  /pods/ em um  /Deployment/, um  /ReplicaSet/ ou um  /StatefulSet/ com
+base  na  observação da  CPU,  ou  com base  em  métricas  customizadas que  não
+utilizaremos aqui.
+
+Vamos fazer um /HorizontalPodAutoscaler/ para nosso portal de notícias mas, para
+isso, como o uso de CPU é  usado como métrica, precisamos informar ao Kubernetes
+quanto  um  contêiner específico  (nesse  caso,  no  /Deployment/ do  portal  de
+notícias), consome em média de recursos.
+
+Vamos modificar ~portal-noticias-deployment.yaml~:
+
+#+begin_src yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-noticias-deployment
+spec:
+  template:
+    metadata:
+      name: portal-noticias
+      labels:
+        app: portal-noticias
+    spec:
+      containers:
+        - name: portal-noticias-container
+          image: aluracursos/portal-noticias:1
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: portal-configmap
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 3
+          resources:
+            requests:
+              cpu: 10m
+  replicas: 3
+  selector:
+    matchLabels:
+      app: portal-noticias
+#+end_src
+
+Alinhado aos  nossos /Probes/,  temos agora  uma propriedade  ~resources~. Nesta
+propriedade, definimos que  nosso /Pod/ requer 10 /milicores/ de  CPU, em termos
+de recursos.
+
+#+begin_comment
+Veja que  definimos o uso de  CPU em termos  de /milicores/. De acordo  com [[https://stackoverflow.com/questions/50369737/how-are-hardware-resources-defined-in-kubernetes-cpu-and-ram][esse
+link]], um milicore, em termos do Kubernetes,  corresponde a um milésimo do uso de
+um  CPU virtual  (de uma  máquina  virtual).  Um  /pod/ que  use 1000  milicores
+utiliza, portanto, um core inteiro de um CPU virtual.
+#+end_comment
+
+Agora,  sim, podemos  fazer um  /HorizontalPodAutoscaler/ para  os /pods/  desse
+contêiner. Ele também é um objeto da  API do Kubernetes, por isso, podemos criar
+uma definição para o mesmo em ~portal-noticias-hpa.yaml~:
+
+#+begin_src yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: portal-noticias-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: portal-noticias-deployment
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+#+end_src
+
+Veja  que   usamos  a   versão  ~autoscaling/v2~  da   API  (no   curso,  usamos
+~autoscaling/v2beta2~,  mas de  acordo com  a  própria documentação  do site  do
+Kubernetes,  este objeto  já se  encontra estável  na versão  aqui utilizada  --
+Minikube 1.25.2,  com Kubernetes  1.23.3; veja a  documentação do  Minikube para
+realizar upgrades).
+
+Aqui,  temos algumas  novas características.  Precisamos definir  o /target/  de
+escalabilidade a ser referenciado (~scaleTargetRef~). Nele, precisamos definir a
+versão da API do objeto escalado (a mesma do /Deployment/: ~apps/v1~), o tipo do
+objeto escalado (~kind~), e finalmente, seu nome (~name~).
+
+Definimos também um  número mínimo e máximo de réplicas.  No nosso caso, teremos
+um minimo de uma réplica, e nunca mais que dez réplicas.
+
+Além disso, definimos as métricas  utilizadas para escalabilidade (~metrics~). A
+métrica aqui  definida (poderia  ser várias)  tem um  tipo /Resource/,  que está
+relacionado a  consumo de recursos da  máquina. Tratamos do CPU  (~name~ igual a
+~cpu~). E, como ~target~ dessa métrica,  vamos falar da utilização do recurso de
+CPU (~type~ igual  a /Utilization/): especificamos que, caso o  uso médio de CPU
+corresponda  a   mais  de   50%  do   que  o   /pod/  requisita   para  execução
+(~averageUtilization~ igual a 50), realizaremos a escalabilidade do recurso.
+
+Na prática, isso significa que, caso um  /pod/ use mais de cinco milicores (dado
+que cada /pod/ do portal requisita dez milicores), o /pod/ será replicado.
+
+#+begin_src bash
+kubectl apply -f portal-noticias-deployment.yaml
+kubectl apply -f portal-noticias-hpa.yaml
+#+end_src
+
+Podemos agora verificar nossos /HorizontalPodAutoscalers/:
+
+#+begin_src bash
+kubectl get hpa
+#+end_src
+
+Todavia, podemos  identificar um problema  aqui: em ~TARGETS~, o  Kubernetes não
+consegue identificar o uso de CPU!
+
+Se tentarmos descrever o nosso /HorizontalPodAutoscaler/...
+
+#+begin_src bash
+kubectl describe hpa portal-noticias-hpa
+#+end_src
+
+...veremos que  o Autoscaler foi incapaz  de recuperar as métricas  de CPU. Além
+disso, ele também nos  diz que essa métrica é inválida e  que não foi encontrada
+em um /servidor de métricas/.
+
+Precisamos  fazer  com  que  este elemento  esteja  acessível,  assim  poderemos
+utilizar nossas métricas.
+
+** Utilizando o HPA no Windows
+
+Existe um repositório  próprio do Kubernetes contendo o servidor  de métricas em
+https://github.com/kubernetes-sigs/metrics-server.  Para tanto,  precisaremos ir
+até essa página e baixar o /release/ mais novo.
+
+Basta baixar o  arquivo ~components.yaml~, arrastar para o  projeto e aplicá-lo,
+mas antes disso, realize uma modificação na seção de /Deployment/ desse arquivo,
+em ~spec.spec.containers[0].args~:
+
+#+begin_src yaml
+---
+...
+kind: Deployment
+...
+spec:
+  ...
+  spec:
+    ...
+    containers:
+      - name: metrics-server
+        args:
+          - --cert-dir=/tmp
+          - --secure-port=4443
+          - --kubelet-insecure-tls
+#+end_src
+
+A nova  /flag/ será ~--kubelet-insecure-tls~.  Colocamos essa /flag/  porque não
+desejamos fazer verificação de certificados na conexão.
+
+#+begin_src bash
+kubectl apply -f components.yaml
+#+end_src
+
+O /HPA/ ainda assim poderá continuar dizendo  que o uso de CPU é desconhecido, e
+isso é normal. Nesse caso, precisaremos /esperar/ que todas as informações sejam
+carregadas, para que o /HPA/ possa ler os detalhes de consumo de CPU.
+
+Para testar, podemos construir um script  /bash/ (que pode ser executado via Git
+Bash) para teste de stress (~stress.sh~):
+
+#+begin_src bash
+#!/bin/bash
+
+for i in {1..10000}; do
+    curl localhost:30000
+    sleep $1
+done
+#+end_src
+
+Execute o seguinte em três instâncias do Git Shell:
+
+#+begin_src bash
+sh ./stress.sh 0.001 > out.txt
+#+end_src
+
+** Utilizando o HPA no Linux
+
+No caso do Linux e do Minikube, basta utilizarmos o Minikube diretamente com seu
+conjunto de /addons/.
+
+Para uma lista dos /addons/ do Minikube:
+
+#+begin_src bash
+minikube addons list
+#+end_src
+
+Existe um /addon/  chamado ~metrics-server~, que é justamente  o que precisamos!
+Para tanto, basta que habilitemos este /addon/:
+
+#+begin_src bash
+minikube addons enable metrics-server
+#+end_src
+
+Assim que  o /HPA/ terminar de  sincronizar com o servidor  de métricas, teremos
+nosso /HPA/ funcionando como deveria.
+
+Neste momento, vamos pegar o IP do nosso /cluster/, através do comando:
+
+#+begin_src bash
+kubectl get node -o wide
+#+end_src
+
+Em  seguida, vamos  fazer  o teste  de  /stress/ no  nosso  Kubernetes. Tomei  a
+liberdade  de fazer  algumas modificações  no  script aqui  utilizado, para  não
+precisar  abrir  três consoles  ao  mesmo  tempo.  Basta  salvar o  seguinte  em
+~stress.sh~:
+
+#+begin_src bash
+#!/bin/bash
+
+SLEEP_TIME=$1
+
+function stress_test() {
+    for i in {1..10000}; do
+	curl -s 192.168.59.101:30000
+	sleep $SLEEP_TIME
+    done
+}
+
+stress_test & stress_test
+#+end_src
+
+Veja que utilizei o IP do /cluster/ no meu computador aqui.
+
+Para executar, vamos ser mais bonzinhos. Estou usando uma latência menor, e você
+poderá  observar  que  estou  executando  ~stress_test~  apenas  duas  vezes  em
+paralelo, ao invés de três.
+
+#+begin_src bash
+chmod +x stress.sh
+./stress.sh 0.01 > out.txt
+#+end_src
+
+Para ver  a evolução do /scaling/,  estou usando também a  ferramenta [[https://k9scli.io/][k9s]], neste
+ponto, para observar  o que está acontecendo. Algo legal  dessa ferramenta é que
+ela se integra bem ao ~metrics-server~ do Minikube.
+
+** VerticalPodAutoscaler
+
+Além  do  /HorizontalPodAutoscaler/,  o   Kubernetes  possui  um  outro  recurso
+customizado, chamado /VerticalPodAutoscaler/. Esse  recurso remove a necessidade
+de  definir  os  limites  e  pedidos por  recursos  do  sistema,  como  mostrado
+anteriormente.
+
+Quando   usamos    um   /VerticalPodAutoscaler/,   ele   define    os   consumos
+automaticamente, com base  na utilização de cada  um dos nós, e  em quanto desse
+recurso ainda está disponível.
+
+Para maiores informações, [[https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler][veja a página do /VerticalPodAutoscaler/]].
+
+Veja também sobre o uso do /VerticalPodAutoscaler/ no [[https://cloud.google.com/kubernetes-engine/docs/concepts/verticalpodautoscaler][Google Cloud Platform]] e no
+[[https://docs.aws.amazon.com/eks/latest/userguide/vertical-pod-autoscaler.html][Amazon Web Services]].
+
+* Projeto do Curso
+
+Primeiro inicie o Minikube.
+
+#+begin_src bash
+minikube start --vm-driver=virtualbox
+#+end_src
+
+Não  se   esqueça  de  iniciar   o  Minikube  e   de  adicionar  o   /addon/  de
+~metrics-server~!
+
+#+begin_src bash
+minikube addons enable metrics-server
+#+end_src
+
+Caso queira  executar novamente  o projeto  do curso, use  apenas os  arquivos a
+seguir:
+
+- /ConfigMaps/
+  - ~db-configmap.yaml~;
+  - ~portal-configmap.yaml~;
+  - ~sistema-configmap.yaml~;
+- /PersistentVolumeClaims/
+  - ~imagens-pvc.yaml~;
+  - ~sessao-pvc.yaml~;
+- Banco de dados (/Deployment/ e /Service/)
+  - ~db-noticias-deployment.yaml~;
+  - ~svc-db-noticias.yaml~;
+- Sistema de Notícias (/StatefulSet/ e /Service/)
+  - ~sistema-noticias-statefulset.yaml~;
+  - ~svc-sistema-noticias.yaml~;
+- Portal (/Deployment/, /Service/ e /HorizontalPodAutoscaler/)
+  - ~portal-noticias-deployment.yaml~;
+  - ~svc-portal-noticias.yaml~;
+  - ~portal-noticias-hpa.yaml~.
+
+** Para usar o driver KVM2
+
+O KVM2 integra direto com o Kernel do Linux. É bom usar.
+
+No caso específico do Void Linux,  você precisará instalar ~libvirt~ e ~dbus~, e
+também  habilitar os serviços ~dbus~, ~libvirtd~, ~virtlockd~ e ~virtlogd~:
+
+#+begin_src bash
+xi dbus libvirt
+cd /var/service
+sudo ln -s /etc/sv/dbus dbus
+sudo ln -s /etc/sv/libvirtd libvirtd
+sudo ln -s /etc/sv/virtlockd virtlockd
+sudo ln -s /etc/sv/virtlogd virtlogd
+#+end_src
+
+Além  disso,  adicione seu  usuário ao  grupo ~libvirt~ e reinicie o computador:
+
+#+begin_src bash
+sudo usermod -g libvirt $USER
+sudo reboot now
+#+end_src
+
+Finalmente, inicie um /cluster/ com Minikube usando KVM2:
+
+#+begin_src bash
+minikube start --vm-driver=kvm2
+#+end_src
+
+** Para encerrar tudo com Minikube
+
+#+begin_src bash
+minikube stop
+minikube delete
+#+end_src
+
+Pronto, vai lá tomar dois cafés.
