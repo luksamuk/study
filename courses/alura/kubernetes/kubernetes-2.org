@@ -1413,7 +1413,7 @@ Veja também sobre o uso do /VerticalPodAutoscaler/ no [[https://cloud.google.co
 Primeiro inicie o Minikube.
 
 #+begin_src bash
-minikube start --vm-driver=virtualbox
+minikube start --vm-driver=virtualbox --disable-optimizations=false --extra-config=kubelet.housekeeping-interval=10s
 #+end_src
 
 Não  se   esqueça  de  iniciar   o  Minikube  e   de  adicionar  o   /addon/  de
