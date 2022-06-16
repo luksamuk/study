@@ -1,2 +1,40 @@
 #+title: Integração Contínua: mais qualidade e menos risco no desenvolvimento
 
+* O que é integração contínua?
+
+** Bibliografia e links externos
+
+- Livro: Continuous Integration, de Paul M. Duvall
+- Artigo da ThoughtWorks: [[https://www.thoughtworks.com/pt/continuous-integration][Continuous integration]]
+- Artigo do Martin Fowler: [[https://martinfowler.com/bliki/ContinuousDelivery.html][Continuous Delivery]]
+- Série de artigos da Caelum:
+  - Branches e integração contínua: [[https://blog.caelum.com.br/branches-e-integracao-continua-o-problema-de-feature-branches/][o problema de feature branches]]
+  - Integração Contínua - [[https://blog.caelum.com.br/integracao-continua-builds-rapidos-com-grids-e-paralelismo/][Builds rápidos com Grids e paralelismo]]
+  - Integração contínua: [[https://blog.caelum.com.br/integracao-continua-deploys-e-aprovacoes-sem-dores-de-cabeca-para-o-cliente/][deploys e aprovações sem dor de cabeça para o cliente]]
+Artigo no CodeBetter: [[http://codebetter.com/jeremymiller/2005/07/25/using-continuous-integration-better-do-the-check-in-dance/][Check in Dance]]
+
+** Entendendo o problema
+
+Ao  trabalharmos   em  conjunto,  precisamos  clonar   localmente  repositórios,
+trabalhar em  /features/ e, em  seguida, sincronizar nossos branches  locais com
+branches remotos.
+
+Como  trabalhamos  em  conjunto,  geralmente precisamos  resolver  conflitos  ao
+sincronizar as branches de todos os desenvolvedores em um repositório central.
+
+Geralmente, essa  sincronização é  postergada para  o final  de uma  sprint, por
+exemplo. Nesse momento, aparecem os problemas.
+
+Esse momento acaba sendo  algo muito especial, o que não  deveria acontecer. E o
+próprio  momento  de /merge/  acaba  sendo  delegado  a  uma pessoa,  com  maior
+senioridade.
+
+Eventualmente,  isso  acaba também  centralizando  os  momentos que  vêm  depois
+(testes, aceitação, produção). Equipes ficam  responsáveis por partes do projeto
+e isso acaba ficando também centralizado.
+
+Mesmo testar novamente algo que já foi resolvido deveria ser mais rápido.
+
+Em outras palavras, /integração contínua/ é algo que *reduz riscos*.
+
+** Sistema de cont
