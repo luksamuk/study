@@ -1,0 +1,652 @@
+#+title: React: Escrevendo com TypeScript
+#+author: Lucas S. Vieira
+
+* Criando o projeto
+
+Para criar um projeto (explicitando o uso do NPM):
+
+#+begin_src bash
+npx create-react-app my-app --use-npm
+#+end_src
+
+Ou:
+
+#+begin_src bash
+yarn create-react-app my-app
+#+end_src
+
+Vamos criar.
+
+#+begin_src bash
+npx create-react-app alura-studies my-app --use-npm
+#+end_src
+
+** Executando
+
+Vá até a pasta e execute...
+
+#+begin_src bash
+npm start
+#+end_src
+
+
+** Entendendo o projeto
+
+- ~package.json~ e  ~package-lock.json~ são  arquivos do NPM.  ~package.json~ em
+  particular possui dados  do projeto como nome, dependências,  scripts (a serem
+  executados  via  terminal), configurações  do  linter  (esLint), e  listas  de
+  browsers que suportam o app.
+- ~node_modules~:  Buraco  negro   onde  vão  todos  os   pacotes.  Cabuloso  de
+  grande. Ugh!
+- ~.gitignore~: Não preciso nem explicar. O React cria um padrão legal.
+- ~tsconfig.json~: Configurações relacionadas a TypeScript, exclusivamente.
+- ~README.md~: Óbvio.
+
+No diretório ~src~:
+
+- ~App.css~: CSS padrão do projeto.
+- ~App.test.tsx~: Arquivo de testes.
+- ~App.tsx~: Arquivo com a raiz do app.
+- ~index.css~: CSS básico do projeto.
+- ~index.tsx~: Ponto de entrada que importa o componente raiz do app.
+- ~logo.svg~: Óbvio.
+- ~react-app-env.d.ts~: Arquivo de descrição.
+- ~reportWebVitals.ts~: Pacote trazido pelo React.
+- ~setupTests.ts~: Configuração de testes.
+
+Vamos remover o que não vamos usar.
+
+  #+begin_src bash
+rm App.css App.test.tsx logo.svg reportWebVitals.ts setupTests.ts
+  #+end_src
+
+Isso vai trazer erros no hot reload,  algo que é esperado. Basta remover então o
+~reportWebVitals~ em ~index.tsx~, e o ~App.css~ em ~App.tsx~.
+
+Delete  também ~logo.svg~  de ~App.tsx~  e deixe  uma ~div~ simples:
+
+#+begin_src typescript
+function App() {
+    return <div className="App">
+        Hello World
+    </div>;
+}
+#+end_src
+
+No diretório ~public~:
+
+O arquivo ~index.html~ é o arquivo mais importante para nós dessa pasta.
+
+* Componentização
+
+** Criando um componente
+
+Criamos o arquivo ~src/components/button/index.tsx~:
+
+#+begin_src typescript
+import React from "react";
+
+class Button extends React.Component {
+  render() {
+    return <button>Botão</button>;
+  }
+}
+
+export default Button;
+#+end_src
+
+Em ~App.tsx~, importamos esse componente e usamos:
+
+#+begin_src typescript
+import React from "react";
+import Botao from "./components/button";
+
+function App() {
+  return (
+    <div className="App">
+      <Botao />
+    </div>
+  );
+}
+
+export default App;
+#+end_src
+
+** Criando o formulário
+
+Criaremos ~src/components/form/index.tsx~
+
+#+begin_src typescript
+import React from "react";
+import Botao from "../button";
+
+class Form extends React.Component {
+  render() {
+    return (
+      <form>
+        <div>
+          <label htmlFor="tarefa">Adicione um novo estudo.</label>
+          <input
+            type="text"
+            name="tarefa"
+            id="tarefa"
+            placeholder="O que você quer estudar"
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="tempo">Tempo</label>
+          <input
+            type="time"
+            step="1"
+            name="tempo"
+            id="tempo"
+            min="00:00:00"
+            max="01:30:00"
+            required
+          />
+        </div>
+        <Botao />
+      </form>
+    );
+  }
+}
+
+export default Form;
+#+end_src
+
+Note o uso da propriedade ~htmlFor~, que determina para onde vai o foco quando o
+~label~ é clicado. Além disso, temos na verdade um form com dois inputs: um nome
+para uma tarefa, e seu tempo de execução.
+
+Além disso, reutilizamos o componente de botão criado anteriormente.
+
+Basta agora importar esse componente em ~App.tsx~.
+
+#+begin_src typescript
+import React from "react";
+import Formulario from "./components/form";
+
+function App() {
+  return (
+    <div className="App">
+      <Formulario />
+    </div>
+  );
+}
+
+export default App;
+#+end_src
+
+** Criando a lista
+
+Mais um componente, em ~src/components/list/index.tsx~.
+
+Aqui, vamos criar um  function component, ao invés de um  class component, que é
+uma forma mais antiga de criar um componente.
+
+#+begin_src typescript
+import React from "react";
+
+const List = () => {
+  return (
+    <aside>
+      <h2>Estudos do dia</h2>
+      <ul>
+        <li>
+          <h3>React</h3>
+          <span>02:00:00</span>
+        </li>
+        <li>
+          <h3>JavaScript</h3>
+          <span>01:00:00</span>
+        </li>
+      </ul>
+    </aside>
+  );
+};
+
+export default List;
+#+end_src
+
+** Renderizando um array
+
+Vamos modificar nossa lista para que possa ser renderizada a partir de um array.
+
+#+begin_src typescript
+import React from "react";
+
+const List = () => {
+  const tarefas = [
+    {
+      tarefa: "React",
+      tempo: "02:00:00",
+    },
+    {
+      tarefa: "JavaScript",
+      tempo: "01:00:00",
+    },
+    {
+      tarefa: "TypeScript",
+      tempo: "03:00:00",
+    },
+  ];
+  return (
+    <aside>
+      <h2>Estudos do dia</h2>
+      <ul>
+        {tarefas.map((item, index) => (
+          <li key={index}>
+            <h3>{item.tarefa}</h3>
+            <span>{item.tempo}</span>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+};
+
+export default List;
+#+end_src
+
+Veja que cada ~li~ tem uma  propriedade ~key~, que identifica unicamente um item
+através  de seu  index.  Usar o  index,  porém, não  é  exatamente boa  prática;
+recomenda-se usar diretamente o ~id~.
+
+* Usando CSS
+
+** Aprendendo a estilizar
+
+Uma das formas de estilizar componentes é com um line style. Todavia, isso não é
+recomendado.
+
+Todavia, um line  style em um componente  não pode ser uma string  como feito no
+HTML puro. Como exemplo, vamos estilizar o botão.
+
+#+begin_src typescript
+import React from "react";
+
+class Button extends React.Component {
+  render() {
+    const color = "red";
+    return <button style={{ backgroundColor: color }}>Botão</button>;
+  }
+}
+
+export default Button;
+#+end_src
+
+Podemos  inclusive  criar variáveis  diretamente  com  o  nome do  atributo  que
+queremos,  e então  não  precisaremos passá-las  no objeto  de  estilo de  forma
+explícita.
+
+#+begin_src typescript
+const backgroundColor = "red";
+return <button style={{ backgroundColor }}>Botão</button>;
+#+end_src
+
+É possível também criar diretamente um objeto com o estilo e utilizá-lo.
+
+#+begin_src typescript
+const style = {
+    backgroundColor: "red",
+};
+return <button style={style}>Botão</button>;
+#+end_src
+
+** Estilizando com Sass
+
+Para estilizar, vamos começar instalando o Sass no projeto.
+
+#+begin_src bash
+npm i --save-dev sass
+#+end_src
+
+Substitua o arquivo ~index.css~ pelo [[https://github.com/lfrprazeres/alura-studies/blob/aula3.2/src/index.css][conteúdo]] dado:
+
+#+begin_src css
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+
+input {
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: inherit;
+	color: inherit;
+}
+
+button {
+	border: unset;
+	background-color: unset;
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: inherit;
+	color: inherit; 
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Manjari&display=swap');
+
+body {
+	display: flex;
+	justify-content: center;
+	font-family: 'Manjari', sans-serif;
+	color: #F0F0F0;
+	background-color: #4C4C4C;
+	height: 100%;
+	width: 100%;
+	padding: 16px;
+	box-sizing: border-box;
+}
+
+#root {
+	width: 100%;
+}
+
+::-webkit-scrollbar {
+	width: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: unset;
+}
+
+::-webkit-scrollbar-thumb {
+	border-radius: 4px;
+	background: #888;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #555;
+}
+#+end_src
+
+A  seguir, mova  ~App.tsx~  para uma  nova pasta  chamada  ~pages~, e  modifique
+~index.tsx~  para refletir  na alteração.  Da mesma  forma, modifique  ~App.tsx~
+também para que seja corrigido.
+
+Agora, crie um arquivo ~src/pages/style.scss~. Cole o seguinte [[https://github.com/lfrprazeres/alura-studies/blob/aula3.2/src/pages/style.scss][conteúdo]]:
+
+#+begin_src scss
+.AppStyle {
+  display: grid;
+  grid-template-rows: min-content min-content auto;
+  grid-template-areas: 
+  "nova-tarefa"
+  "cronometro"
+  "tarefas"
+  ;
+  row-gap: 24px;
+  min-width: 320px;
+  min-height: calc(100vh - 32px);
+  width: 100%;
+  padding: 32px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background-color: #171717;
+
+  @media screen and (min-width:1280px)  {
+    grid-template-areas: 
+    "nova-tarefa tarefas"
+    "cronometro tarefas"
+    ;
+    column-gap: 64px;
+    grid-template-rows: min-content min-content;
+    grid-template-columns: 750px 300px;
+    justify-content: center;
+    align-content: center;
+    padding: 64px;
+  }
+}
+#+end_src
+
+Importe esse estilo em ~App.tsx~, e use a classe ~AppStyle~ no `div` principal.
+
+#+begin_src typescript
+import "./style.scss";
+
+function App() {
+  return (
+    <div className="AppStyle">
+      <Formulario />
+      <Lista />
+    </div>
+  );
+}
+#+end_src
+
+Vamos fazer o mesmo com o formulário, o botão e a lista.
+
+~src/components/form/style.scss~:
+
+#+begin_src scss
+.novaTarefa {
+  display:flex;
+  flex-direction: column;
+  grid-area: nova-tarefa;
+  background-color: #7687A1;
+  border-radius: 10px;
+  box-shadow: 2px 4px 4px #0000009F;
+  padding: 12px;
+
+  .inputContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: 16px;
+
+    label {
+      margin-bottom: 8px;
+      font-size: 1.25rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px 12px 4px;
+      box-sizing: border-box;
+      border: unset;
+      border-radius: 5px;
+      background-color: #5D677C;
+      box-shadow: 0px 2px 4px #2D2B2B9F inset;
+      
+      &::placeholder {
+        color: #BFBFBF;
+      }
+    }
+  }
+
+  @media screen and (min-width: 1280px) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    font-size: 2.25rem;
+    padding: 24px;
+    box-sizing: border-box;
+
+    .inputContainer {
+      width: calc(60% - 12px);
+
+      &:last-of-type {
+        width: 40%;
+      }
+
+      label {
+        font-size: 2rem;
+      }
+
+      input {
+        height: 100%;
+        font-size: 1.75rem;
+      }
+    }
+  }
+}
+#+end_src
+
+No ~index.tsx~, defina o ~form~ com  um ~className~ igual a ~novaTarefa~, e cada
+~div~ com um ~className~ igual a ~inputContainer~.
+
+Remova também o estilo estático no botão.
+
+~src/components/button/style.scss~:
+
+#+begin_src scss
+.botao {
+  align-self: center;
+  background-color: #88bcd1;
+  border-radius: 10px;
+  box-shadow: 2px 4px 4px #0000009F;
+  color: #272626;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 16px;
+  width: 150px;
+  
+  &:active {
+    background-color: #7CA6B7;
+    box-shadow: 2px 2px 4px #0000009F inset;
+  }
+}
+
+@media screen and (min-width: 1280px) {
+  .botao {
+    grid-column-start: span 2;
+    justify-self: center;
+    width: 200px;
+    font-size: 2.25rem;
+  }
+}
+#+end_src
+
+Dê ao ~button~ um ~className~ igual a ~botao~.
+
+~src/components/list/style.scss~:
+
+#+begin_src scss
+.listaTarefas {
+  grid-area: tarefas;
+  height: 100%;
+
+  h2 {
+    font-size: 1.25rem;
+    margin-bottom: 12px;
+  }
+
+  ul {
+    max-height: 350px;
+    overflow-y: scroll;
+  	scrollbar-width: thin;
+  }
+
+  @media screen and (min-width:1280px) {
+    
+    h2{
+      text-align: center;
+      font-size: 2.25rem;
+      margin-bottom: 24px;
+    }
+
+    ul {
+      overflow: auto;
+      max-height: 500px;
+    }
+  }
+}
+
+.item {
+  background-color: #4D4D4D;
+  border-radius: 8px;
+  box-shadow: 2px 4px 4px #0000009F;
+  padding: 12px;
+  margin-bottom: 8px;
+  position: relative;
+  cursor: pointer;
+
+  h3 {
+    margin-bottom: 8px;
+    word-break: break-all;
+  }
+
+  span {
+    color: #D0D0D0;
+  }
+
+  @media screen and (min-width:1280px) {
+    font-size: 1.8rem;
+  }
+}
+
+.itemSelecionado {
+  background-color: #292929;
+  box-shadow: 2px 4px 4px #0000009F inset;
+}
+
+.itemCompletado {
+  background-color: #566F42;
+  cursor: auto;
+
+  .concluido {
+    display: block;
+    background-image: url('../../assets/img/check-mark.svg');
+    background-repeat: no-repeat;
+    background-size: 38px 38px;
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    width: 42px;
+    height: 43px;
+  }
+}
+#+end_src
+
+Coloque um ~className~ igual a ~listaTarefas~ no ~aside~.
+
+No ~li~, defina um ~className~ igual a ~item~.
+
+Crie a pasta ~src/assets/img~. Dentro dela, coloque o arquivo ~check-mark.svg~.
+
+** Usando CSS Modules
+
