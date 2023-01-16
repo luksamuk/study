@@ -1,0 +1,182 @@
+#+TITLE: Microsoft Azure Fundamentals (AZ-900 prep)
+
+* AZ-900 Course
+
+**  High-level objectives
+
+- Describe cloud concepts
+- Describe Azure architecture and services
+- Describe Azure management and governance
+
+** What is the cloud?
+
+...it's just someone else's computer lol.
+
+So you're renting computing resources on demand.
+
+Some models:
+
+- On-premise: Run them yourself. Requires some expertise.
+- Renting model:  Similar to cloud, but  doesn't provide a lot  of services atop
+  that.
+- Cloud model:  Servers available  to you, and  hundreds of  additional services
+  that are available  on-demand. You stop using, you stop  paying for that. Good
+  for companies  that don't  want to  have a  big capital  investment and  a big
+  commitment.
+
+  
+** What does "Computing Resources" Mean?
+
+We're talking about:
+
+- Windows and Linux servers
+- You can also have files with unlimited file storage
+- Database services
+- Messaging, queues
+- Content Delivery Network for speeding up websites
+- Batch Processing Jobs
+
+There's also other stuff such as...
+
+- Big Data - Hadoop
+- Media Services (for streaming)
+- Machine Learning, AI
+- Conversational Chat Bots
+- Cognitive Services, etc
+
+There's 1000+ services for renting on Azure.
+
+** The exam
+
+[[https://learn.microsoft.com/en-us/certifications/exams/az-900][Official AZ-900 Exam landing page]]
+
+
+** LIVE DEMO: Virtual Machine
+
+Marketplace has a lot of resources.
+
+You  get to  choose the  *hardware* where  your VM  runs --  which is  called an
+INSTANCE in Azure.
+
+There's a concept of licensing where  you add an existing Windows Server license
+to  your  cloud,  so  you  don't  pay  extra  for  having  more  Windows  Server
+installations on cloud -- this might cut the cost in half!
+
+* Describe Cloud Computing
+
+** Shared Responsibility Model
+
+You  have certain  responsibilities as  a costumer  of cloud  services, and  the
+vendor (Azure) has some responsibilities as well.
+
+If you had an on-premise server, you'd be generally responsible for...
+
+- Building security
+- Physical network security
+- Physical computer security
+- Operating system patches
+- Network and firewall settings
+- Application settings
+- Authentication platform
+- User accounts
+- Devices
+- Data
+
+*** Levels of abstraction
+
+**** IaaS
+
+Since  we   now  have  a  cloud   vendor,  we're  offloading  the   three  first
+responsibilities to it  -- the physical responsibilities are  transferred to the
+cloud provider.
+
+If we're responsible for everything else, we're setting up for an Infrastructure
+as a Service (IaaS) Model.
+
+**** PaaS
+
+If  you're  responsible  for  responsibilities starting  *after*  the  Operating
+System, then we're setting up for a Platform as a Service (PaaS) Model.
+
+So we're losing some responsibility that could be a relief for us.
+
+The responsibility here varies with the service type.
+
+**** SaaS
+
+The highest level of abstraction is for when you're not responsible for anything
+until the Authentication Platform, which could also be shared.
+
+Since you're abstracting away even the application settings, you're dealing with
+Software as a Service.
+
+You don't have the code to the app, you can't control its version as well.
+
+This pertains the responsibilities always retained by the customer.
+
+** Public Cloud, Private Cloud, Hybrid Cloud
+
+We start with definitions by Microsoft.
+
+*** Public Cloud
+
+Defined as computing  services offered by third-party providers  over the public
+Internet, making them available to anyone who wants to use or purchase them.
+
+Still, Azure owns the hardware, on their network and infrastructure.
+
+*** Private Cloud
+
+Defined as  computing services  offered either  over the  Internet or  a private
+internal network and only to selected users instead of the general public.
+
+For example, a company  might own the hardware and the  network, but it operates
+like a  cloud, so users with  access can still provision  computing resources on
+demand. But it is still privately owned.
+
+Generally, for Azure,  you'd be using the  Azure Stack to run  on the companies'
+hardware.
+
+There are also private clouds for government too -- see Azure Government.
+
+*** Hybrid Cloud
+
+Defined as a computing environment that combines a private cloud with the public
+cloud, as the name suggests.
+
+The cloud  doesn't necessarily  ned to  be full  on cloud  software. If  you run
+applications  on your  own  hardware,  but leverage  cloud  services for  select
+things, then you're running a hybrid cloud model.
+
+For example, imagine that  you have a server for SQL databases  but you chose to
+back up your data on cloud (with a Storage Account, for example).
+
+If you also, for example, might need more resources to run a certain application
+and that incurs in  setting up a virtual machine on the  cloud for scaling, this
+is also hybrid cloud.
+
+** Cloud Pricing
+
+
+* Benefits of Cloud Computing
+
+* Cloud Service Types
+
+* Core Architectural Components of Azure
+
+* Azure Compute and Networking Services
+
+* Azure Compute Demo
+
+* Azure Storage
+
+* Identity, Access and Security
+
+* Cost Management in Azure
+
+* Azure Governance and Compliance
+
+* Tools for Managing and Deploying Azure Resources
+
+* Monitoring Tools
+

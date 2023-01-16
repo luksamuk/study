@@ -225,6 +225,10 @@ Cursos de [[https://cursos.alura.com.br/course/docker-criando-gerenciando-contai
 Cursos  de Kubernetes:  [[https://cursos.alura.com.br/course/kubernetes-pods-services-configmap][Pods, Services  e  ConfigMaps]] e  [[https://cursos.alura.com.br/course/kubernetes-deployments-volumes-escalabilidade][Deployments, Volumes  e
 Escalabilidade]] na Alura.
 
+**** ~az-900~
+
+Curso [[https://www.udemy.com/course/az900-azure/][AZ-900: Microsoft Azure Fundamentals Exam Prep 2023]] na Udemy.
+
 **** COMMENT ~ci-cd~
 
 Cursos de [[https://cursos.alura.com.br/course/desenvolvimento-software-integracao-continua][Integração Contínua]] e [[https://cursos.alura.com.br/course/entrega-continua-confiabilidade-qualidade][Entrega Contínua]] na Alura.
