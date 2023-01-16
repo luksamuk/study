@@ -64,6 +64,16 @@ installations on cloud -- this might cut the cost in half!
 
 * Describe Cloud Computing
 
+** What is Cloud Computing?
+
+Nevertheless,  there are  hundreds of  services on  Azure, which  are officially
+offered  by  Microsoft (Such  as  virtual  machines,  web apps,  SQL  databases,
+function  apps...), but  there are  also  unofficial services  offered by  other
+companies (Oracle databases, Ubuntu virtual machines, etc).
+
+There  are  even  services  for natural  language  recognition  (translating  to
+intents) and text translators!
+
 ** Shared Responsibility Model
 
 You  have certain  responsibilities as  a costumer  of cloud  services, and  the
@@ -157,8 +167,206 @@ is also hybrid cloud.
 
 ** Cloud Pricing
 
+*** Downsides of cloud computing
+
+Some downsides of cloud computing:
+
+- Difficult to predict your monthly bill
+- Difficult to understand in advance what a service will really cost
+- Possibility for big savings but you lose predictability
+
+So in the end, we need to rely on historical data to predict prices, which imply
+that the solution should be deployed for  a while, or use fixed plans with fixed
+pricings and tiers which end up  removing predictability so you don't know where
+you could be saving.
+
+*** Example of what influences pricing
+
+For example,  a virtual machine might  have the following factors  affecting its
+pricing:
+
+- Geographical Region
+- Operating System SKU / License
+- Instance Size
+- Disk Type / Size
+- Bandwidth
+- Backup storage
+- Reservation / Savings Plan
+- Support Agreement
+
+For a database such as Azure Cosmos DB, one should consider also:
+
+- API Choice
+- Region or Regions
+- Whether it is on Standard Model or Serverless
+- Number of Operations per Second
+- Consumed Storage
+- If there is an optional dedicated gateway
+- Backup storage
+
+*** Free Services
+
+Microsoft has up to 55 free services that can be used as part of your solution.
+
+Some are actually paid services that have free tiers.
+
+Some of them have limits for being free.
+
+*** Pay for Time
+
+Some services  are charged by  the time used. To  stop being charged,  just stop
+using the service! Example: Virtual Machines.
+
+*** Pay for GB
+
+Usually you pay for any data storage  used. This is fairly cheap (US$0.02 per GB
+per month), but you also pay for network traffic to/from other regions or to the
+internet.
+
+*** Pay for Operations
+
+You can  also be charged per  operation, depending on the  service (read, write,
+list, delete).
+
+You might  have to pay  per message, query to  a database, etc.  These operation
+costs are usually very cheap.
 
 * Benefits of Cloud Computing
+
+** Cost Savings Benefit of Cloud Computing
+
+Cloud providers  provide tools for understanding  what your costs are,  and also
+tools to be able to control these costs.
+
+These savings can be attributed to:
+
+- Economies of scale
+- Total  cost of  ownership (TCO)  relating to  electricity, Internet,  cooling,
+  employees
+- Microsoft can  run a server  cheaper than anyone  else with few  exceptions --
+  their servers are physically located in places where energy is cheaper and the
+  environment is naturally cooler, with zero carbon emissions, etc.
+- You can even get a 4 vCPU server cost is as low as US$187/month
+
+You can take  actions to reduce your cost. For  example, with autoscaling, which
+should work seamlessly.
+
+This mitigates the  fact that we tend to overprovision  services from the start,
+which doesn't have a good outcome.
+
+** High Availability, Scalability and Elasticity
+
+*** High availability
+
+Expressed  as  a  percentage,  it's  the  ability of  a  system  to  respond  to
+users.  (e.g. systems  are running  99.99%  of the  time --  "four nines",  four
+minutes a month for downtime. Notice that this statistic is hard to achieve!!!)
+
+0% downtime  is pretty  hard to  achieve and  so is  unrealistic! Even  the most
+critical cloud services have some sort  of downtime per month, solutions need to
+be rebuilt and patches  need to be applied for security  reasons, so downtime is
+important and can be unavoidable at times.
+
+*** Scalability
+
+This is the ability of a system to  handle growth of users or work. For example,
+when there is a sudden surge of traffic on a website.
+
+This  can  be  mitigated  through  scaling,  which  is  adding  capacity  to  an
+application. An  application has a limit  for a number of  concurrent users, and
+when that threshold is reached, the app starts to fail.
+
+By adding capacity, we increase that threshold.
+
+*** Elasticity
+
+This  is the  ability of  a system  to automatically  grow and  shrink based  on
+application demand.
+
+Elasticity is one of the means by which we achieve scalability.
+
+Elasticity allows you to  add capacity as the user demand  grows, and then scale
+it back down when the exceeding capacity is not needed anymore.
+
+** Reliability and Predictability
+
+Since we're  giving up control  of the  platform, we also  need the cloud  to be
+reliable.
+
+*** SLAs
+
+Microsoft publishes  Service Level Agreements  (SLAs) for their  services, which
+are expectations  of availability. So  any published Microsoft service  we might
+use has an SLA, boiling down to its uptime expectations.
+
+Microsoft cannot  promise that the services  are going to meet  the expectations
+all  the time,  so  there is  something  called a  Financial  Guarantee: if  the
+services do not meet their SLAs, they're going to refund you some of the cost of
+your services.
+
+Azure also has established procedures for  rollouts of new versions of Azure and
+regional recovery.
+
+*** Availability and test tools
+
+There are  also tools to  improve availability, which include  Availability Sets
+and Availability  Zones. But  another example  is the ability  to use  tools for
+backup and site recovery, whenever the region  has a problem and is being fixed,
+for example.
+
+You can also use  *Chaos Studio* to test a failure! with that,  you can test how
+the application responds for problems that may arise.
+
+*** Global reach
+
+Global reach is the idea that you should be able to deploy your application into
+multiple geographical  areas of the  world. However, most businesses  cannot run
+data centers in multiple countries.
+
+For that, Azure  has tools for replicating your services  in multiple regions of
+the world.
+
+** Security, Governance and Monitoring
+
+*** Security
+
+In  the  modern era,  security  is  a full-time  job.  So  companies with  cloud
+solutions will invest a lot of money and resources in security so that the cloud
+applications are more secure.
+
+In fact,  AI & ML  are even used  in tools such  as Azure Firewall  for identity
+purposes. ML  might detect  the pattern of  an attack and  will stop  and report
+that, using automated actions.
+
+Identity  (username;  password) is  the  #1  attack vector,  therefore  identity
+protection is key!
+
+Microsoft provides free basic DDoS protection.
+
+*** Governance
+
+Governance is the rules and regulations  that a company, government, etc. places
+upon applications and data.
+
+For example, GDPR is a regulation that  fits the concept of governance through a
+government.
+
+There  are tools  such as  Azure Policy  and Azure  Blueprints, this  allows for
+making  generalized policies  across  an organization  --  applying policies  to
+multiple subscriptions,  for example -- or  create them granularly so  that they
+apply to some departments, for example.
+
+*** Monitoring is important
+
+We need to monitor what is going on  and raise alerts when something needs to be
+acted upon.
+
+Microsoft has an Azure Monitor Service where you can create monitoring, logging,
+and sending  alerts on a  centralized application, which should  help mantaining
+the business and also your application.
+
+We can  also add  automation to act  on events being  monitoring, with  no human
+intervention required -- this relates to elasticity, for example.
 
 * Cloud Service Types
 
