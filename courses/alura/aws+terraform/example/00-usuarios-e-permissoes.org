@@ -1,0 +1,26 @@
+#+title: Usuários e permissões na AWS
+
+* Conta root
+
+A  conta root  é  uma  conta com  acesso  a  todos os  recursos  na  AWS. Não  é
+recomendado usar a  conta root para operações diárias,  sendo esta salvaguardada
+para situações emergenciais.
+
+* IAM User
+
+Um usuário IAM  é um usuário com  acesso de longo-termo a certos  recursos a ele
+atribuído. Não é recomendado  usar usuários IAM em todas as  situações, já que é
+mais seguro ter usuários que utilizam credenciais e acessos temporários.
+
+* IAM User Groups
+
+Um grupo  de usuários é  uma identidade que  especifica uma coleção  de usuários
+IAM. Um  grupo não pode  realizar login.  Grupos tornam permissões  mais simples
+para gerenciar vários usuários em específico.
+
+* IAM Role
+
+Um role é  uma identidade na conta AWS que  possui permissões específicas, sendo
+similar  a um  IAM User,  mas não  sendo associado  a uma  pessoa específica.  É
+possível usar um role no management console.
+

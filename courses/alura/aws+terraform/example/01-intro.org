@@ -1,0 +1,67 @@
+#+title: Intro
+
+* Acesso
+
+Para acessar a AWS:
+
+1. Faça login no seu console AWS.
+2. Clique no menu lateral com seu nome, selecione "Security credentials".
+3. Na página que abre, vá até Chaves de Acesso e crie uma nova.
+4. Selecione Command Line Interface (CLI).
+5. Crie uma etiqueta  de descrição. Isso vai te ajudar  a identificar a natureza
+   da chave que está sendo criada posteriormente.
+6. Você  terá a chave  de acesso e  a chave de acesso  secreta (que só  pode ser
+   vista uma vez, então guarde com cautela).
+
+Para definir seu acesso via console, use as variáveis de ambiente a seguir:
+
+- ~AWS_ACCESS_KEY_ID~: Chave de acesso.
+- ~AWS_SECRET_ACCESS_KEY~: Chave de acesso secreta.
+
+  
+* Terraform
+
+** Inicialização
+
+#+begin_src bash
+terraform init
+#+end_src
+
+** Formatar arquivos
+
+#+begin_src bash
+terraform fmt
+#+end_src
+
+
+** Validar arquivos
+
+#+begin_src bash
+terraform validate
+#+end_src
+
+
+** Avaliar modificações que serão feitas
+
+#+begin_src bash
+terraform plan
+#+end_src
+
+** Aplicar configuração
+
+#+begin_src bash
+terraform apply
+#+end_src
+
+
+* Acessando a aplicação deployada via SSH
+
+Dado que você tenha criado um novo par  de chaves através do EC2 (Menu Lateral >
+Rede e Segurança > Pares de chaves),  e tenha recebido a chave privada (extensão
+.pem):
+
+#+begin_src bash
+chmod 400 chave.pem
+ssh -i chave.pem ubuntu@<ip_publico>
+#+end_src
+
