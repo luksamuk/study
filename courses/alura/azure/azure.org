@@ -1,0 +1,67 @@
+#+title: Azure: Deploy de uma webapp na nuvem da Microsoft
+
+* Computação na nuvem
+
+O Azure  é o provedor  de computação  na nuvem da  Microsoft. Ele se  equipara a
+Amazon Web Services e Google Cloud Platform.
+
+Para publicar uma aplicação usando soluções on-premise, normalmente precisamos das seguintes camadas empilhadas:
+
+- Infraestrutura
+  - Camada de Rede (Requisições, Firewall, Switch, Roteador...)
+  - Storage (backups, redundância...)
+  - Servidores
+  - Virtualização
+- Plataforma
+  - Sistema Operacional
+  - Runtime
+- Software
+  - Dados da aplicação
+  - Aplicação
+
+O  Azure é  capaz de  fornecer  toda a  parte de  /infraestrutura como  serviço/
+(IaaS).
+
+O Azure  também é capaz  de fornecer toda a  parte de /plataforma  como serviço/
+(PaaS).
+
+Assim, poderemos  nos concentrar apenas  nos demais passos, que  serão realmente
+nossa responsabilidade.
+
+É possível também delegar  a parte de software para outra  empresa, usando o que
+chamamos de /software  como serviço/ (SaaS). Exemplos de SaaS  são o Office 365,
+Sharepoint, Slack, Google Docs...
+
+Cada um  desses tipos de serviço  deverá ser analisado segundo  a necessidade do
+cliente.
+
+* Criando conta no Azure
+
+Acessar https://azure.microsoft.com/ para criar uma conta.
+
+Acessar o portal usando https://portal.azure.com/.
+
+* Criando um servidor SQL
+
+Vamos usar SQL Server.
+
+Como  o SQL  Server exige  que seja  instalado em  uma máquina,  então estaremos
+operando no nível de IaaS, já que precisamos de uma máquina virtual rodando essa
+aplicação,
+
+Para  isso, temos  a opção  de usar  um servidor  lógico SQL,  que o  Azure cria
+automaticamente.
+
+Clique em  "Criar um Recurso", na  barra à esquerda. Na  pesquisa, localize /SQL
+server (logical server)/.
+
+No Nome do Servidor, coloque algo que  lembre que este é um logical server, como
+~casadocodigo-sql-srv~.
+
+Para autenticação, selecione  Autenticação SQL. Use o Logon  ~Administrador~ e a
+senha ~alura!123~.
+
+No grupo de recursos, crie um novo chamado ~casadocodigo-rg~.
+
+Na localização, selecione ~(South America) Brazil South~.
+
