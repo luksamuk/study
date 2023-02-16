@@ -24,6 +24,7 @@ provider "aws" {
 # Create a VPC
 resource "aws_vpc" "test-vpc" {
   cidr_block = "10.0.0.0/16"
+  enable_dns_hostnames = true
   tags = {
     Name = "test"
   }
@@ -59,13 +60,32 @@ resource "aws_route_table" "test-route-table" {
   }
 }
 
-# Create a subnet
+# Create subnets
 resource "aws_subnet" "subnet-1" {
   vpc_id            = aws_vpc.test-vpc.id
   cidr_block        = "10.0.1.0/24"
-  availability_zone = var.availability_zone
+  availability_zone = var.availability_zone_1
   tags = {
-    Name = "test-subnet"
+    Name = "test-subnet-1"
+  }
+}
+
+resource "aws_subnet" "subnet-2" {
+  vpc_id            = aws_vpc.test-vpc.id
+  cidr_block        = "10.0.2.0/24"
+  availability_zone = var.availability_zone_2
+  tags = {
+    Name = "test-subnet-2"
+  }
+}
+
+# Create a subnet group
+resource "aws_db_subnet_group" "subnet-group-1" {
+  name = "subnet-group-1"
+  subnet_ids = [aws_subnet.subnet-1.id, aws_subnet.subnet-2.id]
+
+  tags = {
+    Name = "test-subnet-group-1"
   }
 }
 
@@ -93,6 +113,14 @@ resource "aws_security_group" "allow_web" {
     description = "HTTP"
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Anyone can access
+  }
+
+  ingress {
+    description = "PostgreSQL"
+    from_port   = 5432
+    to_port     = 5432
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # Anyone can access
   }
@@ -141,7 +169,7 @@ resource "aws_eip" "one" {
 resource "aws_instance" "web-server-instance" {
   ami               = var.ami               # Ubuntu 22.04 LTS
   instance_type     = "t2.micro"            # 1 vCPU, 1GB RAM
-  availability_zone = var.availability_zone # Must be the same as the subnet
+  availability_zone = var.availability_zone_1 # Must be the same as the subnet
   key_name          = var.key_name          # Key pair created for SSH access
 
 
@@ -163,4 +191,21 @@ EOF
   tags = {
     Name = "web-server"
   }
+}
+
+# Create RDS database instance
+resource "aws_db_instance" "pgsql" {
+  allocated_storage            = 20
+  db_name                      = "minerva"
+  engine                       = "postgres"
+  engine_version               = "13.7"
+  instance_class               = "db.t3.micro"
+  username                     = var.db_user
+  password                     = var.db_password
+  skip_final_snapshot          = true
+  performance_insights_enabled = true
+  publicly_accessible          = true
+  db_subnet_group_name         = aws_db_subnet_group.subnet-group-1.name
+  vpc_security_group_ids       = [aws_security_group.allow_web.id]
+  availability_zone            = var.availability_zone_1
 }
