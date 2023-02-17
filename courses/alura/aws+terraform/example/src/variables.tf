@@ -1,6 +1,6 @@
 variable "environment" {
   description = "Deployment environment"
-  type = string
+  type        = string
 }
 
 variable "region" {
@@ -47,11 +47,11 @@ variable "db_password" {
 
 variable "account_id" {
   description = "ID for account where ECR repositories are stored under"
-  type = string
+  type        = string
 }
 
 variable "default_db" {
   description = "Name of the default database"
-  type = string
-  nullable = true
+  type        = string
+  nullable    = true
 }
