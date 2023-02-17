@@ -49,7 +49,7 @@ resource "aws_db_instance" "pgsql-1" {
 
 # Create an Elastic Container Registry for Web Server Docker image
 resource "aws_ecr_repository" "ecr-1" {
-  name                 = "${var.environment}-webserver"
+  name                 = "webserver"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 
@@ -58,8 +58,7 @@ resource "aws_ecr_repository" "ecr-1" {
   }
 
   tags = {
-    Name        = "${var.environment}-webserver"
-    environment = var.environment
+    Name        = "ecr-webserver"
   }
 }
 

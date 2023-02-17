@@ -6,4 +6,4 @@
 *.exe
 *.swp
 *.beam
-
+.terraform.lock.hcl

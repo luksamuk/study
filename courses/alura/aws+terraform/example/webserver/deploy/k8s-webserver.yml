@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test
+  labels:
+    name: test
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecr-test-deployment
+  namespace: test
+spec:
+  template:
+    metadata:
+      name: ecr-test
+      labels:
+        app: ecr-test
+    spec:
+      containers:
+        - name: ecr-test-container
+          image: 467769465270.dkr.ecr.sa-east-1.amazonaws.com/webserver:latest
+          ports:
+            - containerPort: 9000
+          resources:
+            requests:
+              cpu: 50m
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecr-test
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecr-test-svc
+  namespace: test
+spec:
+  type: LoadBalancer
+  selector:
+    app: ecr-test
+  ports:
+    - port: 9000
+      nodePort: 30000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ecr-test-hpa
+  namespace: test
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ecr-test-deployment
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
