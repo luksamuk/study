@@ -40,3 +40,8 @@ variable "db_password" {
   default     = "postgres"
 }
 
+variable "account_id" {
+  description = "ID for account where ECR repositories are stored under"
+  type = string
+  default = "467769465270"
+}

@@ -248,7 +248,6 @@ resource "aws_ecr_repository" "container-repository" {
 
 
 # Add IAM Role for reading ECR containers (no push authorization)
-# TODO: Is this actually being used only for auth token???
 resource "aws_iam_role" "ecr-pull-role" {
   name = "ecr-pull-role"
   assume_role_policy = jsonencode({
@@ -273,13 +272,25 @@ resource "aws_iam_policy" "ecr-pull-policy" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid = "GrantAllImagesReadOnlyAccess"
         Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
           "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:GetRepositoryPolicy",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages",
+          "ecr:DescribeImages",
+          "ecr:BatchGetImage"
         ]
         Effect   = "Allow"
+        Resource = "*"
+      },
+      {
+        Sid = "GrantECRAuthAccess",
+        Effect = "Allow",
+        Action = [
+          "ecr:GetAuthorizationToken",
+        ],
         Resource = "*"
       }
     ]
@@ -337,8 +348,11 @@ apt install docker-compose docker.io awscli amazon-ecr-credential-helper -y
 # mkdir -p /root/.docker
 # echo "{\"credsStore\":\"ecr-login\"}" > /root/.docker/config.json
 
+
 # Fetch ECR credentials for every repository
-aws ecr get-login-password --region sa-east-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.container-repository.repository_url}
+export ECR_REGISTRY=${var.account_id}.dkr.ecr.${var.region}.amazonaws.com
+echo "export ECR_REGISTRY=$ECR_REGISTRY" > /etc/profile.d/ecr_registry.sh
+aws ecr get-login-password --region sa-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
 EOF
 
   tags = {
@@ -346,8 +360,3 @@ EOF
     environment = "dev"
   }
 }
-
-
-## TODO: We need a task execution role so that we can pull images properly.
-# https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
-# 
