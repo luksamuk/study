@@ -22,96 +22,116 @@ provider "aws" {
 }
 
 # Create a VPC
-resource "aws_vpc" "test-vpc" {
+resource "aws_vpc" "main-vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
   tags = {
-    Name        = "test"
-    environment = "dev"
+    Name        = "${var.environment}-vpc-main"
+    environment = var.environment
   }
 }
 
 
 # Create an internet gateway
 # This is for assigning a public IP address later
-resource "aws_internet_gateway" "gw" {
-  vpc_id = aws_vpc.test-vpc.id
+resource "aws_internet_gateway" "gw-1" {
+  vpc_id = aws_vpc.main-vpc.id
   tags = {
-    Name        = "test-gateway"
-    environment = "dev"
+    Name        = "${var.environment}-gw-1"
+    environment = var.environment
   }
 }
 
 
 
 # Create a custom route table
-resource "aws_route_table" "test-route-table" {
-  vpc_id = aws_vpc.test-vpc.id
+resource "aws_route_table" "route-table-1" {
+  vpc_id = aws_vpc.main-vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.gw.id
+    gateway_id = aws_internet_gateway.gw-1.id
   }
 
   route {
     ipv6_cidr_block = "::/0"
-    gateway_id      = aws_internet_gateway.gw.id
+    gateway_id      = aws_internet_gateway.gw-1.id
   }
 
   tags = {
-    Name        = "test-route-table"
-    environment = "dev"
+    Name        = "${var.environment}-rt-1"
+    environment = var.environment
   }
 }
 
 # Create subnets
 resource "aws_subnet" "subnet-1" {
-  vpc_id            = aws_vpc.test-vpc.id
+  vpc_id            = aws_vpc.main-vpc.id
   cidr_block        = "10.0.1.0/24"
   availability_zone = var.availability_zone_1
   tags = {
-    Name        = "test-subnet-1"
-    environment = "dev"
+    Name        = "${var.environment}-subnet-1"
+    environment = var.environment
   }
 }
 
 resource "aws_subnet" "subnet-2" {
-  vpc_id            = aws_vpc.test-vpc.id
+  vpc_id            = aws_vpc.main-vpc.id
   cidr_block        = "10.0.2.0/24"
   availability_zone = var.availability_zone_2
   tags = {
-    Name        = "test-subnet-2"
-    environment = "dev"
+    Name        = "${var.environment}-subnet-2"
+    environment = var.environment
   }
 }
 
 # Create a subnet group
 resource "aws_db_subnet_group" "subnet-group-1" {
-  name       = "subnet-group-1"
+  name       = "${var.environment}-subnet-group-1"
   subnet_ids = [aws_subnet.subnet-1.id, aws_subnet.subnet-2.id]
 
   tags = {
-    Name        = "test-subnet-group-1"
-    environment = "dev"
+    Name        = "${var.environment}-subnet-group-1"
+    environment = var.environment
   }
 }
 
 # Associate subnets with route table
-resource "aws_route_table_association" "a" {
+resource "aws_route_table_association" "route-table-assoc-1" {
   subnet_id      = aws_subnet.subnet-1.id
-  route_table_id = aws_route_table.test-route-table.id
+  route_table_id = aws_route_table.route-table-1.id
 }
 
-resource "aws_route_table_association" "a2" {
+resource "aws_route_table_association" "route-table-assoc-2" {
   subnet_id      = aws_subnet.subnet-2.id
-  route_table_id = aws_route_table.test-route-table.id
+  route_table_id = aws_route_table.route-table-1.id
 }
 
-# Create security group to allow ports 22, 80, 443
-resource "aws_security_group" "allow_web" {
-  name        = "allow_web_traffic"
+# Create security groups
+resource "aws_security_group" "security-group-1" {
+  name        = "${var.environment}-sg-1"
+  description = "Allow all outbound traffic"
+  vpc_id      = aws_vpc.main-vpc.id
+
+  # Allow exit traffic for all addresses, all ports, any protocol
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.environment}-sg-1"
+    environment = var.environment
+  }
+}
+
+# Security group for all inbound traffic (specially debug)
+resource "aws_security_group" "security-group-2" {
+  name        = "${var.environment}-sg-2"
   description = "Allow web inbound traffic"
-  vpc_id      = aws_vpc.test-vpc.id
+  vpc_id      = aws_vpc.main-vpc.id
 
   ingress {
     description = "HTTPS"
@@ -129,15 +149,6 @@ resource "aws_security_group" "allow_web" {
     cidr_blocks = ["0.0.0.0/0"] # Anyone can access
   }
 
-  # PostgreSQL (Internal -- subnets only)
-  ingress {
-    description = "PostgreSQL"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = [aws_subnet.subnet-1.cidr_block, aws_subnet.subnet-2.cidr_block]
-  }
-
   # SSH connection
   ingress {
     description = "SSH"
@@ -147,36 +158,58 @@ resource "aws_security_group" "allow_web" {
     cidr_blocks = ["0.0.0.0/0"] # Anyone can access
   }
 
-  ## Application level ports.
-  # Misc web services
+  tags = {
+    Name        = "${var.environment}-sg-2"
+    environment = var.environment
+  }
+}
+
+# Security group for Kubernetes
+resource "aws_security_group" "security-group-3" {
+  name        = "${var.environment}-sg-3"
+  description = "Allow k3s inbound traffic"
+  vpc_id      = aws_vpc.main-vpc.id
+
   ingress {
-    description = "WebMisc"
-    from_port   = 9000
-    to_port     = 9000
+    description = "Kubernetes Controller"
+    from_port   = 6443
+    to_port     = 6443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # Anyone can access
   }
 
-  # Lisp Swank
   ingress {
-    description = "Swank"
-    from_port   = 9001
-    to_port     = 9001
-    protocol    = "tcp"
+    description = "NodePort #1"
+    from_port = 30000
+    to_port = 30000
+    protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"] # Anyone can access
-  }
-
-  # Allow exit traffic for all addresses, all ports, any protocol
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
-    Name        = "allow_web"
-    environment = "dev"
+    Name = "${var.environment}-sg-3"
+    environment = var.environment
+  }
+}
+
+# Security group for PostgreSQL
+resource "aws_security_group" "security-group-4" {
+  name        = "${var.environment}-sg-4"
+  description = "Allow postgresql inbound traffic (VPC only)"
+  vpc_id      = aws_vpc.main-vpc.id
+
+  # PostgreSQL (Internal -- subnets only)
+  ingress {
+    description = "PostgreSQL"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [aws_subnet.subnet-1.cidr_block, aws_subnet.subnet-2.cidr_block]
+  }
+
+  tags = {
+    Name        = "${var.environment}-sg-4"
+    environment = var.environment
   }
 }
 
@@ -185,10 +218,16 @@ resource "aws_security_group" "allow_web" {
 resource "aws_network_interface" "web-server-nic" {
   subnet_id       = aws_subnet.subnet-1.id
   private_ips     = ["10.0.1.50"]
-  security_groups = [aws_security_group.allow_web.id]
+  security_groups = [
+    aws_security_group.security-group-1.id,
+    aws_security_group.security-group-2.id,
+    aws_security_group.security-group-3.id,
+    aws_security_group.security-group-4.id
+  ]
 
   tags = {
-    environment = "dev"
+    Name = "${var.environment}-nic-1"
+    environment = var.environment
   }
 }
 
@@ -196,22 +235,23 @@ resource "aws_network_interface" "web-server-nic" {
 # This is so that we can access our web server publicly
 # Notice that this depends on the deployment of the gateway, so it must deploy
 # after it. This is why we set the depends_on flag
-resource "aws_eip" "one" {
+resource "aws_eip" "elastic-ip-1" {
   vpc                       = true
   network_interface         = aws_network_interface.web-server-nic.id
   associate_with_private_ip = "10.0.1.50"
-  depends_on                = [aws_internet_gateway.gw]
+  depends_on                = [aws_internet_gateway.gw-1]
 
   tags = {
-    environment = "dev"
+    Name = "${var.environment}-eip-1"
+    environment = var.environment
   }
 }
 
 # Create RDS database instance
 # TODO: Create a proper subnet here. We don't need outbound traffic!!!
-resource "aws_db_instance" "pgsql" {
+resource "aws_db_instance" "pgsql-1" {
   allocated_storage            = 20
-  db_name                      = "minerva"
+  db_name                      = var.default_db
   engine                       = "postgres"
   engine_version               = "13.7"
   instance_class               = "db.t3.micro"
@@ -221,19 +261,19 @@ resource "aws_db_instance" "pgsql" {
   performance_insights_enabled = true
   publicly_accessible          = false
   db_subnet_group_name         = aws_db_subnet_group.subnet-group-1.name
-  vpc_security_group_ids       = [aws_security_group.allow_web.id]
+  vpc_security_group_ids       = [aws_security_group.security-group-4.id]
   availability_zone            = var.availability_zone_1
 
   tags = {
-    Name        = "Database"
-    environment = "dev"
+    Name        = "${var.environment}-pgsql-1"
+    environment = var.environment
   }
 }
 
 
 # Create an Elastic Container Registry for Docker images
-resource "aws_ecr_repository" "container-repository" {
-  name                 = "test-ecr"
+resource "aws_ecr_repository" "ecr-1" {
+  name                 = "${var.environment}-webserver"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 
@@ -242,14 +282,15 @@ resource "aws_ecr_repository" "container-repository" {
   }
 
   tags = {
-    environment = "dev"
+    Name = "${var.environment}-webserver"
+    environment = var.environment
   }
 }
 
 
 # Add IAM Role for reading ECR containers (no push authorization)
 resource "aws_iam_role" "ecr-pull-role" {
-  name = "ecr-pull-role"
+  name = "${var.environment}-ecr-pull-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -266,7 +307,7 @@ resource "aws_iam_role" "ecr-pull-role" {
 
 # IAM policy for retrieving ECR container images
 resource "aws_iam_policy" "ecr-pull-policy" {
-  name = "ecr-pull-policy"
+  name = "${var.environment}-ecr-pull-policy"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -299,20 +340,20 @@ resource "aws_iam_policy" "ecr-pull-policy" {
 
 # IAM policy attachment for ecr-pull
 resource "aws_iam_policy_attachment" "erc-pull-policy-attach" {
-  name       = "ecr-pull-policy-attach"
+  name       = "${var.environment}-ecr-pull-policy-attach"
   roles      = [aws_iam_role.ecr-pull-role.name]
   policy_arn = aws_iam_policy.ecr-pull-policy.arn
 }
 
 # IAM profile for EC2 instances that will pull from ECR
 resource "aws_iam_instance_profile" "ecr-pull-profile" {
-  name = "ecr-pull-profile"
+  name = "${var.environment}-ecr-pull-profile"
   role = aws_iam_role.ecr-pull-role.name
 }
 
 
 # Create an Ubuntu server and install/enable apache2
-resource "aws_instance" "web-server-instance" {
+resource "aws_instance" "vm-1" {
   ami               = var.ami                 # Ubuntu 22.04 LTS
   instance_type     = "t2.micro"              # 1 vCPU, 1GB RAM
   availability_zone = var.availability_zone_1 # Must be the same as the subnet
@@ -353,10 +394,14 @@ apt install docker-compose docker.io awscli amazon-ecr-credential-helper -y
 export ECR_REGISTRY=${var.account_id}.dkr.ecr.${var.region}.amazonaws.com
 echo "export ECR_REGISTRY=$ECR_REGISTRY" > /etc/profile.d/ecr_registry.sh
 aws ecr get-login-password --region sa-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+# Install k3s
+# TODO: maybe change cluster CIDR block, etc? https://github.com/k3s-io/k3s/issues/2854
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig=/home/ubuntu/.kube/config --write-kubeconfig-mode=644" sh -s - --docker
 EOF
 
   tags = {
-    Name        = "web-server"
-    environment = "dev"
+    Name        = "${var.environment}-vm-1"
+    environment = var.environment
   }
 }
