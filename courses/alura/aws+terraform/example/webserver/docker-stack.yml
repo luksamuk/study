@@ -1,0 +1,15 @@
+# This compose file was thought to be used within Docker Stack,
+# on a Docker Swarm cluster of two RISC-V 64-bit devices
+# (one Lichee RV Dock Pro and one Mango Pi MQ-Pro).
+
+version: "3"
+services:
+  example-webserver:
+    image: luksamuk/example-webserver:latest
+    ports:
+      - 9000:9000
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+
