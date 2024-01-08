@@ -4,12 +4,33 @@
 
 version: "3"
 services:
-  example-webserver:
+  webserver:
     image: luksamuk/example-webserver:latest
     ports:
       - 9000:9000
     deploy:
-      replicas: 2
+      replicas: 1
+      placement:
+        constraints: [node.role == worker]
       restart_policy:
         condition: on-failure
+
+  db:
+    image: luksamuk/postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    deploy:
+      replicas: 1 # Must be exactly one
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+
+volumes:
+  db-data:
 
