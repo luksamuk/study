@@ -116,6 +116,8 @@ Outros programas implementados com o intuito de pesquisa pessoal ou acadêmica.
   - =avltree=: Arvore AVL totalmente programada usando o editor Acme, feita em
     C para Plan 9.
 
+- =psp=: Aprendizado de desenvolvimento para PlayStation Portable.
+
 *** =books=
 Exercícios variados de livros e afins.
 
