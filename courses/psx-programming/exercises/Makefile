@@ -4,7 +4,7 @@ all: ;
 
 %.psexe: src/%.s
 	armips $<
-	python3 bin2exe.py $(subst .psexe,,$@).bin $@
+	python3 ../bin2exe.py $(subst .psexe,,$@).bin $@
 
 clean:
 	rm *.bin

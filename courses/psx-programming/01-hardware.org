@@ -1,4 +1,5 @@
 #+title: PlayStation Hardware
+#+startup: content
 
 Father of the PSX: Ken Kutaragi
 

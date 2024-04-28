@@ -1,4 +1,5 @@
 #+title: MIPS Assembly
+#+startup: content
 
 * CPU Registers & Load Instructions
 
@@ -166,7 +167,7 @@ memory.
 Notice that ~$t0~ represents an offset  for the store instruction; in this case,
 it contains ~0x1f800000~.
 
-If you  recall from  the [[./hardware.org][Hardware]]  class, ~0x1f800000~ is  the base  address for
+If you  recall from  the [[./01-hardware.org][Hardware]] class, ~0x1f800000~ is  the base  address for
 mapping the GPU registers. ~0x1f801810~,  specifically, is the write address for
 ~GP0~, so we're sending a command or  packet to the GPU to control rendering and
 VRAM.
@@ -478,7 +479,7 @@ incrementing when ~$t0~ == ~t1~.
 If  you want  to  keel  using ~blt~,  just  programatically  increment ~$t1~  or
 initialize it to ~0xa100~.
 
-#+begin_src asm :tangle src/fillmem.s
+#+begin_src asm :tangle exercises/src/fillmem.s
 	.psx
 	.create "fillmem.bin", 0x80010000
 	.org 0x80010000
@@ -534,14 +535,14 @@ I noticed the following things:
 I will  create a proper  ~Makefile~ for  our studies as  well, but in  a proper,
 generic way:
 
-#+begin_src makefile :tangle Makefile
+#+begin_src makefile :tangle exercises/Makefile
 .PHONY: clean purge
 
 all: ;
 
 %.psexe: src/%.s
 	armips $<
-	python3 bin2exe.py $(subst .psexe,,$@).bin $@
+	python3 ../bin2exe.py $(subst .psexe,,$@).bin $@
 
 clean:
 	rm *.bin
@@ -563,7 +564,7 @@ make fillmem.psxexe
 
 What if we wanted to store an entire word in memory?
 
-#+begin_src asm :tangle src/fillmemw.s
+#+begin_src asm :tangle exercises/src/fillmemw.s
 	.psx
 	.create "fillmemw.bin", 0x80010000
 	.org 0x80010000
@@ -614,4 +615,6 @@ assembler translates them to one or more equivalent MIPS instructions.
 - No$psx:
   - http://www.psxdev.net/forum/viewtopic.php?t=4017
   - http://problemkaputt.de/psx.htm
+
+* The MIPS Pipeline
 
