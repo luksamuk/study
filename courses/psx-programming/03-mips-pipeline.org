@@ -1,0 +1,204 @@
+#+title: The MIPS Pipeline
+#+startup: showall
+
+* MIPS Pipeline
+
+Previously  we  could  see  that  the  processor  wasn't  necessarily  branching
+immediately when we told it to. The reason for that is the processor pipeline:
+
+#+begin_example
+1 | [fetch] > [decode] > [execute] > [memory]  > [write]
+2 |           [fetch]  > [decode]  > [execute] > [memory]  > [write]
+3 |                      [fetch]   > [decode]  > [execute] > [memory] > [write]
+...
+#+end_example
+
+The RISC  processor tries to  execute some of the  code in parallel  to optimize
+things, increasing  execution speed. So  sometimes, while the execution  of some
+instruction might be  in a stage, the  next instruction could be  in the earlier
+stages (fetch, for example).
+
+Processor without a  pipeline execute an entire instruction before  going to the
+next one. So while there might be  still similar stages, these stages all happen
+for  each  instruction  in order.  This  means  that  we  won't fetch  the  next
+instruction while executing the previous one, for example.
+
+Now consider the following, very basic code.
+
+#+begin_src asm
+	lw	$t0, 4($a0)
+	lw	$t1, 8($a0)
+	lw	$t2, 12($a0)
+	lw	$t3, 16($a0)
+	lw	$t4, 20($a0)
+#+end_src
+
+The following is  a table representing the pipeline stages  for each instruction
+as the clock cycle progresses. Each cycle is a full clock cycle (down + up), and
+as the  instructions are executed from  the first to  the last as per  how ~$pc~
+automatically progresses, we can see how the pipeline is basically handling five
+different instruction steps at once.
+
+| Instruction       | C1  | C2  | C3  | C4  | C5  | C6  | C7  | C8  | C9  |
+|-------------------+-----+-----+-----+-----+-----+-----+-----+-----+-----|
+| ~lw $t0, 4($a0)~  | fet | dec | exe | mem | wri | -   | -   | -   | -   |
+| ~lw $t1, 8($a0)~  | -   | fet | dec | exe | mem | wri | -   | -   | -   |
+| ~lw $t2, 12($a0)~ | -   | -   | fet | dec | exe | mem | wri | -   | -   |
+| ~lw $t3, 16($a0)~ | -   | -   | -   | fet | dec | exe | mem | wri | -   |
+| ~lw $t4, 20($a0)~ | -   | -   | -   | -   | fet | dec | exe | mem | wri |
+
+
+We can now see  how this parallelism works.  In C1, we  fetch instruction #1. In
+C2, as instruction #1 is being decoded, we're already fetching instructin #2. In
+C3,  #1  is being  executed,  #2  is being  decoded,  and  #3 is  already  being
+fetched. And so on.
+
+By  the time  we  reach C5  in  this  example, we  already  have several  things
+happening in parallel.
+
+- The pipeline indicates an overlapping of instructions.
+- While a typical instruction takes 3-5 cycles, a pipelined processor targets _1
+  cycle per instruction_ (or at least gets close to 1 CPI).
+- But a pipeline approach can cause some serious problems.
+
+** Branching
+
+Consider now the following code.
+
+| Instruction           | C1  | C2  | C3  | C4  | C5  | C6  | C7  | C8  | C9  |
+|-----------------------+-----+-----+-----+-----+-----+-----+-----+-----+-----|
+| ~lw $t0, 4($a0)~      | fet | dec | exe | mem | wri | -   | -   | -   | -   |
+| ~lw $t1, 8($a0)~      | -   | fet | dec | exe | mem | wri | -   | -   | -   |
+| ~beq $s2, $s3, Sub~   | -   | -   | fet | dec | exe | mem | wri | -   | -   |
+| ~lw $t3, 16($a0)~     | -   | -   | -   | fet | dec | exe | mem | wri | -   |
+| ~lw $t4, 20($a0)~     | -   | -   | -   | -   | fet | dec | exe | mem | wri |
+| ~Sub: lw $t5, 0($sp)~ | -   | -   | -   | -   | -   | fet | dec | exe | mem |
+
+
+By the  time we  are executing  the ~beq~  branching instruction,  we're already
+fetching and decoding the next two instructions after it.
+
+So  the next  two instructions  are  already loaded  in the  pipeline before  we
+branch!  This  is  an issue,  since  we  don't  want  to execute  the  next  two
+instructions, we  potentially want to  fetch and  execute starting at  the ~Sub~
+label.
+
+- Jumps & branch instructions are a problem.
+- We change the flow  of the code to jump and execute what  is inside ~Sub~, but
+  we might still execute the instructions immediately below the jump that are in
+  the pipeline.
+  
+** Racing condition
+
+Now consider the following code.
+
+| Instruction           | C1  | C2  | C3  | C4  | C5  | C6  | C7  | C8  | C9  |
+|-----------------------+-----+-----+-----+-----+-----+-----+-----+-----+-----|
+| ~lw $t0, 4($a0)~      | fet | dec | exe | mem | wri | -   | -   | -   | -   |
+| ~lw $t1, 8($a0)~      | -   | fet | dec | exe | mem | wri | -   | -   | -   |
+| ~add $t2, $t1, $t2~   | -   | -   | fet | dec | exe | mem | wri | -   | -   |
+| ~lw $t3, 16($a0)~     | -   | -   | -   | fet | dec | exe | mem | wri | -   |
+| ~lw $t4, 20($a0)~     | -   | -   | -   | -   | fet | dec | exe | mem | wri |
+| ~Sub: lw $t5, 0($sp)~ | -   | -   | -   | -   | -   | fet | dec | exe | mem |
+
+Consider the case for instructions #2 and  #3 here. In #2, we're loading a value
+into the ~$t1~ register,  while in #3 we're attempting to read  that value -- so
+we have a racing condition here. By  the time #3 is executing, #2 hasn't written
+to ~$t1~ yet!
+
+Notice that *this delay only happens  with loads from memory*. An immediate load
+happens fast enough so there are no issues.
+
+- Late loads can also be a source of problem.
+- We might try to  add, subtract, compare, or do something  else with a register
+  that is not completely loaded yet.
+
+** Delay slots
+
+To  solve  those  problems,  we  use  delay  slots.  This  is  basically  adding
+"something" after a branch  to cause a delay. An easy way  out is a no-operation
+(~nop~), an  instruction that consumes  almost the  entire pipeline so  we don't
+have problems of jumping to subroutines and executing stuff after that.
+
+#+begin_src asm
+	; example 1
+	sw	$t1, 12($s3)
+	sw	$t2, 16($s3)
+
+	jal	Subroutine
+	nop
+
+	lw	$t2, 16($s3)
+	lw	$t3, 20($s3)
+
+Subroutine:
+	lw	$s1, 12($sp)
+	...
+#+end_src
+
+This  is also  the case  for _load  delay slots_.  In the  example below,  we're
+performing a shift operation on ~$s2~ and  storing it in ~$s2~, but we shouldn't
+do that  unless ~$s2~ is  fully loaded. This  is why we  add a ~nop~  before the
+~sll~.
+
+#+begin_src asm
+	; example 2
+	lw	$s1, 12($sp)
+	lw	$s2, 16($sp)
+	nop
+	sll	$s2, $s2, 16
+	...
+#+end_src
+
+- Some  programmers might  add  different  instructions in  the  delay slot  for
+  performance reasons,  especially in core  game engine code that  gets executed
+  multiple times per frame.
+- Let's keep things simple for now and just add a ~nop~ to our delay slots.
+- Our C compiler should be able to correctly handle delay slots.
+
+* More on delay slots
+
+About  "load delays",  as  said before,  this issue  only  appears when  loading
+information   from  memory,   but  this   is   not  the   case  with   immediate
+loads. Immediate loading is fast enough  to conclude loading the contents of the
+register before the pipeline overlap becomes an issue.
+
+#+begin_src asm
+	; example 1
+	lw	$t0, 0x1f80($a0)
+	nop	; needed here since we're loading from memory
+	ssl	$t0, $t0, 1
+
+	; example 2
+	li	$t0, 0x3a
+	; nop isn't needed here, immediate load is not an issue
+	ssl	$t0, $t0, 1
+#+end_src
+
+** ~nop~ opcode
+
+The ~nop~  opcode is actually a  pseudo-instruction in MIPS, here  is the actual
+instruction:
+
+#+begin_src asm
+	ssl	$r0, $r0, 0
+#+end_src
+
+Basically this performs  a shift of zero  bits on register ~$r0~  and stores the
+value in ~$r0~. Remember  that ~$r0~ is also known as  ~$zero~, and is hardwired
+to contain always only  0, so the above instruction just  wastes cycles and does
+absolutely nothing.
+
+*** Trivia
+
+In x86_64 ASM, the ~nop~ is...
+
+#+begin_src asm
+	xchg	rax, rax
+#+end_src
+
+It  attempts to  exchange the  contents of  ~rax~ with  itself, which  also does
+nothing and wastes clock  cycles. But x86_64 is a CISC  architecture, so a weird
+instruction such as ~xchg~ (exchange) exists there.
+
+

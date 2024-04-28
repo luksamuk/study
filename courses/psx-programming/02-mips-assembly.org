@@ -615,6 +615,3 @@ assembler translates them to one or more equivalent MIPS instructions.
 - No$psx:
   - http://www.psxdev.net/forum/viewtopic.php?t=4017
   - http://problemkaputt.de/psx.htm
-
-* The MIPS Pipeline
-
