@@ -1,9 +1,5 @@
 #+title: PlayStation Hardware
 
-- No$psx:
-  - http://www.psxdev.net/forum/viewtopic.php?t=4017
-  - http://problemkaputt.de/psx.htm
-
 Father of the PSX: Ken Kutaragi
 
 * PS1 Hardware Overview
@@ -22,32 +18,32 @@ Father of the PSX: Ken Kutaragi
   - CP2: GTE (Geometry Transformation Engine) -- vector, matrix math, etc
   - MDEC: Motion Decoder  (a special unit, instead of a  coprocessor) -- handles
     full motion videos, etc
-- **SPU:** Sound Processing Unit (16-bit 24-channel ADPCM)
-  - **DRAM:** one 512KB chip
-- **CD Subsystem**
+- *SPU:* Sound Processing Unit (16-bit 24-channel ADPCM)
+  - *DRAM:* one 512KB chip
+- *CD Subsystem*
   - DSP controlling motor and laser
   - CD-ROM Controller chip
   - Control, connectors, etc
-- **Ports**
+- *Ports*
   - AV Multi Out port
   - Composite Out port
   - Stereo RCA Out port
   - Serial Port
   - Parallel Port
   - Controllers port, etc
-- **BIOS:** 512KB BIOS ROM
+- *BIOS:* 512KB BIOS ROM
     
-**So where  is the  CP1?** Generally,  in MIPS processors,  CP1 is  dedicated to
-floating  point  arithmetic.   But  Sony  **DID  NOT**  add   a  floating  point
-coprocessor. **So we are forced to use fixed-point values.**
+*So where  is the  CP1?* Generally,  in MIPS processors,  CP1 is  dedicated to
+floating  point  arithmetic.   But  Sony  *DID  NOT*  add   a  floating  point
+coprocessor. *So we are forced to use fixed-point values.*
 
 Some components are accessible via memory  mapping, but other things (like VRAM)
 is not directly accessible  by the CPU. In the VRAM case, the  CPU sends data to
 the GPU, and it in turn populates the VRAM.
 
 ** Trivia
-- Previous  generation  processors  used  to  run at  ~7MHz,  and  before  that,
-  ~1.7MHz. So it's a BIG improvement.
+- Previous generation  processors used to run  at around 7MHz, and  before that,
+  around 1.7MHz. So it's a BIG improvement.
 - The GPU is actually  a 2D rasterization GPU, the 3D bits  need to be processed
   before we send actual data to the GPU.
 - EDO = extended data  out. This is a feature of the  motherboard that makes the
@@ -114,7 +110,7 @@ MIPS ISA, then MIPS machine code can be executed by it.
   - These addresses do  not mean only RAM  memory! They can also be  used to map
     the GPU, the SPU, etc.
 - The  PlayStation hardware  doesn't have  a MMU,  therefore it  doesn't have  a
-  *virtual memory* -- **All memory is physical memory**.
+  *virtual memory* -- *All memory is physical memory*.
 
 ** Endianness (byte ordering)
 
@@ -128,7 +124,7 @@ blocks of a single byte.
 - Little Endian: ~[78] [56] [34] [12]~
 
 Notice that, for  Little Endian, the bytes themselves are  still the same bytes,
-but **only their order is swapped**.
+but *only their order is swapped*.
 
 ** Trivia
 
@@ -145,7 +141,7 @@ but **only their order is swapped**.
 
 * Different MIPS CPUs & Endianness
 
-The R3000A MIPS  CPU of the PlayStation uses **LITTLE  ENDIAN.** In theory, MIPS
+The R3000A MIPS  CPU of the PlayStation uses *LITTLE  ENDIAN.* In theory, MIPS
 CPUs don't have  to use an specific endianness, but  the PlayStation console CPU
 is already wired to use little endian order.
 
@@ -178,7 +174,7 @@ little-endian MIPS CPUs.
 
 ** More info
 
-- Most important structures: **Main RAM**, **Scratchpad**, **I/O Ports**.
+- Most important structures: *Main RAM*, *Scratchpad*, *I/O Ports*.
 - The Scratchpad is useful for doing things that require speed.
 - The  I/O Ports  map  very important  structures, such  as  GPU registers,  SPU
   control registers, MDEC registers, etc.
