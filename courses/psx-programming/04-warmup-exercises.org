@@ -1,0 +1,69 @@
+#+title: Some Warm Up Exercises
+
+I'm not  going to  introduce the problems  for each exercise  here, I  think I'm
+already writing too  much stuff from the  course and I don't wanna  be an a-hole
+with the creator. Either  read the code and figure out what it  is doing, or buy
+the course, because IT IS. VERY. GOOD.
+
+* Exercise 1
+
+#+begin_src asm :tangle exercises/src/exercise1.s
+	.psx
+	.create "exercise1.bin", 0x80010000
+	.org 0x80010000
+Main:
+	li	$t0, 0x1
+	li	$t1, 0x100
+	li	$t2, 0x11
+End:
+	.close
+#+end_src
+
+* Exercise 2
+
+#+begin_src asm :tangle exercises/src/exercise2.s
+	.psx
+	.create "exercise2.bin", 0x80010000
+	.org 0x80010000
+Main:
+	li	$t0, 0x1
+	move	$t1, $zero
+Loop:
+	add	$t1, $t0
+	addi	$t0, 0x1
+	ble	$t0, 0xa, Loop
+	nop
+End:
+	.close
+#+end_src
+
+* Exercise 3
+
+#+begin_src asm :tangle exercises/src/exercise3.s
+	.psx
+	.create "exercise3.bin", 0x80010000
+	.org 0x80010000
+Main:
+	move	$t2, $zero	; res
+	li	$t0, 0x1b	; num
+	li	$t1, 0x3	; den
+Loop:
+	subu	$t0, $t1
+	addiu	$t2, 0x1
+	bge	$t0, $t1, Loop
+	nop
+End:
+	.close
+#+end_src
+
+* Trivia
+
+- Register shorthands: We can replace ~addi $t0, $t0, 0x1~ with ~addi $t0, 0x1~.
+  Most assemblers allow omitting the destination  if the destination is the same
+  register that is being worked on.
+
+- ~li $0, 5~ is a shorthand for ~ori $t0, $r0, 5~.
+  ~ori~ is an immediate OR.
+
+- Sometimes, instead of using ~li $t1, 0x0~, people may use ~move $t1, $zero~.
+  
