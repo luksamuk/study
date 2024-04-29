@@ -244,6 +244,7 @@ Other cases:
 
 | Instruction | Description                            |
 |-------------+----------------------------------------|
+| b           | Branch unconditionally                 |
 | blt         | Branch if less than (signed)           |
 | bltu        | Branch if less than (unsigned)         |
 | bgt         | Branch if greater than (signed)        |
@@ -258,7 +259,11 @@ Other cases:
 - In some  places we are  adding a _no  operation_ (~nop~) instruction.  A ~nop~
   does nothing;  it simply consumes  some clock cycles.  This is related  to the
   processor pipeline. This ensures some safety, but we'll get to that soon.
-
+- So why use ~b~  instead of ~j~? According to this  StackOverflow link, ~b~ may
+  allow  shorter addresses  (since  it  takes up  more  space),  but allows  for
+  position-independent code,  so you don't have  to relink stuff as  if you were
+  using ~j~. So ~b~ is nice for shorter branches.
+  
 * MIPS Instructions Cheat Sheet
 
 There is a  simplified MIPS instruction cheat sheet provided  with the course. I
