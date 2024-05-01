@@ -165,3 +165,243 @@ Packet example:
 | Command+Params | ~CCPPPPPP~     |
 
 
+* Sending Display Control Packets to GP1
+
+This section covers the following videos:
+
+- Sending Display Control Packets to GP1
+- Sending VRAM Access Packets to GP0
+- Clear Display Area
+
+** (Prelude) Startup
+
+This section is not on the course. Since  I'm using Org Mode, I thought I should
+put the  project's code  divided in sections  and comment it  part by  part. The
+project will then be tangled into a single file.
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	.psx
+	.create "hellogpu.bin", 0x80010000
+	.org 0x80010000
+#+end_src
+
+** Constants
+
+*** IO Port
+
+IO Ports memory map base address. Just load  it onto the MSB of the addresses to
+perform proper memory access.
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	IO_BASE_ADDR equ 0x1f80
+#+end_src
+
+*** GPU Registers
+
+- GP0 @ ~$1f801810~: Rendering data & VRAM Access
+- GP1 @ ~$1f801814~: Display Control & Environment Setup
+
+The following constants are to be used as the LSB of memory.
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	GP0 equ 0x1810
+	GP1 equ 0x1814
+#+end_src
+
+*** Setup base address
+
+Setup MSB  of ~$t0~ with base  address. Now we  can use ~$t0~ as  general offset
+value for the GPU register constants; just use the format ~GP0($t0)~.
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+Main:
+	lui	$t0, IO_BASE_ADDR
+#+end_src
+
+** Setup display control
+
+Send commands to GP1 (mapped at 0x1f801814).
+
+The GP1  is for  display control  and environment setup.  (Command =  8-bit MSB,
+Parameter = 24-bit LSB -- ~CCPPPPPP~: ~CC~ = Command, ~PPPPPP~ = Parameter)
+
+Here is a list of [[https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#gpu-display-control-commands-gp1][GP1 display control commands]]. Remember that the listed bits of
+arguments  are ordered  from least  significant  bits to  most significant  bits
+(little endian)!
+
+*** GP1: Reset GPU
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0x00000000	; 00 = reset gpu
+	sw	$t1, GP1($t0)	; write packet to GP1
+#+end_src
+
+*** GP1: Display Enable
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0x03000000	; 03 = Display enable
+	sw	$t1, GP1($t0)
+#+end_src
+
+*** GP1: Display Mode (320x240, 15-bit, NTSC)
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0x08000001 ; 08 = display mode (320x240, 15-bit, NTSC)
+	sw	$t1, GP1($t0)
+#+end_src
+
+*** GP1: Horizontal and vertical range
+
+- H display range: ~0xXXXxxx~ (3168-608)
+- V display range: ~0xyyyyyyyyyyYYYYYYYYYY~ (264-24)
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0x06c60260	; 06 = H display range
+	sw	$t1, GP1($t0)
+	li	$t1, 0x07042018	; 07 = V display range
+	sw	$t1, GP1($t0)
+#+end_src
+
+** Setup VRAM access
+
+*** GP0: Draw mode setting (also known as texturepage)
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0xe1000400	; E1 = Draw Mode Settings
+	sw	$t1, GP0($t0)	; write packet to GP0
+#+end_src
+
+*** GP0: Drawing area Top-Left
+
+Set drawing area top left at {0, 0}.
+
+- Drawing area TopLeft: ~0xYYYYYYYYYYXXXXXXXXXX~ (10 bits for X, 10 bits for Y)
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0xe3000000	; E3 = drawing area topleft
+	sw	$t1, GP0($t0)
+#+end_src
+
+*** GP0: Drawing area Bottom-Right
+
+Set drawing area bottom right at {319, 239}.
+
+- Drawing area BottomRight: ~0xYYYYYYYYYYXXXXXXXXXX~ (10 bits for X, 10 bits for
+  Y)
+
+Notice that ~0011_1011_1101_0011_1111~ = ~0x03bd3f~, because:
+
+- 239 = ~0011_1011_11~
+- 319 = ~01_0011_1111~
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0xe403bd3f	; E4 = drawing area bottomright
+	sw	$t1, GP0($t0)
+#+end_src
+
+*** GP0: Drawing area offset X & Y
+
+Set drawing offset to {0, 0}.
+
+- Drawing offset: 
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0xe5000000	; E5 = drawing offset
+	sw	$t1, GP0($t0)
+#+end_src
+
+** Exercise 1: Clear the screen
+
+*** GP0: Fill rectangle on the display area
+
+This  was left  as an  exercise, so  we're using  the GP0  ~0x02~ command:  Fill
+rectangle  in  VRAM. This  command  can  be found  in  the  GPU Memory  Transfer
+Commands.
+
+- 239 = ~0x00ef~
+- 319 = ~0x013f~
+  
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0x02023000	; 02 = Fill rectangle in VRAM (random dark green color)
+	sw	$t1, GP0($t0)
+	li	$t1, 0x00000000	; top-left corner {0, 0}
+	sw	$t1, GP0($t0)
+	li	$t1, 0x00ef013f	; width and height {239, 319} 0xHHHHWWWW
+	sw	$t1, GP0($t0)
+#+end_src
+
+** Exercise 2: Draw a flat-shaded triangle
+
+*** GP0: Send packets to GP0 to draw a triangle
+
+This was also left as an exercise.
+
+Found on "GPU Render Polygon Commands".
+
+To setup the  command, we pay attention  to the bitfield layout,  as listed from
+MSB to LSB:
+
+#+begin_example
+ bit number   value   meaning
+  31-29        001    polygon render
+    28         1/0    gouraud / flat shading
+    27         1/0    4 / 3 vertices
+    26         1/0    textured / untextured
+    25         1/0    semi-transparent / opaque
+    24         1/0    raw texture / modulation
+   23-0        rgb    first color value.
+#+end_example
+
+We want:
+
+1. Polygon render (001)
+2. Flat shading (1)
+3. 3 vertices (0)
+4. Untextured (0)
+5. Opaque (0)
+6. Modulation (0)
+
+Therefore, the command we're looking for is ~0010_0000~ = ~0x20~.
+
+For the color, we're gonna use yellow (~99ffff~ in BGR format).
+
+And now we precalculate our coordinates:
+
+- { 80,   60 } = ~{ 0x50, 0x3c }~ = ~003c0050~
+- { 90,  180 } = ~{ 0x5a, 0xb4 }~ = ~00b4005a~
+- { 240, 150 } = ~{ 0xf0, 0x96 }~ = ~009600f0~
+
+So we'll send to GP0 the following packets, in order:
+
+1. ~0xCCBBGGRR~: Command + color in 2-byte BGR format
+2. ~0xYYYYXXXX~: Vertex 1 (4 bytes per component)
+3. ~0xYYYYXXXX~: Vertex 2
+4. ~0xYYYYXXXX~: Vertex 3
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+	li	$t1, 0x2099ffff	; draw flat colored triangle, yellow color
+	sw	$t1, GP0($t0)
+	li	$t1, 0x003c0050	; V1: 80x60
+	sw	$t1, GP0($t0)
+	li	$t1, 0x00b4005a	; V2: 90x180
+	sw	$t1, GP0($t0)
+	li	$t1, 0x009600f0	; V3: 240x150
+	sw	$t1, GP0($t0)
+#+end_src
+
+** (Finale) Finish ASM project
+
+Not an actual section. Just adding this here to tangle with Org Babel.
+
+#+begin_src asm :tangle exercises/src/hellogpu.s
+Halt:
+	j Halt
+	nop
+	
+	.close
+#+end_src
+
+* Screenshot of the project
+
+[[file:img/triangle.png]]
+

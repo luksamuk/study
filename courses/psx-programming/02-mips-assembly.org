@@ -344,6 +344,8 @@ AUR.
 We'll       be      using       PCSX-Redux.      GitHub       project      link:
 https://github.com/grumpycoders/pcsx-redux
 
+*MAKE SURE YOU ENABLE FAST BOOT ON Configuration > Emulation > check Fast Boot*.
+
 It is GREAT for debugging, and uses ImGui too!
 
 Make sure you download the AppImage if you're on Linux. Easy as that.
