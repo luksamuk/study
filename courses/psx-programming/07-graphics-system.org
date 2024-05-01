@@ -1,0 +1,167 @@
+#+title: Graphics System
+#+startup: contents
+
+* The PlayStation Graphics System
+
+** The PlayStation GPU
+
+- The GPU  is a chip  that has registers  and has access  to a 1MB  frame buffer
+  (VRAM).
+- The frame  buffer is not directly  accessible by the  CPU -- it is  not memory
+  mapped.
+- See document: [[file:Sony-PlayStation-Hardware.pdf][The Sony PlayStation Developer Reference]]
+  - Refer to Chapter  1, System Architecture, Graphics  System. See architecture
+    diagram.
+- The GPU can take "commands" from the CPU
+  - We call them packets of data
+- All data regarding drawing and setup is sent as packets to the GPU
+- Packets can be forwarded  _word by word_ through the data port  of the GPU (or
+  more efficiently through *DMA (direct memory access)*).
+  - The DMA takes over the main bus  and performs a fast data transfer. But once
+    the DMA starts the copy, the CPU cannot access the main bus.
+  - GPU,  SPU,  CD-ROM and  Parallel  Port  have  access  to an  exclusive  *DMA
+    Controller* whenever they require it. DMA  takes control of the main bus and
+    performs the data transfer.
+
+** The Frame Buffer
+
+- Space available for the framebuffer: 1024x512
+  - Coordinate system. Top left: (0,0) -- Bottom right: (1023, 511)
+- Inside the framebuffer, you have the freedom to populate as you want. But some
+  part of this framebuffer  will have to be reserved for  the display area. This
+  display area on the framebuffer is then mirrored to the screen.
+  - We're usually going to have two of such display areas so we can have *double
+    buffering*.
+  - The extra space is for other  stuff: textures, color lookup tables, mipmaps,
+    glyphs, materials, etc.
+
+- There are limitations about resolution, color types, etc.
+
+*** Screen mode & display location
+
+This table can also be found in the Sony PlayStation Developer Reference.
+
+| Mode | Standard res. (NTSC) | Remarks        |
+|------+----------------------+----------------|
+|    0 |              256x240 | Non-interlaced |
+|    1 |              320x240 | Non-interlaced |
+|    2 |              512x240 | Non-interlaced |
+|    3 |              640x240 | Non-interlaced |
+|    4 |              256x480 | Interlaced     |
+|    5 |              320x480 | Interlaced     |
+|    6 |              512x480 | Interlaced     |
+|    7 |              640x480 | Interlaced     |
+|    8 |              384x240 | Non-interlaced |
+|    9 |              384x480 | Interlaced     |
+
+The resolution picked  has *consequences* impacting on more  than just available
+VRAM  (such  as  colors  that  can  be used,  etc).  This  relates  to  hardware
+limitations. Again, check the reference if needed.
+
+*** Number of display colors
+
+The GPU supports two modes for color display: 15-bit or 24-bit.
+
+**** 15-bit direct
+
+2 bytes. 32,768 (2^15) colors. Layout:
+
+| M (1 bit) | B (5 bits) | G (5 bits)  | R (5 bits)  |
+
+(This all corresponds to a single pixel)
+
+Most-significant bit is used to mask the pixel (hide or show)
+
+**** 24-bit direct
+
+3 bytes. 16,777,216 (2^24) colors. Layout:
+
+| G0 (4 bits) | R0 (4 bits) | R1 (4 bits) | B0 (4 bits) | B1 (4 bits) | G1 (4 bits) |
+| Pixel 0     | Pixel 0     | Pixel 1     | Pixel 1     | Pixel 2     | Pixel 2     |
+
+*** Bus sizes
+
+We need to consider the bus sizes anytime we need to perform data transfers.
+
+- For data  transfer between CPU or  DMA to the  GPU, the bus is  _32-bit sized_
+  (and so are packets of data).
+- For data transfer between GPU and VRAM, the bus is _16-bit sized_.
+- For data transfer between VRAM and Video Encoder, the bus is _16-bit sized_.
+
+*This works for the original PlayStation*.  There are some other versions of the
+ PlayStation that allowed 32-bit data transfer between GPU and VRAM and VE.  But
+ we're going to conform to the original PlayStation hardware.
+
+* Drawing primitives
+
+Some primitives that the GPU already knows how to draw:
+
+- Lines
+- Flat-shaded polygons (triangles and quads)
+- Gouraud-shaded  polygons  (different  colors  for  each  vertex,  interpolated
+  inbetween)
+- Textured polygons
+- Sprites, Tiles, etc.
+
+This is as easy as sending packets to the GPU.
+
+At this stage, we're working with a 2D rasterization engine. Anything related to
+3D comes before it.
+
+* GPU Packets
+
+- ~GP0~ commands are used for *rendering* and *VRAM access*.
+- ~GP1~ commands are used to *setup display control*.
+
+** Sending Packets to ~GP0~
+
+Packets work with  different types of commands -- or,  in other words, different
+types of primitives.
+
+| Command | Primitive                               |
+|---------+-----------------------------------------|
+| ~0x20~  | Flat-shaded triangle (opaque)           |
+| ~0x22~  | Flat-shaded triangle (semi-transparent) |
+| ~0x28~  | Flat-shaded quad (opaque)               |
+| ~0x2a~  | Flat-shaded quad (semi-transparent)     |
+| ...     | ...                                     |
+
+Here is an example of packets. Every line corresponds to a packet of 32 bits:
+
+| Order | Description        | Layout (bytes) |
+|-------+--------------------+----------------|
+|     1 | Command+Color      | ~CCBBGGRR~     |
+|     2 | Vertex 1           | ~YYYYXXXX~     |
+|     3 | Vertex 2           | ~YYYYXXXX~     |
+|     4 | Vertex 3           | ~YYYYXXXX~     |
+|     5 | Vertex 4 (if quad) | ~YYYYXXXX~     |
+
+The GPU will  know when to stop  reading packets for a command  depending on the
+command sent.
+
+*For proper, complete information:*
+
+[[https://problemkaputt.de/psx-spx.htm][See the Programming Specs of the PlayStation]] on [[https://problemkaputt.de/psx.htm][no$psx page]].
+  - Here is a [[file:psx-spx.txt][pure .txt backup]].
+
+** Sending Packets to ~GP1~
+
+These commands  are not  control commands,  since we're  not attempting  to draw
+primitives here. Command examples:
+
+| Command | Description                               |
+|---------+-------------------------------------------|
+| ~0x00~  | Reset GPU                                 |
+| ~0x03~  | Display enable                            |
+| ~0x08~  | Display mode (320x240, 15-bit mode, NTSC) |
+| ~0x06~  | Horizontal display range                  |
+| ~0x07~  | Vertical display range                    |
+| ...     | ...                                       |
+
+Packet example:
+
+| Description    | Layout (bytes) |
+|----------------+----------------|
+| Command+Params | ~CCPPPPPP~     |
+
+

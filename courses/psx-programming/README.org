@@ -1,0 +1,41 @@
+#+title: PS1 Programming with MIPS Assembly & C - Course Notes
+
+These are my notes for the PlayStation development course.
+
+* Chapters
+
+1. [[./01-hardware.org][Hardware]]
+2. [[./02-mips-assembly.org][MIPS Assembly]]
+3. [[./03-mips-pipeline.org][MIPS Pipeline]]
+4. [[04-warmup-exercises.org][Warm-up Exercises]]
+5. [[./05-subroutines-negative-numbers.org][Subroutines and Negative Numbers]]
+6. [[./06-cisc-vs-risc.org][CISC vs. RISC]]
+7. [[07-graphics-system.org][Graphics System]]
+
+* Extra documents
+
+- [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
+- [[file:MIPS-Instruction-Set-Reference.pdf][MIPS Instruction Set Reference]]
+- [[file:Sony-PlayStation-Hardware.pdf][Sony PlayStation Developer Reference]]
+- [[file:psx-spx.txt][no$psx PSXSPX PlayStation Specifications]] (txt format)
+  - [[https://problemkaputt.de/psx-spx.htm][web link]]
+  - [[https://psx-spx.consoledev.net/graphicsprocessingunitgpu/][wiki-style web link]] (easier to navigate)
+
+* Compiling ASM exercises
+
+Notice that  compilation requires  the [[file:bin2exe.py][bin2exe.py]] script,  which builds  the PSX
+file header.
+
+#+begin_src bash
+cd exercises
+make <name>.psexe
+#+end_src
+
+Replace  ~<name>~ with  the name  of  one of  the exercise  assembly files.  For
+example,  if you  want to  build  the file  ~exercises/src/fillmemw.s~, use  the
+command ~make fillmemw.psexe~.
+
+Building ASM exercises also create ~.bin~  artifacts. Use ~make clean~ to remove
+them, and use ~make purge~ to remove all final ~.psexe~ files.
+
+
