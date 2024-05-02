@@ -52,6 +52,30 @@ Main:
 	li	$t1, 0x009600f0	; V3: 240x150
 	sw	$t1, GP0($t0)
 
+	li	$t1, 0x28ff8000	; draw flat colored quad, blue color
+	sw	$t1, GP0($t0)
+	li	$t1, 0x00b400c8	; vertex 4
+	sw	$t1, GP0($t0)
+	li	$t1, 0x001e00b4	; vertex 2
+	sw	$t1, GP0($t0)
+	li	$t1, 0x008c0046	; vertex 3
+	sw	$t1, GP0($t0)
+	li	$t1, 0x005a0028	; vertex 1
+	sw	$t1, GP0($t0)
+
+	li	$t1, 0x300000ff	; draw gourand colored triangle, start color: red
+	sw	$t1, GP0($t0)
+	li	$t1, 0x002d00a0	; vertex 1
+	sw	$t1, GP0($t0)
+	li	$t1, 0x0000ff00	; color 2: green
+	sw	$t1, GP0($t0)
+	li	$t1, 0x007d0064	; vertex 2
+	sw	$t1, GP0($t0)
+	li	$t1, 0x00ff0000	; color 3: blue
+	sw	$t1, GP0($t0)
+	li	$t1, 0x007d00dc	; vertex 3
+	sw	$t1, GP0($t0)
+
 Halt:
 	j Halt
 	nop
