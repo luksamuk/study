@@ -332,3 +332,6 @@ Halt:
 
 [[file:img/triangle.png]]
 
+** End of Chapter 8
+
+[[file:img/hellogpu.png]]

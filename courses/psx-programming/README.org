@@ -12,7 +12,7 @@ These are my notes for the PlayStation development course.
 6. [[./06-cisc-vs-risc.org][CISC vs. RISC]]
 7. [[07-graphics-system.org][Graphics System]]
    - [[./hello-gpu.org][Hello GPU]]
-8. Rendering Polygons
+8. [[./08-rendering-polygons.org][Rendering Polygons]]
      
 * Extra documents
 
