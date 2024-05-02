@@ -11,7 +11,9 @@ These are my notes for the PlayStation development course.
 5. [[./05-subroutines-negative-numbers.org][Subroutines and Negative Numbers]]
 6. [[./06-cisc-vs-risc.org][CISC vs. RISC]]
 7. [[07-graphics-system.org][Graphics System]]
-
+   - [[./hello-gpu.org][Hello GPU]]
+8. Rendering Polygons
+     
 * Extra documents
 
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
