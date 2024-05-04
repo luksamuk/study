@@ -29,52 +29,77 @@ Main:
 	sw	$t1, GP0($t0)
 
 	lui	$a0, IO_BASE_ADDR
+	la	$sp, 0x00103cf0		; Initialize stack pointer
 
-	;;  Invoke subroutine to draw flat triangle
-	li	$s0, 0xffff00	; Param: Color (0xBBGGRR)
-	li	$s1, 200	; Param: x1
-	li	$s2, 40		; Param: y1
-	li	$s3, 288	; Param: x2
-	li	$s4, 56		; Param: y2
-	li	$s5, 224	; Param: x3
-	li	$s6, 200	; Param: y3
+	addiu	$sp, -(4 * 7)	; subtract 7 words from $sp that are gonna be pushed
+
+	lui	$a0, IO_BASE_ADDR
+
+	li	$t0, 0xff4472	; Param: Color (0xBBGGRR)
+	sw	$t0, 0($sp)	; Push argument onto stack
+
+	li	$t0, 200	; Param: x1
+	sw	$t0, 4($sp)
+
+	li	$t0, 40		; Param: y1
+	sw	$t0, 8($sp)
+
+	li	$t0, 288	; Param: x2
+	sw	$t0, 12($sp)
+
+	li	$t0, 56		; Param: y2
+	sw	$t0, 16($sp)
+
+	li	$t0, 224	; Param: x3
+	sw	$t0, 20($sp)
+
+	li	$t0, 200	; Param: y3
+	sw	$t0, 24($sp)
+
 	jal	DrawFlatTriangle
 	nop
 
-Halt:
-	j Halt
+Halt:	j Halt
 	nop
 
 	;; Subroutine to draw a flat-shaded triangle.
 	;; Args:
 	;; $a0 = IO_BASE_ADDR (IO ports at 0x1f80****)
-	;; $s1 = x1
-	;; $s2 = y1
-	;; $s3 = x2
-	;; $s4 = y2
-	;; $s5 = x3
-	;; $s6 = x3
+	;; 0($sp)  = Color (0xBBGGRR)
+	;; 4($sp)  = x1
+	;; 8($sp)  = y1
+	;; 12($sp) = x2
+	;; 16($sp) = y2
+	;; 20($sp) = x3
+	;; 24($sp) = x3
 DrawFlatTriangle:
+	lw	$t0, 0($sp)		; $t0 <- color
+	lui	$t1, 0x2000		; $t1(MSB) <- command (draw flat triangle)
+	or	$t0, $t1		; setup command (0x20) + color
+	sw	$t0, GP0($a0)		; write to GP0
 
-	lui	$t0, 0x2000	; 0x20 = flat triangle
-	or	$t1, $t0, $s0	; setup command+color on $t1
-	sw	$t1, GP0($a0)	; write to GP0
+	lw	$t0, 8($sp)		; $t0 <- y1
+	lw	$t1, 4($sp)		; $t1 <- x1
+	sll	$t0, 16			; y1 = y1 << 16
+	andi	$t1, 0xffff		; discard anything in x1 after two LSB
+	or	$t0, $t1		; $t0 <- $t0 | $t1
+	sw	$t0, GP0($a0)		; write vertex 1 to GP0
 
-	sll	$s2, $s2, 16		; y1 = y1 << 16
-	andi	$s1, $s1, 0xffff	; discard anything in x1 after two LSB
-	or	$t1, $s1, $s2		; $t1 = x1 | y1 (at respective offsets)
-	sw	$t1, GP0($a0)		; write vertex 1 to GP0
+	lw	$t0, 16($sp)		; $t0 <- y2
+	lw	$t1, 12($sp)		; $t1 <- x2
+	sll	$t0, 16			; y2 = y2 << 16
+	andi	$t1, 0xffff		; discard anything in x2 after two LSB
+	or	$t0, $t1		; $t0 <- $t0 | $t1
+	sw	$t0, GP0($a0)		; write vertex 2 to GP0
 
-	sll	$s4, $s4, 16
-	andi	$s3, $s3, 0xffff
-	or	$t1, $s3, $s4		; $t1 = x2 | y2 (at respective offsets)
-	sw	$t1, GP0($a0)		; write vertex 2 to GP0
+	lw	$t0, 24($sp)		; $t0 <- y3
+	lw	$t1, 20($sp)		; $t1 <- x3
+	sll	$t0, 16			; y3 = y3 << 16
+	andi	$t1, 0xffff		; discard anything in x3 after two LSB
+	or	$t0, $t1		; $t0 <- $t0 | $t1
+	sw	$t0, GP0($a0)		; write vertex 3 to GP0
 
-	sll	$s6, $s6, 16
-	andi	$s5, $s5, 0xffff
-	or	$t1, $s5, $s6		; $t1 = x3 | y3 (at respective offsets)
-	sw	$t1, GP0($a0)		; write vertex 3 to GP0
-
+	addiu	$sp, (4 * 7)		; reset stack pointer out of convenience
 	jr	$ra
 	nop
 
