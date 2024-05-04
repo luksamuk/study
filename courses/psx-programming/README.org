@@ -13,7 +13,8 @@ These are my notes for the PlayStation development course.
 7. [[07-graphics-system.org][Graphics System]]
    - [[./hello-gpu.org][Hello GPU]]
 8. [[./08-rendering-polygons.org][Rendering Polygons]]
-     
+9. [[./09-memory-alignment.org][Memory Alignment]]
+
 * Extra documents
 
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
