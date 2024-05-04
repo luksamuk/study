@@ -29,7 +29,7 @@ Main:
 	sw	$t1, GP0($t0)
 
 	lui	$a0, IO_BASE_ADDR
-	la	$sp, 0x00103cf0		; Initialize stack pointer
+	la	$sp, 0x80103cf0		; Initialize stack pointer
 
 	addiu	$sp, -(4 * 7)	; subtract 7 words from $sp that are gonna be pushed
 

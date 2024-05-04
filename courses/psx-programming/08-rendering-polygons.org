@@ -207,7 +207,7 @@ First things first, we need to setup the stack pointer.
 
 #+begin_src asm
 	lui	$a0, IO_BASE_ADDR
-	la	$sp, 0x00103cf0		; Initialize stack pointer
+	la	$sp, 0x80103cf0		; Initialize stack pointer
 #+end_src
 
 You have to explicitly tell where in the RAM your stack is.
