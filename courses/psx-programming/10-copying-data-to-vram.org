@@ -132,7 +132,40 @@ LoopWords:
 	nop
 #+end_src
 
-* Project
+** Using bitshifting to multiply and divide
+
+Whenever we need to  divide or multiply things by powers of  2, we're better off
+performing  bitshifting  than  relying  on  ~mul~ /  ~div~  /  ~mflo~  /  ~mfhi~
+instructions. And that is because bitshifting is way faster than those.
+
+I'm not gonna go much into detail  here, but the point is, considering this part
+of the code:
+
+#+begin_src asm
+	li	$t0, IMG_SIZE_BYTES
+	li	$t4, 4
+	div	$t0, $t4
+	mflo	$t0
+#+end_src
+
+We could just rewrite it as...
+
+#+begin_src asm
+	srl	$t0, 2
+#+end_src
+
+Shift right (and  we're ignoring remainders and we know  our number is unsigned,
+so we use the  logical instruction) by 2 bits, since 2^2 =  4. This way, we know
+that a  bitshift of 2 bits  to the right is  the same as dividing  the number on
+~$t0~ by 4.
+
+Let logic is the same for multiplication, only the bit shifting is to the left.
+
+So contrary  to how  the code  is on  the video, *I'm  going to  leave it  as it
+is*. This is because I want a sample  code of the way the division works in MIPS
+assembly.
+
+** Project
 
 Full   code  with   ~noweb~  tags   for   exporting.  For   full  example,   see
 [[file:exercises/src/image.s]].
@@ -180,9 +213,9 @@ InitGPU:
 	sw	$t1, GP1($a0)
 	li	$t1, 0x08000001 ; 08 = display mode (320x240, 15-bit, NTSC)
 	sw	$t1, GP1($a0)
-	li	$t1, 0x06c60260	; 06 = H display range
+	li	$t1, 0x06c60260	; 06 = H display range (3168..608)
 	sw	$t1, GP1($a0)
-	li	$t1, 0x07042018	; 07 = V display range
+	li	$t1, 0x07042018	; 07 = V display range (264..24)
 	sw	$t1, GP1($a0)
 	li	$t1, 0xe1000400	; E1 = Draw Mode Settings
 	sw	$t1, GP0($a0)	; write packet to GP0
@@ -209,11 +242,11 @@ ClearScreen:
 	nop
 
 <<image-asm>>
-	
+ 	
 	.close
 #+end_src
 
-* Image data
+** Image data
 
 This is blatantly copied  from the project on the course.  Notice that I'm using
 it as a noweb block.
@@ -221,6 +254,8 @@ it as a noweb block.
 *NOTE:* Apparently,  there are  versions of  armips that require  us to  use the
 ~.dh~ directive  instead of ~.hword~.  That was not my  case, so I'm  leaving it
 as-is.
+
+*NOTE 2:* This was replaced by an actual file included from disk.
 
 #+name: image-asm
 #+begin_src asm
@@ -259,3 +294,177 @@ Image:
   .hword 0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0AFF,0x0AFF,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60
   .hword 0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60,0x0A60
 #+end_src
+* 24BPP Display Mode
+** Including an external file
+
+So having  all those  bytes encoded  in the  ASM file  is ugly,  so we  can just
+include the binary contents of a file by using the ~.incbin~ directive.
+
+Notice that  I'm using a  directory relative to  where the application  is being
+built, more specifically the ~exercises~ directory.
+
+#+name: image-included-24bpp
+#+begin_src asm
+Image:
+	.incbin "assets/logo.bin"	; includes a 640x480 24bpp image (921,600 bytes)
+#+end_src
+
+So  there is  also one  thing too:  *This image  is a  24BPP image*.  We've been
+handling 15BPP  images, so we need  to adapt the  code a little, because  now we
+have 3 bytes per pixel.
+
+** Adjusting the code
+
+Let's start by changing the image constants.
+
+#+name: image-constants-24bpp
+#+begin_src asm
+	IMG_WIDTH      equ 640
+	IMG_HEIGHT     equ 480
+	IMG_SIZE_BYTES equ 921600	; 640 * 480 * 3 bytes per pixel
+#+end_src
+
+We also need to change our display mode and ranges.
+
+#+name: display-mode-24bpp
+#+begin_src asm
+	li	$t1, 0x08000037	; 08 = Display mode (640x480, 24-bpp, NTSC, interlaced)
+	sw	$t1, GP1($a0)
+	li	$t1, 0x06c60260	; 06 = H display range (3168..608, not changed)
+	sw	$t1, GP1($a0)
+	li	$t1, 0x0707e018	; 07 = V display range (504..24)
+	sw	$t1, GP1($a0)
+	li	$t1, 0xe1000400	; E1 = Draw Mode Settings (not changed)
+	sw	$t1, GP0($a0)
+	li	$t1, 0xe3000000	; E3 = drawing area topleft (0x0, not changed)
+	sw	$t1, GP0($a0)
+	li	$t1, 0xe403bd3f	; E4 = drawing area bottomright (not changed)
+	sw	$t1, GP0($a0)
+	li	$t1, 0xe5000000	; E5 = drawing offset (no offset, not changed)
+	sw	$t1, GP0($a0)
+#+end_src
+
+We also removed the ~ClearScreen~ command since  the image is big enough to fill
+the entire display area.
+
+*** Adjusting the copy to GPU
+
+We need to adjust the size of the image rect on memory:
+
+#+name: copy-image-vram-init-24bpp
+#+begin_src asm
+	li	$t1, 0xa0000000	; a0 = Copy rect from CPU to VRAM
+	sw	$t1, GP0($a0)
+	li	$t1, 0x00000000	; copy area -- topleft (x = 0, y = 0)
+	sw	$t1, GP0($a0)
+	li	$t1, 0x01e003c0	; copy area -- 0xHHHHWWWW (H = 480, W = 640)
+	sw	$t1, GP0($a0)
+#+end_src
+
+The routine for  the copied amount of  bytes stay the same,  since we're sending
+stuff word by word anyway.
+
+The loop is the same as well. Keep iterating word by word until it is done.
+
+** Project
+
+So I had to build another project since so much was changing.
+
+#+begin_src asm :tangle exercises/src/image24bpp.s :noweb yes
+	.psx
+	.create "image24bpp.bin", 0x80010000
+	.org 0x80010000
+
+	IO_BASE_ADDR equ 0x1f80
+	STACK_BOTTOM_ADDR equ 0x80103cf0
+
+	GP0 equ 0x1810
+	GP1 equ 0x1814
+
+<<image-constants-24bpp>>
+	
+Main:
+	lui	$a0, IO_BASE_ADDR
+	la	$sp, STACK_BOTTOM_ADDR
+
+	jal	InitGPU
+	nop
+
+<<copy-image-vram-init-24bpp>>
+<<copy-image-calculate-loop-amount>>
+<<copy-image-recover-loop-amount>>
+<<copy-image-vram-word-by-word>>
+	
+Halt:
+	j Halt
+	nop
+
+;;; Initializes the GPU.
+;;; Args:
+;;; $a0: Base address of the I/O ports.
+InitGPU:
+	li	$t1, 0x00000000	; 00 = reset gpu
+	sw	$t1, GP1($a0)	; write packet to GP1
+	li	$t1, 0x03000000	; 03 = Display enable
+	sw	$t1, GP1($a0)
+<<display-mode-24bpp>>
+	jr	$ra
+	nop
+
+<<image-included-24bpp>>
+ 	
+	.close
+#+end_src
+
+* Taking Advantage of our Delay Slots
+
+Sometimes we  can take  advantage of  delay slots. We  could squeeze  some other
+operations instead of using ~nop~.
+
+I've done this before, except for the ~nop~ after jumps and branches.
+
+But, for example, in our ~LoopWords~ label:
+
+#+begin_src asm
+	la	$t2, Image	; $t2 <- image base address
+LoopWords:
+	lw	$t1, 0($t2)	; $t1 <- word from array (offset by 0 since t2 changes)
+	nop
+	sw	$t1, GP0($a0)	; write to GP0
+	addiu	$t2, 4		; increment $t2 by a word
+	addiu	$t0, $t0, -1	; $t0--
+	bnez	$t0, LoopWords	; branch if not equals zero (if $t0 != 0)
+	nop
+#+end_src
+
+Since we know that the branching has a  delay, we can take advantage of that and
+move the ~$t0--~ after the branch:
+
+#+begin_src asm
+	la	$t2, Image	; $t2 <- image base address
+LoopWords:
+	lw	$t1, 0($t2)	; $t1 <- word from array (offset by 0 since t2 changes)
+	nop
+	sw	$t1, GP0($a0)	; write to GP0
+	addiu	$t2, 4		; increment $t2 by a word
+	bnez	$t0, LoopWords	; branch if not equals zero (if $t0 != 0)
+	addiu	$t0, $t0, -1	; $t0-- (on delay slot)
+#+end_src
+
+We can improve  this further by squeezing  the increment of ~$t2~  (which is not
+necessary anymore) right after loading the word from the array:
+
+#+begin_src asm
+	la	$t2, Image	; $t2 <- image base address
+LoopWords:
+	lw	$t1, 0($t2)	; $t1 <- word from array (offset by 0 since t2 changes)
+	addiu	$t2, 4		; increment $t2 by a word (on delay slot)
+	sw	$t1, GP0($a0)	; write to GP0
+	bnez	$t0, LoopWords	; branch if not equals zero (if $t0 != 0)
+	addiu	$t0, $t0, -1	; $t0-- (on delay slot)
+#+end_src
+
+- This type of  trick can help us  squeeze some performance for  _hot_ code that
+  gets executed  multiple times per frame  or multiple times per  primitive. Our
+  MIPS opcodes might look "out of order" at first, but now you know why.
+
