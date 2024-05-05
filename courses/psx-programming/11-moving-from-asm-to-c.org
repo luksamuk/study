@@ -19,15 +19,13 @@ language.
 
 * Linux install
 
-On Ubuntu:
+Because I'm a rebel. If you want Windows stuff here, you just got BTFO.
 
 #+begin_src bash
+# On Ubuntu
 sudo apt install gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu
-#+end_src
 
-On Arch Linux and derivatives, install from AUR:
-
-#+begin_src bash
+# On Arch Linux (takes a loooooongggg tiiiiiimmmmeeeee)
 yay -S cross-mipsel-linux-gnu-binutils cross-mipsel-linux-gnu-gcc
 #+end_src
 
@@ -45,3 +43,8 @@ If you haven't already, download the git submodule on ~thirdparty/nugget/~:
 cd /repository/root/dir
 git submodule update --init
 #+end_src
+
+Now you  can compile the  ~helloworld~ or the  ~hellocube~ examples, and  if you
+need  any new  project,  just create  a  subdirectory on  ~dev~  and follow  the
+~Makefile~ of the ~helloworld~ project.
+
