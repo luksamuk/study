@@ -15,7 +15,8 @@ These are my notes for the PlayStation development course.
 8. [[./08-rendering-polygons.org][Rendering Polygons]]
 9. [[./09-memory-alignment.org][Memory Alignment]]
 10. [[./10-copying-data-to-vram.org][Copying Data to VRAM]]
-   
+11. [[./11-moving-from-asm-to-c.org][Moving from Assembly to C]]
+    
 * Extra documents
 
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]

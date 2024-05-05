@@ -1,0 +1,47 @@
+#+title: Moving from Assembly to C
+#+startup: contents
+
+* Moving from MIPS Assembly to C
+
+We're going  to start working  with the  C language for  PlayStation development
+now.
+
+There are a few unanswered questions:
+
+- How do we read data from the CD-ROM?
+- How to create animations and use double-buffering?
+- How to read input from the joystick?
+- Can we use floating-point numbers?
+- How to access the GTE coprocessor?
+
+These  questions  can now  be  more  easily  answered  using the  C  programming
+language.
+
+* Linux install
+
+On Ubuntu:
+
+#+begin_src bash
+sudo apt install gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu
+#+end_src
+
+On Arch Linux and derivatives, install from AUR:
+
+#+begin_src bash
+yay -S cross-mipsel-linux-gnu-binutils cross-mipsel-linux-gnu-gcc
+#+end_src
+
+Download PsyQ SDK:
+
+#+begin_src bash
+cd dev/
+wget http://psx.arthus.net/sdk/Psy-Q/psyq-4.7-converted-full.7z
+7z x psyq-4.7-converted-full.7z -o./psyq
+#+end_src
+
+If you haven't already, download the git submodule on ~thirdparty/nugget/~:
+
+#+begin_src bash
+cd /repository/root/dir
+git submodule update --init
+#+end_src

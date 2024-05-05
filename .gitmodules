@@ -17,3 +17,9 @@
 [submodule "SI/2020-5/POO/projeto-final"]
 	path = SI/2020-5/POO/projeto-final
 	url = https://github.com/luksamuk/projeto-POO-2020-5
+[submodule "books/xchgraxrax"]
+	path = books/xchgraxrax
+	url = https://github.com/luksamuk/xchgraxrax
+[submodule "courses/psx-programming/dev/thirdparty/nugget"]
+	path = courses/psx-programming/dev/thirdparty/nugget
+	url = https://github.com/pcsx-redux/nugget
