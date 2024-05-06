@@ -16,6 +16,7 @@ These are my notes for the PlayStation development course.
 9. [[./09-memory-alignment.org][Memory Alignment]]
 10. [[./10-copying-data-to-vram.org][Copying Data to VRAM]]
 11. [[./11-moving-from-asm-to-c.org][Moving from Assembly to C]]
+12. [[./12-psy-q-data-types.org][Psy-Q Data Types]]
     
 * Extra documents
 

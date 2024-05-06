@@ -1,0 +1,354 @@
+#+title: Psy-Q Data Types
+#+startup: content
+
+* Double-Buffer Screen
+
+- Create a new folder  for the project ~hellogpu~. You can  either set up things
+  manually on  a WinXP/95 or create  a new project  on VSCode based on  the Cube
+  example (but remove everything from it).
+
+Here's the ~main.c~ project skeleton:
+
+#+begin_src c
+#include <stdlib.h>
+#include <libgte.h>
+#include <libetc.h>
+#include <libgpu.h>
+
+#define VIDEO_MODE 0
+#define SCREEN_RES_X 320
+#define SCREEN_RES_Y 240
+#define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
+#define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
+
+void
+screen_init(void)
+{
+}
+
+void
+display_frame(void)
+{
+}
+
+void
+setup(void)
+{
+}
+
+void
+update(void)
+{
+}
+
+void
+render(void)
+{
+}
+
+int
+main(void)
+{
+    setup();
+
+    while(1) {
+        update();
+        render();
+    }
+
+    return 0;
+}
+#+end_src
+
+Some comments on the included headers:
+
+- ~stdlib.h~: You know what this is.
+- ~libgte.h~:  Relates  to  3D   transformations,  matrices,  vectors,  geometry
+  transformation, and related types.
+
+** Resetting the screen
+
+On the  ~screen_init~ function, reset  the GPU.  There is nothing  special here,
+we've already seen what this actually is on an assembly level.
+
+#+begin_src c
+void
+screen_init(void)
+{
+    // Reset GPU
+    ResetGraph(0);
+}
+#+end_src
+
+** Setting up double buffer
+
+Next, we  need to  define a  structure and  a couple  of global  variables right
+before our functions:
+
+#+begin_src c
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+DoubleBuff screen;
+short currbuff;
+#+end_src
+
+These variables are related to the concept of double buffering. I'm not gonna go
+into  much  depth here,  I'm  just  gonna say  that  it  prevents that  horrible
+flickering  and prevents  you  from seeing  tearing and  draw  artifacts on  the
+screen.
+
+So we always  have two framebuffers: a  back buffer, and a front  buffer. Or, in
+PlayStation terms, a draw buffer (~draw~) and a display buffer (~disp~).
+
+Imagining the  VRAM as  a big  buffer of  1024x512, we're  going to  reserve the
+leftmost part of the VRAM for the draw buffer and for the display buffer.
+
+The type  ~DoubleBuff~ represents our  screen, and  it has two  environments for
+drawing, and two  environments for displaying. Notice that this  is because both
+framebuffers  are  used  for  drawing  and for  displaying  at  certain  points.
+
+The variable ~currbuff~  is going to be  the variable we use  to alternate these
+buffers, so we can  flip the currently displayed buffer index by  using it (0 or
+1, that can be alternated by simple negation).
+
+Now we're going to  increment ~screen_init~ with some extra code  to set up more
+things:
+
+#+begin_src c
+...
+
+// Set display and draw areas of buffers
+SetDefDispEnv(&screen.disp[0], 0, 0, 320, 240);
+SetDefDrawEnv(&screen.draw[0], 0, 240, 320, 240);
+SetDefDispEnv(&screen.disp[1], 0, 240, 320, 240);
+SetDefDrawEnv(&screen.draw[1], 0, 0, 320, 240);
+
+// Set draw buffers as background buffers
+screen.draw[0].isbg = 1;
+screen.draw[1].isbg = 1;
+
+// Set background clear color
+setRGB0(&screen.draw[0], 63, 0, 127);
+setRGB0(&screen.draw[1], 63, 0, 127);
+
+// Set current initial buffer
+currbuf = 0;
+PutDispEnv(&screen.disp[currbuff]);
+PutDrawEnv(&screen.draw[currbuff]);
+#+end_src
+
+First, we setup the offset and size  of the framebuffers.  Notice that the first
+environment  has the  first  framebuffer as  a display  buffer,  and the  second
+framebuffer as  a draw buffer.  The second environment alternates  this, setting
+the first framebuffer as a draw buffer,  and the second framebuffer as a display
+buffer. Always alternating, as expected from double buffering behaviour.
+
+Then we set both draw buffers as back buffers.
+
+Finally, we use ~setRGB0~ to setup  the background color for our buffers. Notice
+that this is basically  the GP0 command to draw a flat  colored rectangle on the
+VRAM!
+
+Finally, we set the first buffer to be 0, and offload the rendering to the VRAM.
+
+** Displaying a frame
+
+Now let's define our ~display_frame~ function:
+
+#+begin_src c
+void
+display_frame(void)
+{
+    DrawSync(0);
+    VSync(0);
+
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // TODO: Sort objects in ordering table
+
+    // Swap buffers
+    currbuff = !currbuff;
+}
+#+end_src
+
+First  things  first,  we  set  up  the  VSync  and  the  DrawSync,  to  prevent
+tearing. Then we put the display and  draw environments, just like we did at the
+end of screen initialization.
+
+Finally, at the end, we swap buffers after displaying with a simple negation.
+
+The part marked ~TODO~ is where we're soon going to add triangles, tiles, quads,
+etc. This is precisely the part where we're going to sort these objects using an
+ordering table, where we push objects to be rendered by the GPU.
+
+** Finishing the basic setup
+
+For the ~setup~, we don't have anything else to do but call ~screen_init~.
+
+For now, there is nothing we need to do in ~update~.
+
+For ~render~, all we need to do is call ~display_frame~.
+
+#+begin_src c
+void
+setup(void)
+{
+    screen_init();
+}
+
+void
+update(void)
+{
+}
+
+void
+render(void)
+{
+    display_frame();
+}
+#+end_src
+
+** Configuring GTE and enabling display
+
+There is  one more thing to  do in ~screen_init~,  though: Right at the  end, we
+need some GTE initialization routines and enable the display.
+
+#+begin_src c
+...
+
+// Initialize and setup the GTE geometry offsets
+InitGeom();
+SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+SetGeomScreen(SCREEN_CENTER_X);
+
+// Enable display
+SetDispMask(1);
+#+end_src
+
+The enable display bit we've already seen  working on assembly level, so no need
+to go in depth here.
+
+The other routines are related to enabling  GTE. We first initialize it, then we
+use a helper function  to offset things to the center of the  screen to make our
+life easier, and the third function is related to the depth (Z component) of the
+screen, or how we're going to move things near/far.
+
+** Finishing touches
+
+Our functions  ~SetDefDispEnv~ and  ~SetDefDrawEnv~ are using  hardcoded values,
+let's not do that. *Change these values to the SCREEN definitions*.
+
+#+begin_src c
+SetDefDispEnv(&screen.disp[0], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+SetDefDrawEnv(&screen.draw[1], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+#+end_src
+
+** Final code
+
+Here's what the code looks like now:
+
+#+begin_src c
+#include <stdlib.h>
+#include <libgte.h>
+#include <libetc.h>
+#include <libgpu.h>
+
+#define VIDEO_MODE 0
+#define SCREEN_RES_X 320
+#define SCREEN_RES_Y 240
+#define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
+#define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
+
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+DoubleBuff screen;
+short currbuff;
+
+void
+screen_init(void)
+{
+    // Reset GPU
+    ResetGraph(0);
+
+    // Set display and draw areas of buffers
+    SetDefDispEnv(&screen.disp[0], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[1], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+
+    // Set draw buffers as background buffers
+    screen.draw[0].isbg = 1;
+    screen.draw[1].isbg = 1;
+
+    // Set background clear color
+    setRGB0(&screen.draw[0], 63, 0, 127);
+    setRGB0(&screen.draw[1], 63, 0, 127);
+
+    // Set current initial buffer
+    currbuff = 0;
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // Initialize and setup the GTE geometry offsets
+    InitGeom();
+    SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+    SetGeomScreen(SCREEN_CENTER_X);
+
+    // Enable display
+    SetDispMask(1);
+}
+
+void
+display_frame(void)
+{
+    DrawSync(0);
+    VSync(0);
+
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // TODO: Sort objects in ordering table
+
+    // Swap buffers
+    currbuff = !currbuff;
+}
+
+void
+setup(void)
+{
+    screen_init();
+}
+
+void
+update(void)
+{
+}
+
+void
+render(void)
+{
+    display_frame();
+}
+
+int
+main(void)
+{
+    setup();
+
+    while(1) {
+        update();
+        render();
+    }
+
+    return 0;
+}
+#+end_src
