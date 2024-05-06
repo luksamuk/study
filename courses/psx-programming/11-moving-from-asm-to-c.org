@@ -19,17 +19,42 @@ language.
 
 * Linux install
 
-Because I'm a rebel. If you want Windows stuff here, you just got BTFO.
+** Actually...
+
+...you  can perform  the tools  installation  for Windows  11 on  Arch Linux  as
+well. You'll have to use VSCode, though.
+
+I had a  few problems with pcsx-redux  not launching, but just  symlink it where
+the AppImage from the extension exists and you're good to go.
+
+Extensions you should install on VSCode:
+
+- PSX.Dev
+- clangd
+
+If,  for some  reason,  the  project doesn't  compile  or  something, check  the
+following section on downloading and installing compilers.
+
+** I'm a rebel, I want to do it all on my own
+
+*NOTE:* The examples I'm mentioning here *ARE  NOT THE SAME AS THE PSY-Q NOLIBGS
+EXAMPLES!*  The  original  cube  example   simply  does  no  compile  with  this
+technique. Be mindful of that.
+
+Most of the inspiration comes from the Nugget  + PsyQ libs, and a nice amount of
+Hello World samples can be found [[https://github.com/ABelliqueux/nolibgs_hello_worlds][here]].
+
+Start by installing the GNU C Compiler for MIPS.
 
 #+begin_src bash
 # On Ubuntu
 sudo apt install gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu
 
-# On Arch Linux (takes a loooooongggg tiiiiiimmmmeeeee)
-yay -S cross-mipsel-linux-gnu-binutils cross-mipsel-linux-gnu-gcc
+# On Arch Linux (it WILL build from source and it take a LOOOOONG time)
+yay -S cross-mipsel-linux-gnu-binutils cross-mipsel-linux-gnu-gcc gdb-multiarch
 #+end_src
 
-Download PsyQ SDK:
+Now download the Psy-Q SDK:
 
 #+begin_src bash
 cd dev/
@@ -37,14 +62,22 @@ wget http://psx.arthus.net/sdk/Psy-Q/psyq-4.7-converted-full.7z
 7z x psyq-4.7-converted-full.7z -o./psyq
 #+end_src
 
-If you haven't already, download the git submodule on ~thirdparty/nugget/~:
+Finally, if  you haven't cloned  this repository  with submodules, it's  time to
+fetch them (and fetch the Nugget repository):
 
 #+begin_src bash
 cd /repository/root/dir
 git submodule update --init
 #+end_src
 
-Now you  can compile the  ~helloworld~ or the  ~hellocube~ examples, and  if you
-need  any new  project,  just create  a  subdirectory on  ~dev~  and follow  the
-~Makefile~ of the ~helloworld~ project.
+Everything in  the ~dev/~ directory  relates to C  development, so you  can just
+~cd~  into it  and use  ~make~  to build  the  projects on  the directory.  Each
+directory has a Makefile for you to build it.
+
+#+begin_src bash
+cd dev/helloworld/
+make
+#+end_src
+
+The result is always an ~.elf~ file, and a proper ~.ps-exe~ file.
 

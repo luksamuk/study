@@ -45,45 +45,6 @@ them, and use ~make purge~ to remove all final ~.psexe~ files.
 
 * Compiling C exercises
 
-First of all,  it's important to say  that the course tells you  to use Windows,
-but I'm a rebel, so I made it work on Arch Linux.
+See the notes on  Chapter 11 on how to set up your  environment. In my case, I'm
+simply using VSCode tools on Arch Linux.
 
-Most of the inspiration comes from the Nugget  + PsyQ libs, and a nice amount of
-Hello World samples can be found [[https://github.com/ABelliqueux/nolibgs_hello_worlds][here]].
-
-Start by installing the GNU C Compiler for MIPS.
-
-#+begin_src bash
-# On Ubuntu
-sudo apt install gcc-mipsel-linux-gnu g++-mipsel-linux-gnu binutils-mipsel-linux-gnu
-
-# On Arch Linux (it WILL build from source and it take a LOOOOONG time)
-yay -S cross-mipsel-linux-gnu-binutils cross-mipsel-linux-gnu-gcc
-#+end_src
-
-Now download the Psy-Q SDK:
-
-#+begin_src bash
-cd dev/
-wget http://psx.arthus.net/sdk/Psy-Q/psyq-4.7-converted-full.7z
-7z x psyq-4.7-converted-full.7z -o./psyq
-#+end_src
-
-Finally, if  you haven't cloned  this repository  with submodules, it's  time to
-fetch them (and fetch the Nugget repository):
-
-#+begin_src bash
-cd /repository/root/dir
-git submodule update --init
-#+end_src
-
-Everything in  the ~dev/~ directory  relates to C  development, so you  can just
-~cd~  into it  and use  ~make~  to build  the  projects on  the directory.  Each
-directory has a Makefile for you to build it.
-
-#+begin_src bash
-cd dev/helloworld/
-make
-#+end_src
-
-The result is always an ~.elf~ file, and a proper ~.ps-exe~ file.
