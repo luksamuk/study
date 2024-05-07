@@ -352,3 +352,107 @@ main(void)
     return 0;
 }
 #+end_src
+
+* Psy-Q Integer Data Types
+
+These types are defined in ~sys/types.h~.
+
+| Type      | Size               |
+|-----------+--------------------|
+| ~char~    | 8 bits (signed)    |
+| ~short~   | 16 bits (signed)   |
+| ~int~     | 32 bits (signed)   |
+| ~long~    | 32 bits (signed)   |
+| ~u_char~  | 8 bits (unsigned)  |
+| ~u_short~ | 16 bits (unsigned) |
+| ~u_int~   | 32 bits (unsigned) |
+| ~u_long~  | 32 bits (unsigned) |
+
+* Psy-Q Primitive Types
+
+These types are defined in ~libgpu.h~.
+
+| Type       | Description             |
+|------------+-------------------------|
+| ~TILE~     | 2D tile                 |
+| ~POLY_F3~  | Flat-shaded triangle    |
+| ~POLY_G3~  | Gouraud-shaded triangle |
+| ~POLY_F4~  | Flat-shaded quad        |
+| ~POLY_G4~  | Gouraud-shaded quad     |
+| ...        |                         |
+
+* Ordering Table & Primitive Buffer
+
+Suppose we declared a  few pointers to some of these  primitives, and that we're
+gonna populate them later:
+
+#+begin_src c
+TILE    *tile;
+POLY_F3 *triA;
+POLY_G3 *triB;
+POLY_F4 *quadA;
+POLY_G4 *quadB;
+#+end_src
+
+We're gonna have to declare an ordering table, a primitive buffer, and a pointer
+to the  next primitive.  This way,  we can  determine the  drawing order  of the
+primitives; primitives  are always ordered from  back to front, since  drawing a
+primitive supersedes the drawing of another.
+
+#+begin_src c
+#define OT_LENGTH 8
+
+// Ordering table
+u_long ot[2][OT_LENGTH];
+
+// Primitive buffer
+char primbuff[2][2048];
+char *nextprim;
+#+end_src
+
+In this case for the ordering table,  we're declaring two arrays. Each array has
+eight possible  elements in  size. And  each element is  a _pointer_  (hence the
+~u_long~  type as  a proper  representative of  that). So  we actually  have two
+different ordering tables.
+
+We have  two ordering tables  (one for each framebuffer),  and we can  draw them
+front-to-back or back-to-front.
+
+The *primitive  buffer* is  a buffer  where we'll  be properly  *ALLOCATING* our
+primitives. See the following implementation of an update function:
+
+#+begin_src c
+void
+update()
+{
+    // Reset next primitive pointer
+    nextprim = primbuff[currbuff];
+
+    // Clear ordering table for this buffer (reverse)
+    ClearOTagR(ot[currbuff], OT_LENGTH);
+
+    tile = (TILE*)nextprim;      // cast pointer to primitive pointer
+    setTile(tile);               // initialize tile
+    setXY0(tile, 82, 32);        // Set primitive position (x, y)
+    setWH(tile, 64, 64);         // Set primitive size
+    setRGB0(tile, 0, 255, 0);    // Set primitive color
+    addPrim(ot[currbuff], tile); // Add and sort primitive to the OT
+    nextprim += sizeof(TILE);    // Advance primitive pointer
+}
+#+end_src
+
+On the example above, it is very clear that ~primbuff~ ends up being used as the
+proper free space to render primitives. We  don't do ~malloc~ like we would with
+any  other  environment;  we end  up  having  to  be  very careful  with  memory
+consumption.
+
+Now we can just go ahead and draw our ordering table, in a very simple manner:
+
+#+begin_src c
+void
+draw()
+{
+    DrawOTag(ot[currbuff] + OT_LENGTH - 1);
+    // ...
+}
+#+end_src
