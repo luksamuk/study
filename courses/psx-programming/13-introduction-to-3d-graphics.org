@@ -186,5 +186,43 @@ Let's also define a few more things with respect to our cube.
 
 * The Geometry Transformation Engine
 
+- GTE is a vector and matrix high-speed geometric processor.
+  - It   knows   how    to   encode   vectors   and    matrices   and   performs
+    multiplications/calculations with them, directly on hardware.
+- The GTE has its own multiplier, accumulator, and divider.
+- It  is implemented  as *coprocessor  2*  (~cp2~) under  the MIPS  architecture
+  specification.
+
+** CPU Block
+
+This was presented as a diagram, but I'll try to describe it textually:
+
+- The CPU block is  connected to the bus, and the bus also  connects the RAM and
+  the GPU (which is directly connected to the VRAM).
+- The CPU block is divided into a  few structures: the CPU, the GTE, the Scratch
+  Pad (1KB), the I-CACHE (4 KB), and a BIU.
+  - The Scratch Pad is just a fast RAM that we can use if needed.
+  - The  I-CACHE  is  the  _instruction  cache_,  so  it  is  a  cache  for  CPU
+    instructions; instructions such as ~li~ and ~sll~ can be cached, for example.
+- The BIU is the part that directly interfaces with the bus.
+- The I-CACHE  interfaces directly  with the BIU,  and also  interfaces directly
+  with CPU and GTE -- but not with the Scratch Pad.
+- The Scratch Pad interfaces  with BIU, CPU and GTE through  a bus that connects
+  them all.
+
+** GTE Features
+
+- Fast vector/matrix calculations (multiplication, cross-product, etc);
+- Fast   coordinate    transformations   (affine    transformations:   rotation,
+  translation, scale, etc);
+- Fast perspective projections;
+- Fast lighting calculations.
+
+** 3D Transformations
+
+We can perform a  simple pipeline for 3D transformations. There  is an order for
+calculations that we should perform so that we can actually transform things for
+drawing them as we expect.
+
 * Basic 3D Transformations
 
