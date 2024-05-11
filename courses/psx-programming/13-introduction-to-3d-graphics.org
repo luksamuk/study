@@ -1,0 +1,86 @@
+#+title: Introduction to 3D Graphics
+#+startup: content
+
+* A Review of 3D Projection
+
+- The PlayStation GPU is a 2D rasterization engine.
+- We  need to  give  our games  the ideas  of  3D perspective,  transformations,
+  etc. So we need a way to perform 3D math.
+  - This whole  processing pipeline is  renderer-agnostic, so it applies  to any
+    renderer.
+- We're not going to derive all the mathematics, but the high-level concepts are
+  going to be covered.
+
+When looking  at a 3D figure,  our brain interprets  it this way because  it has
+polygons connected; the  mesh has lighting applied to it.  We interpret that and
+mentally decode it as having a depth component.
+
+However, the  image we're actually seeing  is nothing but a  2D projection, even
+though, visually, we don't think of the mesh as just a 2D figure. If you isolate
+a single triangle of  a mesh, the GPU visibly only interprets  it as 2D vertices
+on the screen. So all we have to do is rasterize that triangle.
+
+So whenever  we're talking about  3D, we're talking about  all the math  that is
+executed before we send draw data to the GPU. We could use the CPU to do all the
+math we require, but  it is not fast enough; this is why  we're going to use the
+GTE coprocessor, that is dedicated to that purpose.
+
+Some primitives we'll talk about:
+
+- Vertices: Structures containing three components: X, Y, and Z (the later being
+  depth).
+- Polygon faces: Structures formed by joining vertices.
+- Projection: How the world  is projected on the 2D screen.  There are two kinds
+  of projections:
+  - Perspective projection: A  kind of projection that works with  FOV (field of
+    view), with an angled camera. The further an object is, the smaller it gets.
+  - Orthographic projection: A kind of  projection that discards the Z component
+    (depth), so things being far/near the  near plane of projection still appear
+    the same size.
+
+** Perspective projection
+
+Imagine a 3D matrix of vertices on  space in regular spaces, like a salt crystal
+structure, where each vertex has (X, Y,  Z) components. Imagine also that we are
+looking at it from the front and we are using a perspective projection.
+
+When we're using a perspective projection:
+
+- The vertices that have  a Z component that is closer to  the _near_ plane have
+  to occupy "more space" on the screen, thus filling an expanded space.
+- The vertices that have a Z component that is closer to the _far_ plane have to
+  be "squeezed" together, thus occupying less space and being closer together.
+
+This is  the way to visualize  the math that  is being produced here.  We either
+increase or decrease how close vertices  are together whenever we are projecting
+these vertices, with respect to the depth value.
+
+This concept is called *perspective divide*, and  the final X and Y positions on
+screen can be calculated by using the formulas
+
+$$x_{\text{screen}} = \frac{x_{\text{world}}}{z}$$
+
+$$y_{\text{screen}} = \frac{y_{\text{world}}}{z}$$
+
+This means that, the deeper the vertex  is on the scene (greater $z$ value), the
+more the world coordinate gets divided and, therefore, decreases with respect to
+the origin.
+
+This  is one  of  the operations  that  the GTE  is able  to  do with  excellent
+performance. Notice also that,  since we only need X and  Y coordinates to print
+stuff onto the  screen, these are our  results; we apply the  "semantics" of $z$
+to the actual world coordinates so that we can obtain these "renderable" values.
+
+After we process  the vertices, we're gonna connect these  vertices together and
+we're gonna have faces that are either quads or triangles. This is the step that
+produces a wireframe object.
+
+Next, we're gonna start  rasterizing things, and so we paint  each pixel on each
+face, thus performing rasterization.
+
+* Vertices & Face Indices
+
+* The Geometry Transformation Engine
+
+* Basic 3D Transformations
+
