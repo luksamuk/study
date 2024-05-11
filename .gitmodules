@@ -26,12 +26,12 @@
 [submodule "courses/psx-programming/c/hellogpu/third_party/nugget"]
 	path = courses/psx-programming/c/hellogpu/third_party/nugget
 	url = https://github.com/pcsx-redux/nugget.git
-[submodule "third_party/psyq-iwyu"]
-        path = courses/psx-programming/c/hellogpu/third_party/psyq-iwyu
-        url = https://github.com/johnbaumann/psyq_include_what_you_use.git
 [submodule "courses/psx-programming/c/hellogpu/third_party/psyq-iwyu"]
 	path = courses/psx-programming/c/hellogpu/third_party/psyq-iwyu
 	url = https://github.com/johnbaumann/psyq_include_what_you_use.git
-[submodule "psyq-iwyu"]
-	path = courses/psx-programming/c/hellogpu/third_party/psyq-iwyu
+[submodule "courses/psx-programming/c/hellogte/third_party/nugget"]
+	path = courses/psx-programming/c/hellogte/third_party/nugget
+	url = https://github.com/pcsx-redux/nugget.git
+[submodule "courses/psx-programming/c/hellogte/third_party/psyq-iwyu"]
+	path = courses/psx-programming/c/hellogte/third_party/psyq-iwyu
 	url = https://github.com/johnbaumann/psyq_include_what_you_use.git

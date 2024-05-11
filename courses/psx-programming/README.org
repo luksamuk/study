@@ -18,7 +18,8 @@ These are my notes for the PlayStation development course.
 11. [[./11-moving-from-asm-to-c.org][Moving from Assembly to C]]
 12. [[./12-psy-q-data-types.org][Psy-Q Data Types]]
 13. [[./13-introduction-to-3d-graphics.org][Introduction to 3D Graphics]]
-    
+14. [[./14-the-gte-coprocessor.org][The GTE Coprocessor]]
+
 * Extra documents
 
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
