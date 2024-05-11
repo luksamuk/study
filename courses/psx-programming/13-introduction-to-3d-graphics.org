@@ -226,3 +226,19 @@ drawing them as we expect.
 
 * Basic 3D Transformations
 
+- When we start, the vertices are  in _model space_ (local coordinate system, as
+  they are defined in Blender, 3ds  Max, Maya...). This is the coordinate system
+  while we're thinking in terms of  model origin (or pivot point); remember that
+  all model vertices are relative to it.
+- Then, we transform the vertices into  _world space_ (multiply by world matrix;
+  translate, scale, rotate into the world).
+- Then, we convert the vertices into  _view space_ / _camera space_ (multiply by
+  view  matrix; transform  the whole  world  where the  new coordinate  system's
+  origin is the camera's eye).
+- Then, the scene is now in view  space and can be projected into _screen space_
+  (projection; perspective divide).
+
+After our vertices  are projected onto screen  space, all we need to  do is send
+the data to the GPU so it gets rasterized.
+
+Notice how close it gets to the idea of *Model-View-Projection*.
