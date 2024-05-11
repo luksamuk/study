@@ -10,7 +10,36 @@
 #define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
 #define SCREEN_Z 400
 
-#define OT_LENGTH 16
+#define OT_LENGTH 512
+
+#define NUM_VERTICES  8
+#define NUM_FACES    12
+
+SVECTOR vertices[] {
+    { -128, -128, -128 },
+    {  128, -128, -128 },
+    {  128, -128,  128 },
+    { -128, -128,  128 },
+    { -128,  128, -128 },
+    {  128,  128, -128 },
+    {  128,  128,  128 },
+    { -128,  128,  128 }
+};
+
+short faces[] = {
+    0, 3, 2, // top
+    0, 2, 1,
+    4, 0, 1, // front
+    4, 1, 5,
+    7, 4, 5, // bottom
+    7, 5, 6,
+    5, 1, 2, // right
+    5, 2, 6,
+    2, 3, 7, // back
+    2, 7, 6,
+    0, 4, 7, // left
+    0, 7, 3
+};
 
 typedef struct {
     DRAWENV draw[2];

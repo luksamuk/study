@@ -80,6 +80,110 @@ face, thus performing rasterization.
 
 * Vertices & Face Indices
 
+Regardless of how  complex a 3D object  is, it is always  assembled by polygons,
+and these polygons have vertices and faces.
+
+Generally, when  we're defining the vertices  for any mesh, we  normally put the
+world center in its  exact center and make the vertices relative  to it. This is
+the object origin, or its _pivot point_.
+
+The _pivot point_ is the point around which the objects vertices are transformed
+(translation, rotation, scaling...).
+
+** Vertices
+
+Suppose we're  defining a  cube with  its pivot  point at  the center.  We could
+define its  vertices, relative to  the pivot point, like  this (add them  to the
+~hellogpu~ project):
+
+#+begin_src c
+SVECTOR vertices[] {
+    { -128, -128, -128 },
+    {  128, -128, -128 },
+    {  128, -128,  128 },
+    { -128, -128,  128 },
+    { -128,  128, -128 },
+    {  128,  128, -128 },
+    {  128,  128,  128 },
+    { -128,  128,  128 }
+};
+#+end_src
+
+** Types
+
+The ~SVECTOR~ is a ~short~ vector -- its  X, Y, Z components are numbers of type
+~short~. This is  more useful than ~VECTOR~  when we know that  the vertices are
+not too big and therefore can occupy  less space in memory. There are also types
+such  as ~CVECTOR~  (a color  vector,  each component  is  8 bits  long), and  a
+~DVECTOR~, which is a 2D ~short~ vector, that has no Z component.
+
+The ~MATRIX~  type is  composed of a  3x3 matrix of  ~short~ components,  plus a
+final translation array of three ~long~ values that gets added to the matrix.
+
+** Faces
+
+Vertices are  not enough  to define  our 3D object,  so we  also need  to define
+faces:
+
+#+begin_src c
+short faces[] = {
+    0, 3, 2, // top
+    0, 2, 1,
+    4, 0, 1, // front
+    4, 1, 5,
+    7, 4, 5, // bottom
+    7, 5, 6,
+    5, 1, 2, // right
+    5, 2, 6,
+    2, 3, 7, // back
+    2, 7, 6,
+    0, 4, 7, // left
+    0, 7, 3
+};
+#+end_src
+
+These are arrays of ~short~ values that define our face indices. Notice how each
+line describes  the index of  three given vector  on the ~vertices~  array, thus
+also describing a triangle face.
+
+Notice that ~vertices~ and ~faces~ relate to OpenGL's vertex buffers and element
+buffers, directly. In OpenGL,  you create a VBO and bind the  vertex data to it,
+uploading the vertex data to the VRAM. Furthermore you'd create an EBO and would
+also upload the face (element) data to the VRAM as well. The rest is a matter of
+setting up offsets and calling ~glDrawElements~. We don't upload vertex and face
+data to the VRAM  here, and it remains just on the main  RAM, so we're basically
+doing part of that manually, since the GPU in PlayStation is 2D and we also need
+to perform calculations on the GTE "manually".
+
+The faces  above are  defined using _clockwise  orientation_. This  is important
+because the order we use for these faces change the way we see their *front* and
+their *back*. So for any face, the order for triangle faces is roughly...
+
+- bottom left, top left, top right;
+- bottom left, top right, bottom right.
+
+...thus defining a  quad by building a triangle and  then repeating two vertices
+of the previous triangle, plus the  missing vertex. Plus, the clockwise order of
+elements basically point our desired front for  the face to outside of the cube,
+if we keep defining it this way -- more specifically, taking the two first faces
+in the ~faces~ variable, _their normal is pointing up_.
+
+** Drawing
+
+Let's tweak  the size of  our ordering table  to a number  that will be  able to
+store these primitives.
+
+#+begin_src c
+#define OT_LENGTH 512
+#+end_src
+
+Let's also define a few more things with respect to our cube.
+
+#+begin_src c
+#define NUM_VERTICES  8
+#define NUM_FACES    12
+#+end_src
+
 * The Geometry Transformation Engine
 
 * Basic 3D Transformations
