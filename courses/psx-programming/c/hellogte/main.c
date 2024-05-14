@@ -8,14 +8,15 @@
 #define SCREEN_RES_Y 240
 #define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
 #define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
-#define SCREEN_Z 400
+#define SCREEN_Z 320
 
-#define OT_LENGTH    256
+#define OT_LENGTH    2048
 
 #define NUM_VERTICES  8
 #define NUM_FACES    12
 
 #define NUM_QUAD_FACES 6
+#define NUM_FLOOR_FACES 2
 
 SVECTOR vertices[] = {
     { -64, -64, -64 },
@@ -52,6 +53,18 @@ short quad_faces[] = {
     7, 3, 4, 0  // left
 };
 
+SVECTOR floor_vertices[] = {
+    { -900,  0, -900 },
+    { -900,  0,  900 },
+    {  900,  0, -900 },
+    {  900,  0,  900 }
+};
+
+short floor_faces[] = {
+    0, 1, 2,
+    1, 3, 2
+};
+
 typedef struct {
     DRAWENV draw[2];
     DISPENV disp[2];
@@ -72,10 +85,16 @@ VECTOR  translation = {-160, 0, 900};
 VECTOR  scale       = {ONE, ONE, ONE};
 
 SVECTOR quadrot     = {0, 0, 0};
-VECTOR  quadtrans   = {160, 0, 900};
 
 MATRIX  world = {0};
-MATRIX  quadworld = {0};
+
+VECTOR vel = {0, 0, 0};
+VECTOR acc = {0, 0, 0};
+VECTOR pos = {0, 0, 0};
+
+SVECTOR floor_rotation    = {0, 0, 0};
+VECTOR  floor_translation = {0, 450, 1800};
+VECTOR  floor_scale       = {ONE, ONE, ONE};
 
 void
 screen_init(void)
@@ -136,6 +155,18 @@ setup(void)
 
     // Reset next primitive pointer to the start of the primitive buffer
     nextprim = primbuff[currbuff];
+
+    acc.vx = 0;
+    acc.vy = 1;
+    acc.vz = 0;
+
+    vel.vx = 0;
+    vel.vy = 0;
+    vel.vy = 0;
+
+    pos.vx = 320;
+    pos.vy = -400;
+    pos.vz = 1800;
 }
 
 void
@@ -146,6 +177,19 @@ update(void)
 
     // Empty the ordering table
     ClearOTagR(ot[currbuff], OT_LENGTH);
+
+    vel.vx += acc.vx;
+    vel.vy += acc.vy;
+    vel.vz += acc.vz;
+
+    pos.vx += (vel.vx >> 1);
+    pos.vy += (vel.vy >> 1);
+    pos.vz += (vel.vz >> 1);
+
+    if(pos.vy + 128 > floor_translation.vy) {
+        pos.vy = floor_translation.vy - 128;
+        vel.vy = -60;
+    }
 
     /* Cube rendering with triangles */
     // Populate world matrix with rotation, translation, scale values
@@ -165,12 +209,6 @@ update(void)
         setRGB1(poly, 255, 255, 0);
         setRGB2(poly, 0, 255, 255);
 
-        // otz = 0;
-        // otz += RotTransPers(&vertices[faces[i]], (long*)&poly->x0, &p, &flg);
-        // otz += RotTransPers(&vertices[faces[i + 1]], (long*)&poly->x1, &p, &flg);
-        // otz += RotTransPers(&vertices[faces[i + 2]], (long*)&poly->x2, &p, &flg);
-        // otz /= 3;
-
         nclip = RotAverageNclip3(
             &vertices[faces[i + 0]],
             &vertices[faces[i + 1]],
@@ -189,11 +227,11 @@ update(void)
     }
 
     /* Cube rendering with quads */
-    RotMatrix(&quadrot, &quadworld);
-    TransMatrix(&quadworld, &quadtrans);
-    ScaleMatrix(&quadworld, &scale);
-    SetRotMatrix(&quadworld);
-    SetTransMatrix(&quadworld);
+    RotMatrix(&quadrot, &world);
+    TransMatrix(&world, &pos);
+    ScaleMatrix(&world, &scale);
+    SetRotMatrix(&world);
+    SetTransMatrix(&world);
 
     for(i = 0; i < NUM_QUAD_FACES * 4; i += 4) {
         qpoly = (POLY_G4*)nextprim;
@@ -222,6 +260,37 @@ update(void)
         }
     }
 
+    /* Floor rendering with triangles */
+    RotMatrix(&floor_rotation, &world);
+    TransMatrix(&world, &floor_translation);
+    ScaleMatrix(&world, &floor_scale);
+    SetRotMatrix(&world);
+    SetTransMatrix(&world);
+
+    for(i = 0; i < NUM_FLOOR_FACES * 3; i += 3) {
+        poly = (POLY_G3*)nextprim;
+        setPolyG3(poly);
+        setRGB0(poly, 128, 128, 0);
+        setRGB1(poly, 0, 128, 128);
+        setRGB2(poly, 128, 0, 128);
+
+        nclip = RotAverageNclip3(
+            &floor_vertices[floor_faces[i + 0]],
+            &floor_vertices[floor_faces[i + 1]],
+            &floor_vertices[floor_faces[i + 2]],
+            (long*)&poly->x0,
+            (long*)&poly->x1,
+            (long*)&poly->x2,
+            &p, &otz, &flg);
+
+        if(nclip <= 0) continue;
+
+        if((otz > 0) && (otz < OT_LENGTH)) {
+            addPrim(ot[currbuff][otz], poly);
+            nextprim += sizeof(POLY_G3);
+        }
+    }
+
     rotation.vx += 6;
     rotation.vy += 8;
     rotation.vz += 12;
@@ -229,6 +298,8 @@ update(void)
     quadrot.vx -= 6;
     quadrot.vy -= 8;
     quadrot.vz -= 12;
+
+    floor_rotation.vy += 5;
 }
 
 void

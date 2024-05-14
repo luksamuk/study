@@ -1,0 +1,587 @@
+#+title: Fixed-Point Math
+#+startup: content
+
+* Reviewing Floating-Point Numbers
+
+Most modern computers support native/hardware _floating point_ numbers. (I'm not
+going into  IEEE754 floating  point representation here  because this  is pretty
+obvious to me and  can be easily found on Google, go look  it up. It is composed
+of a sign bit, exponent bits, and mantissa bits).
+
+Here is their representation formula:
+
+$$(-1)^{S} \times 1.M \times 2^{(E-127)}$$
+
+...where *S* is the  value of the sign bit, *M* is the  mantissa, and *E* is the
+exponent. Notice also that all these values are binary.
+
+- Floating-point  numbers have  different _resolutions_  (the shortest  distance
+  between two values that can be represented exactly).
+- The gap/distance between values is called ULP (Unit of Least Precision) and is
+  *not* a constant number, as it depends on the value itself!
+- Since the  size of  ULP varies, we  have varying degrees  of exactness  in our
+  floating points.
+  - Generally speaking,  the closer  you are  to 0,  the greater  the resolution
+    tends to be.
+- Using 64 bits (doubling our precision) is still *not* sufficient.
+
+* Fixed-Point Numbers
+
+- The alternative that's better suited for a  system without an FPU is to use an
+  integer-based fractional number system commonly known as *fixed-point*.
+- Instead of a point  floating around our number, we'll fix  it! We'll reserve a
+  fixed number of  bits for the *integer*  part, and a fixed number  of bits for
+  the *fractional* part of our number.
+  
+*Example:* A *16.16* fixed-point uses:
+- 16 bits for integer representation (including a sign bit);
+- 16 bits for fractional representation.
+
+We could also use other resolutions, such as 20.12 fixed-point, for example.
+
+If we had an  8-bit machine, we could use 4.4  fixed-points; on 16-bit machines,
+we could use a 12.4 fixed-point; and so on.
+
+- *The 20.12 fixed-point is what we're going to use*, because that's how the GTE
+  encodes fixed-point numbers.
+
+One  important  thing to  notice  is  that, since  we  have  a fixed  number  of
+fractional bits, our  *ULP never changes*; in other words,  the resolution never
+changes.
+
+** 20.12 fixed-point
+
+For a 20.12 fixed-point,  this means 12 bits of precision,  so the resolution is
+$\frac{1}{2^{12}} = \frac{1}{4096} = 0.000244140625$.
+
+If we take a look  at the bits, to represent a number such  as ~1.0~, we have to
+have all 12 least-significant bits as ~0~, and then the bit 13 encoded as ~1~.
+
+Since the bit 13 is ~1~, we can say that the number we're representing is $2^{2}
+= 4096$. So *for a 20.12 fixed point, we represent 1.0 as the number 4096*.
+
+Since the GTE defaults  to 20.12 fixed points, it is no  surprise that the Psy-Q
+library defines...
+
+#+begin_src c
+#define ONE 4096
+#+end_src
+
+This also means that we could perform the following fixed-point operations:
+
+#+begin_src c
+fix_num += 4096; // += 1.0
+fix_num -= 4096; // -= 1.0
+fix_num += 2048; // += 0.5
+fix_num -= 6144; // -= 1.5
+#+end_src
+
+So 4096 is also what people call the _scale of this fixed-point representation_.
+
+** Fixed-point conversion, addition and subtraction
+
+Whenever you want to represent a certain integer number, you'll have to multiply
+it by the scale factor.
+
+#+begin_src c
+long a = 20 * ONE; // ToFixed(20)
+long b = 17 * ONE; // ToFixed(17)
+long c = a + b;    // Addition works out of the box
+                   // (still need to be careful about overflow)
+#+end_src
+
+- Addition and subtraction of two fixed-point  numbers is as simple as adding or
+  subtracting both integers.
+
+** Multiplication and division
+
+Multiplication is a little different.
+Let's say we want to multiply our number by  ~0.5~. So we have to encode it as a
+fixed point,  then we have  to multiply and take  the amount of  fractional bits
+into account:
+
+#+begin_src c
+mul     = 2048;                  // mul = 0.5
+fix_num = (fix_num * mul) >> 12; // fix_num *= mul
+#+end_src
+
+Imagine also that we want to scale a number by ~1.5~. Same thing happens:
+
+#+begin_src c
+mul     = 6144;
+fix_num = (fix_num * mul) >> 12;
+#+end_src
+
+*NOTE:*  We  shift right  because  a  multiplication  of two  20.12  fixed-point
+ numbers, in  theory, result in a  40.24 fixed-point value. Since  we don't have
+ all this space, we  need to get rid of the underflow  on fractional part (hence
+ we discard  12 least-significant bits),  and for the  integer part, we  have an
+ overflow of 20 bits, which we simply truncate.
+
+Fractional division is  a bit different: When  dividing by a value,  you have to
+multiply  the fixed-point  number  by  the scale  (the  number that  represents
+~1.0~), then  divide it by  the dividend.  For example,  to divide a  number by
+~0.5~:
+
+#+begin_src c
+div     = 2048;                   // div = 0.5
+fix_num = (fix_num * 4096) / div; // fix_num /= div
+#+end_src
+
+Same thing goes for dividing by ~1.5~, for example:
+
+#+begin_src c
+div     = 6144;
+fix_num = (fix_num * 4096) / div;
+#+end_src
+
+Notice  also that  division is  a bit  problematic because  you might  lose some
+information, but this crude recipe will suffice for most cases.
+
+Nonetheless, we're going  to try and avoid this kind  of fractional division and
+multiplication, and just use bit shifting to divide, whenever possible.
+
+* Implementing a Bouncing Cube
+
+Let's increase our ~OT_LENGTH~.
+
+#+begin_src c
+#define OT_LENGTH 2048
+#+end_src
+
+Now let's declare a few vectors for velocity, acceleration and position.
+
+#+begin_src c
+VECTOR vel = {0, 0, 0};
+VECTOR acc = {0, 0, 0};
+VECTOR pos = {0, 0, 0};
+#+end_src
+
+In the ~setup~ function, we initialize them.
+
+#+begin_src c
+acc.vx = 0;
+acc.vy = 1;
+acc.vz = 0;
+
+vel.vx = 0;
+vel.vy = 0;
+vel.vy = 0;
+
+pos.vx = 0;
+pos.vy = -400;
+pos.vz = 1800;
+#+end_src
+
+In  ~update~, after  clearing  the  ordering table  and  before  setting up  the
+ordering table, update the position based on acceleration and velocity:
+
+#+begin_src c
+vel.vx += acc.vx;
+vel.vy += acc.vy;
+vel.vz += acc.vz;
+
+pos.vx += (vel.vx >> 1);
+pos.vy += (vel.vy >> 1);
+pos.vz += (vel.vz >> 1);
+
+if(pos.vy > 400) {
+    pos.vy = 400;
+    vel.vy *= -1;
+}
+#+end_src
+
+Now change the translation matrix to use the position of our object:
+
+#+begin_src c
+TransMatrix(&world, &pos);
+#+end_src
+
+Personally, I'll also make some code  cleanup since I'm still keeping both cubes
+on the screen. Furthermore, I'm bouncing the quad cube.
+
+The interesting thing  here is, even though we're using  simple integer (~long~)
+numbers, we can still have this idea of continuous movement, as if we were using
+floats.
+
+** About rotations
+
+Remember this code block?
+
+#+begin_src c
+rotation.vx += 6;
+rotation.vy += 8;
+rotation.vz += 12;
+#+end_src
+
+The GTE interprets  rotations in radians. The only thing  is, these radians must
+be encoded in 20.12 fixed-point format -- and they are!
+
+So if we were using floats, these rotations would be roughly equivalent to this:
+
+#+begin_src c
+rotation.vx += 0.00146484375;
+rotation.vy += 0.001953125;
+rotation.vz += 0.0029296875;
+#+end_src
+
+(Here      is     a      handy      website      for     these      conversions:
+https://chummersone.github.io/qformat.html)
+
+* Exercise: Drawing the Floor
+
+So I had a  lot of difficulty here because my ~SCREEN_Z~ was  set to 400 instead
+of 320 and I don't remember when I did it, so I ended up mostly copying what the
+instructor did. Except... I didn't refactor my project, I felt it was a waste of
+time. If I have to, I'll create a new project from scratch.
+
+* Different Transform Matrix per Object
+
+Here's what I did so far.
+
+#+begin_src c
+#include <stdlib.h>
+#include <libgte.h>
+#include <libetc.h>
+#include <libgpu.h>
+
+#define VIDEO_MODE 0
+#define SCREEN_RES_X 320
+#define SCREEN_RES_Y 240
+#define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
+#define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
+#define SCREEN_Z 320
+
+#define OT_LENGTH    2048
+
+#define NUM_VERTICES  8
+#define NUM_FACES    12
+
+#define NUM_QUAD_FACES 6
+#define NUM_FLOOR_FACES 2
+
+SVECTOR vertices[] = {
+    { -64, -64, -64 },
+    {  64, -64, -64 },
+    {  64, -64,  64 },
+    { -64, -64,  64 },
+    { -64,  64, -64 },
+    {  64,  64, -64 },
+    {  64,  64,  64 },
+    { -64,  64,  64 }
+};
+
+short faces[] = {
+    0, 3, 2, // top
+    0, 2, 1,
+    4, 0, 1, // front
+    4, 1, 5,
+    7, 4, 5, // bottom
+    7, 5, 6,
+    5, 1, 2, // right
+    5, 2, 6,
+    2, 3, 7, // back
+    2, 7, 6,
+    0, 4, 7, // left
+    0, 7, 3
+};
+
+short quad_faces[] = {
+    2, 1, 3, 0, // top
+    1, 5, 0, 4, // front
+    5, 6, 4, 7, // bottomn
+    2, 6, 1, 5, // right
+    7, 6, 3, 2, // back
+    7, 3, 4, 0  // left
+};
+
+SVECTOR floor_vertices[] = {
+    { -900,  0, -900 },
+    { -900,  0,  900 },
+    {  900,  0, -900 },
+    {  900,  0,  900 }
+};
+
+short floor_faces[] = {
+    0, 1, 2,
+    1, 3, 2
+};
+
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+DoubleBuff screen;
+short currbuff;
+
+u_long ot[2][OT_LENGTH];
+char primbuff[2][2048];
+char *nextprim;
+
+POLY_G3 *poly;
+POLY_G4 *qpoly;
+
+SVECTOR rotation    = {0, 0, 0};
+VECTOR  translation = {-160, 0, 900};
+VECTOR  scale       = {ONE, ONE, ONE};
+
+SVECTOR quadrot     = {0, 0, 0};
+
+MATRIX  world = {0};
+
+VECTOR vel = {0, 0, 0};
+VECTOR acc = {0, 0, 0};
+VECTOR pos = {0, 0, 0};
+
+SVECTOR floor_rotation    = {0, 0, 0};
+VECTOR  floor_translation = {0, 450, 1800};
+VECTOR  floor_scale       = {ONE, ONE, ONE};
+
+void
+screen_init(void)
+{
+    // Reset GPU
+    ResetGraph(0);
+
+    // Set display and draw areas of buffers
+    SetDefDispEnv(&screen.disp[0], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[1], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+
+    // Set draw buffers as background buffers
+    screen.draw[0].isbg = 1;
+    screen.draw[1].isbg = 1;
+
+    // Set background clear color
+    setRGB0(&screen.draw[0], 63, 0, 127);
+    setRGB0(&screen.draw[1], 63, 0, 127);
+
+    // Set current initial buffer
+    currbuff = 0;
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // Initialize and setup the GTE geometry offsets
+    InitGeom();
+    SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+    SetGeomScreen(SCREEN_Z);
+
+    // Enable display
+    SetDispMask(1);
+}
+
+void
+display_frame(void)
+{
+    DrawSync(0);
+    VSync(0);
+
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // Sort objects in ordering table
+    DrawOTag(ot[currbuff] + OT_LENGTH - 1);
+
+    currbuff = !currbuff;
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    nextprim = primbuff[currbuff];
+}
+
+void
+setup(void)
+{
+    screen_init();
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    nextprim = primbuff[currbuff];
+
+    acc.vx = 0;
+    acc.vy = 1;
+    acc.vz = 0;
+
+    vel.vx = 0;
+    vel.vy = 0;
+    vel.vy = 0;
+
+    pos.vx = 320;
+    pos.vy = -400;
+    pos.vz = 1800;
+}
+
+void
+update(void)
+{
+    int i, nclip;
+    long otz, p, flg;
+
+    // Empty the ordering table
+    ClearOTagR(ot[currbuff], OT_LENGTH);
+
+    vel.vx += acc.vx;
+    vel.vy += acc.vy;
+    vel.vz += acc.vz;
+
+    pos.vx += (vel.vx >> 1);
+    pos.vy += (vel.vy >> 1);
+    pos.vz += (vel.vz >> 1);
+
+    if(pos.vy + 64 > floor_translation.vy) {
+        pos.vy = floor_translation.vy - 64;
+        vel.vy = -60;
+    }
+
+    /* Cube rendering with triangles */
+    // Populate world matrix with rotation, translation, scale values
+    RotMatrix(&rotation, &world);
+    TransMatrix(&world, &translation);
+    ScaleMatrix(&world, &scale);
+
+    // Sets world matrix to be used by the GTE for rotation and translation
+    SetRotMatrix(&world);
+    SetTransMatrix(&world);
+
+    // Loop over all triangle faces
+    for(i = 0; i < NUM_FACES * 3; i += 3) {
+        poly = (POLY_G3*)nextprim;
+        setPolyG3(poly);
+        setRGB0(poly, 255, 0, 255);
+        setRGB1(poly, 255, 255, 0);
+        setRGB2(poly, 0, 255, 255);
+
+        nclip = RotAverageNclip3(
+            &vertices[faces[i + 0]],
+            &vertices[faces[i + 1]],
+            &vertices[faces[i + 2]],
+            (long*)&poly->x0,
+            (long*)&poly->x1,
+            (long*)&poly->x2,
+            &p, &otz, &flg);
+
+        if(nclip <= 0) continue;
+
+        if((otz > 0) && (otz < OT_LENGTH)) {
+            addPrim(ot[currbuff][otz], poly);
+            nextprim += sizeof(POLY_G3);
+        }
+    }
+
+    /* Cube rendering with quads */
+    RotMatrix(&quadrot, &world);
+    TransMatrix(&world, &pos);
+    ScaleMatrix(&world, &scale);
+    SetRotMatrix(&world);
+    SetTransMatrix(&world);
+
+    for(i = 0; i < NUM_QUAD_FACES * 4; i += 4) {
+        qpoly = (POLY_G4*)nextprim;
+        setPolyG4(qpoly);
+        setRGB0(qpoly, 255, 0, 0);
+        setRGB1(qpoly, 0, 255, 0);
+        setRGB2(qpoly, 0, 0, 255);
+        setRGB3(qpoly, 255, 255, 255);
+
+        nclip = RotAverageNclip4(
+            &vertices[quad_faces[i + 0]],
+            &vertices[quad_faces[i + 1]],
+            &vertices[quad_faces[i + 2]],
+            &vertices[quad_faces[i + 3]], 
+            (long*)&qpoly->x0,
+            (long*)&qpoly->x1,
+            (long*)&qpoly->x2,
+            (long*)&qpoly->x3,
+            &p, &otz, &flg);
+        
+        if(nclip <= 0) continue;
+
+        if((otz > 0) && (otz < OT_LENGTH)) {
+            addPrim(ot[currbuff][otz], qpoly);
+            nextprim += sizeof(POLY_G4);
+        }
+    }
+
+    /* Floor rendering with triangles */
+    RotMatrix(&floor_rotation, &world);
+    TransMatrix(&world, &floor_translation);
+    ScaleMatrix(&world, &floor_scale);
+    SetRotMatrix(&world);
+    SetTransMatrix(&world);
+
+    for(i = 0; i < NUM_FLOOR_FACES * 3; i += 3) {
+        poly = (POLY_G3*)nextprim;
+        setPolyG3(poly);
+        setRGB0(poly, 128, 128, 0);
+        setRGB1(poly, 0, 128, 128);
+        setRGB2(poly, 128, 0, 128);
+
+        nclip = RotAverageNclip3(
+            &floor_vertices[floor_faces[i + 0]],
+            &floor_vertices[floor_faces[i + 1]],
+            &floor_vertices[floor_faces[i + 2]],
+            (long*)&poly->x0,
+            (long*)&poly->x1,
+            (long*)&poly->x2,
+            &p, &otz, &flg);
+
+        if(nclip <= 0) continue;
+
+        if((otz > 0) && (otz < OT_LENGTH)) {
+            addPrim(ot[currbuff][otz], poly);
+            nextprim += sizeof(POLY_G3);
+        }
+    }
+
+    rotation.vx += 6;
+    rotation.vy += 8;
+    rotation.vz += 12;
+
+    quadrot.vx -= 6;
+    quadrot.vy -= 8;
+    quadrot.vz -= 12;
+
+    floor_rotation.vy += 5;
+}
+
+void
+render(void)
+{
+    display_frame();
+}
+
+int
+main(void)
+{
+    setup();
+
+    while(1) {
+        update();
+        render();
+    }
+
+    return 0;
+}
+#+end_src
+
+** Troubles with near clipping
+
+There's another thing that is worth mentioning.
+
+Back in my first  attempt, I also used some dimensions that were  too big to fit
+the screen (like 1200).  What happens is that, since it is too  big to be drawn,
+it gets too close to the camera, and so one of the triangles gets clipped.
+
+We'll have  to deal with this  pretty soon, especially when  we're talking about
+objects that are too close to the screen.
+
+This is a *near-clipping problem*.
+
+* Wait, Can I use Floats?
+
+Well  yes, you  can as  per  C language  specification. Nothing  stops you  from
+declaring  a ~float~  or a  ~double~. But  these are  soft floats,  emulated via
+software, and that is VERY slow.
+
+So don't do that.
+
