@@ -31,6 +31,7 @@ These are my notes for the PlayStation development course.
   - [[https://problemkaputt.de/psx-spx.htm][web link]]
   - [[https://psx-spx.consoledev.net/graphicsprocessingunitgpu/][wiki-style web link]] (easier to navigate)
 - [[file:Sony-Slides-GTE.pdf][GTE & Advanced Graphics]] (slide)
+- [[file:Sony-PlayStation-GTEInlineReference.pdf][GTE Inline Programming Reference]]
     
 * Compiling ASM exercises
 
