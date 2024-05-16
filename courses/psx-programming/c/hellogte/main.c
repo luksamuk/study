@@ -3,6 +3,8 @@
 #include <libetc.h>
 #include <libgpu.h>
 
+#include <inline_n.h> // GTE inline calls
+
 #define VIDEO_MODE 0
 #define SCREEN_RES_X 320
 #define SCREEN_RES_Y 240
@@ -241,18 +243,34 @@ update(void)
         setRGB2(qpoly, 0, 0, 255);
         setRGB3(qpoly, 255, 255, 255);
 
-        nclip = RotAverageNclip4(
-            &vertices[quad_faces[i + 0]],
-            &vertices[quad_faces[i + 1]],
-            &vertices[quad_faces[i + 2]],
-            &vertices[quad_faces[i + 3]], 
-            (long*)&qpoly->x0,
-            (long*)&qpoly->x1,
-            (long*)&qpoly->x2,
-            (long*)&qpoly->x3,
-            &p, &otz, &flg);
-        
+        // Inline GTE quad calls
+        gte_ldv0(&vertices[quad_faces[i + 0]]);
+        gte_ldv1(&vertices[quad_faces[i + 1]]);
+        gte_ldv2(&vertices[quad_faces[i + 2]]);
+        gte_rtpt();
+        gte_nclip();
+        gte_stopz(&nclip);
         if(nclip <= 0) continue;
+        gte_stsxy0(&qpoly->x0);
+        
+        gte_ldv0(&vertices[quad_faces[i + 3]]);
+        gte_rtps();
+        gte_stsxy3(&qpoly->x1, &qpoly->x2, &qpoly->x3);
+        gte_avsz4();
+        gte_stotz(&otz);
+
+        // nclip = RotAverageNclip4(
+        //     &vertices[quad_faces[i + 0]],
+        //     &vertices[quad_faces[i + 1]],
+        //     &vertices[quad_faces[i + 2]],
+        //     &vertices[quad_faces[i + 3]], 
+        //     (long*)&qpoly->x0,
+        //     (long*)&qpoly->x1,
+        //     (long*)&qpoly->x2,
+        //     (long*)&qpoly->x3,
+        //     &p, &otz, &flg);
+        
+        //if(nclip <= 0) continue;
 
         if((otz > 0) && (otz < OT_LENGTH)) {
             addPrim(ot[currbuff][otz], qpoly);
@@ -274,20 +292,33 @@ update(void)
         setRGB1(poly, 0, 128, 128);
         setRGB2(poly, 128, 0, 128);
 
-        nclip = RotAverageNclip3(
-            &floor_vertices[floor_faces[i + 0]],
-            &floor_vertices[floor_faces[i + 1]],
-            &floor_vertices[floor_faces[i + 2]],
-            (long*)&poly->x0,
-            (long*)&poly->x1,
-            (long*)&poly->x2,
-            &p, &otz, &flg);
+        // Inline GTE calls
+        gte_ldv0(&floor_vertices[floor_faces[i + 0]]);
+        gte_ldv1(&floor_vertices[floor_faces[i + 1]]);
+        gte_ldv2(&floor_vertices[floor_faces[i + 2]]);
+        gte_rtpt();
+        gte_nclip();
+        gte_stopz(&nclip);
 
-        if(nclip <= 0) continue;
+        // nclip = RotAverageNclip3(
+        //     &floor_vertices[floor_faces[i + 0]],
+        //     &floor_vertices[floor_faces[i + 1]],
+        //     &floor_vertices[floor_faces[i + 2]],
+        //     (long*)&poly->x0,
+        //     (long*)&poly->x1,
+        //     (long*)&poly->x2,
+        //     &p, &otz, &flg);
 
-        if((otz > 0) && (otz < OT_LENGTH)) {
-            addPrim(ot[currbuff][otz], poly);
-            nextprim += sizeof(POLY_G3);
+        if(nclip >= 0) {
+            // Inline GTE calls
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+
+            if((otz > 0) && (otz < OT_LENGTH)) {
+                addPrim(ot[currbuff][otz], poly);
+                nextprim += sizeof(POLY_G3);
+            }
         }
     }
 
@@ -299,7 +330,7 @@ update(void)
     quadrot.vy -= 8;
     quadrot.vz -= 12;
 
-    floor_rotation.vy += 5;
+    // floor_rotation.vy += 5;
 }
 
 void

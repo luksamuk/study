@@ -47,14 +47,14 @@ Here is an example implementation of ~RotTransPers3~.
 #+begin_src c
 // Function prototype, for analysis purposes:
 long RotTransPers3(
-    SVECTOR *v0, // $a0
-    SVECTOR *v1, // $a1
-    SVECTOR *v2, // $a2
-    long *sxy0,  // $a3
-    long *sxy1,  // 16($sp)
-    long *sxy2,  // 20($sp)
-    long *p,     // 24($sp)
-    long *flag); // 28($sp)
+    SVECTOR *v0,
+    SVECTOR *v1,
+    SVECTOR *v2,
+    long *sxy0,
+    long *sxy1,
+    long *sxy2,
+    long *p,
+    long *flag);
 #+end_src
 
 Remember also the [[https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions][MIPS O32 calling convention]].
@@ -91,7 +91,7 @@ Here we have an extended instruction set that does things for the coprocessor 2:
 
 - ~lwc2~: load  word  into  coprocessor 2
 - ~swc2~: store word  from coprocessor 2
-- ~RTPT~: Rotate, translate, perspective, for three vertices
+- ~RTPT~: rotate, translate, perspective, for three vertices
 - ~cfc2~: move word from GTE control register into CPU register
 - ~mfc2~: move word from GTE data register into CPU register
 
@@ -99,7 +99,125 @@ Here we have an extended instruction set that does things for the coprocessor 2:
 
 - [[file:Sony-PlayStation-GTEInlineReference.pdf][GTE Inline Programming Reference]]
 
+So, since we're using  Nugget on VSCode projects, let's take a  look at the file
+[[file:c/hellogte/third_party/nugget/psyq/include/inline_n.h][~hellogte/third_party/nugget/psyq/include/inline_n.h~]].
 
+These files are GTE macro definitions for Nugget.
+
+This file is a bunch of inline assembly code to interact with the GTE.
+
+- ~gte_ldv0(r0)~: Load contents of parameter ~r0~ into GTE vector 0;
+- ~gte_ldv1(r0)~: Load contents of parameter ~r0~ into GTE vector 1;
+
+- ~gte_ldv2(r0)~: Load contents of parameter ~r0~ into GTE vector 2;
+- ...
+
+** Using inline instructions
+
+On our  Hello GTE, if you're  using the classic toolchain,  get ~inline_n.h~ and
+include it.
+
+#+begin_src c
+#include "inline_n.h"
+// or, if you're using Nugget:
+#include <inline_n.h>
+#+end_src
+
+Now  go   to  our  floor  drawing   part  in  ~void  Update()~.   Let's  replace
+~RotAverageNclip3~ with inline calls to the GTE.
+
+Let's start by loading the three vectors into the GTE registers.
+
+#+begin_src c
+gte_ldv0(&floor_vertices[floor_faces[i + 0]]);
+gte_ldv1(&floor_vertices[floor_faces[i + 1]]);
+gte_ldv2(&floor_vertices[floor_faces[i + 2]]);
+#+end_src
+
+Now we just need to compute  the rotation, translation and perspective, and also
+perform normal clipping and store the normal clipping value:
+
+#+begin_src c
+gte_rtpt();
+gte_nclip();
+gte_stopz(&nclip);
+#+end_src
+
+Now let's change  the nclip test a  little, and store the  GTE calculated screen
+coordinates:
+
+#+begin_src c
+if(nclip >= 0) {
+    gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+    gte_avsz3();
+    gte_stotz(&otz);
+
+    if((otz > 0) && (otz < OT_LENGTH)) {
+        addPrim(ot[currbuff][otz], poly);
+        nextprim += sizeof(POLY_G3);
+    }
+}
+#+end_src
 
 * RTPT vs. RTPS
 
+Now let's see how we can do this for quads.
+
+Let's replace  the call to ~RotAverageNclip4~  for our quad drawing  with inline
+calls to the GTE.
+
+We start by loading and processing the first three vertices, because the GTE can
+only perform calculations up to three vertices at a time!
+
+#+begin_src c
+gte_ldv0(&vertices[quad_faces[i + 0]]);
+gte_ldv1(&vertices[quad_faces[i + 1]]);
+gte_ldv2(&vertices[quad_faces[i + 2]]);
+gte_rtpt();
+#+end_src
+
+Now here's a catch: we're only going  to store the vertices for the first screen
+coordinate.
+
+#+begin_src c
+gte_stsxy0(&qpoly->x0);
+#+end_src
+
+Now we're going to load the fourth quad vertex at the same place we did with the
+first one.
+
+#+begin_src c
+gte_ldv0(&vertices[quad_faces[i + 3]]);
+#+end_src
+
+Finally,  we  perform  rotation,  translation   and  perspective  *of  a  single
+vertex*.  Then, store  the  other  screen coordinates.  Notice  the order  we're
+performing the store..
+
+#+begin_src c
+gte_rtps();
+gte_stsxy3(&qpoly->x1, &qpoly->x2, &qpoly->x3);
+#+end_src
+
+Now just average the ~otz~ for four vertices and get the ~nclip~.
+
+#+begin_src c
+gte_avsz4();
+gte_stotz(&otz);
+#+end_src
+
+** About the quad nclip
+
+We can perform  the normal clipping test  for our first triangle  and that's it!
+This is because we're  testing for the normal of the entire  face. So the normal
+of a single triangle should also be the normal of the entire quad.
+
+Right after the call to ~gte_rtpt()~, do the following:
+
+#+begin_src c
+gte_nclip();
+gte_stopz(&nclip);
+
+// We don't need to do anything else if already clipped
+if(nclip <= 0) continue;
+#+end_src
