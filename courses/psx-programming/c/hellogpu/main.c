@@ -15,7 +15,7 @@
 #define NUM_VERTICES  8
 #define NUM_FACES    12
 
-SVECTOR vertices[] {
+SVECTOR vertices[] = {
     { -128, -128, -128 },
     {  128, -128, -128 },
     {  128, -128,  128 },

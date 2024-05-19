@@ -35,3 +35,9 @@
 [submodule "courses/psx-programming/c/hellogte/third_party/psyq-iwyu"]
 	path = courses/psx-programming/c/hellogte/third_party/psyq-iwyu
 	url = https://github.com/johnbaumann/psyq_include_what_you_use.git
+[submodule "courses/psx-programming/c/hellojoypad/third_party/nugget"]
+	path = courses/psx-programming/c/hellojoypad/third_party/nugget
+	url = https://github.com/pcsx-redux/nugget.git
+[submodule "courses/psx-programming/c/hellojoypad/third_party/psyq-iwyu"]
+	path = courses/psx-programming/c/hellojoypad/third_party/psyq-iwyu
+	url = https://github.com/johnbaumann/psyq_include_what_you_use.git

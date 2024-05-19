@@ -1,9 +1,10 @@
 #include <stdlib.h>
 #include <libgte.h>
-#include <libetc.h>
 #include <libgpu.h>
 
 #include <inline_n.h> // GTE inline calls
+
+#include "joypad.h"
 
 #define VIDEO_MODE 0
 #define SCREEN_RES_X 320
@@ -98,8 +99,6 @@ SVECTOR floor_rotation    = {0, 0, 0};
 VECTOR  floor_translation = {0, 450, 1800};
 VECTOR  floor_scale       = {ONE, ONE, ONE};
 
-u_long padstate;
-
 void
 screen_init(void)
 {
@@ -156,8 +155,7 @@ void
 setup(void)
 {
     screen_init();
-
-    PadInit(0);
+    joypad_init();
 
     // Reset next primitive pointer to the start of the primitive buffer
     nextprim = primbuff[currbuff];
@@ -184,22 +182,22 @@ update(void)
     // Empty the ordering table
     ClearOTagR(ot[currbuff], OT_LENGTH);
 
-    padstate = PadRead(0);
+    joypad_update();
 
-    if(padstate & _PAD(0, PADLleft)) {
-        rotation.vy += 20;
+    if(joypad_check(PAD1_LEFT)) {
+        rotation.vy += 24;
     }
 
-    if(padstate & _PAD(0, PADLright)) {
-        rotation.vy -= 20;
+    if(joypad_check(PAD1_RIGHT)) {
+        rotation.vy -= 24;
     }
 
-    if(padstate & _PAD(0, PADLdown)) {
-        rotation.vx += 20;
+    if(joypad_check(PAD1_UP)) {
+        rotation.vx -= 24;
     }
 
-    if(padstate & _PAD(0, PADLup)) {
-        rotation.vx -= 20;
+    if(joypad_check(PAD1_DOWN)) {
+        rotation.vx += 24;
     }
 
     vel.vx += acc.vx;
@@ -281,19 +279,6 @@ update(void)
         gte_avsz4();
         gte_stotz(&otz);
 
-        // nclip = RotAverageNclip4(
-        //     &vertices[quad_faces[i + 0]],
-        //     &vertices[quad_faces[i + 1]],
-        //     &vertices[quad_faces[i + 2]],
-        //     &vertices[quad_faces[i + 3]], 
-        //     (long*)&qpoly->x0,
-        //     (long*)&qpoly->x1,
-        //     (long*)&qpoly->x2,
-        //     (long*)&qpoly->x3,
-        //     &p, &otz, &flg);
-        
-        //if(nclip <= 0) continue;
-
         if((otz > 0) && (otz < OT_LENGTH)) {
             addPrim(ot[currbuff][otz], qpoly);
             nextprim += sizeof(POLY_G4);
@@ -322,15 +307,6 @@ update(void)
         gte_nclip();
         gte_stopz(&nclip);
 
-        // nclip = RotAverageNclip3(
-        //     &floor_vertices[floor_faces[i + 0]],
-        //     &floor_vertices[floor_faces[i + 1]],
-        //     &floor_vertices[floor_faces[i + 2]],
-        //     (long*)&poly->x0,
-        //     (long*)&poly->x1,
-        //     (long*)&poly->x2,
-        //     &p, &otz, &flg);
-
         if(nclip >= 0) {
             // Inline GTE calls
             gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
@@ -344,15 +320,9 @@ update(void)
         }
     }
 
-    //rotation.vx += 6;
-    //rotation.vy += 8;
-    //rotation.vz += 12;
-
     quadrot.vx += 6;
     quadrot.vy -= 8;
     quadrot.vz -= 12;
-
-    // floor_rotation.vy += 5;
 }
 
 void
