@@ -22,6 +22,7 @@ These are my notes for the PlayStation development course.
 15. [[./15-fixed-point-math.org][Fixed-Point Math]]
 16. [[./16-gte-inline-instructions.org][GTE Inline Instructions]]
 17. [[./17-controller-input.org][Controller Input]]
+18. [[file:18-linking-multiple-files.org][Linking Multiple Files]]
 
 * Extra documents
 
