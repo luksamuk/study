@@ -23,7 +23,8 @@ These are my notes for the PlayStation development course.
 16. [[./16-gte-inline-instructions.org][GTE Inline Instructions]]
 17. [[./17-controller-input.org][Controller Input]]
 18. [[file:18-linking-multiple-files.org][Linking Multiple Files]]
-
+19. [[file:19-camera-transformation.org][Camera Transformation]]
+    
 * Extra documents
 
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
