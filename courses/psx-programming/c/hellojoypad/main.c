@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "display.h"
 #include "joypad.h"
+#include "camera.h"
 
 #define NUM_VERTICES  8
 #define NUM_FACES    12
@@ -46,6 +47,8 @@ short floor_faces[] = {
     1, 3, 2
 };
 
+Camera camera;
+
 POLY_F3 *poly;
 POLY_G4 *qpoly;
 
@@ -53,6 +56,7 @@ SVECTOR rotation    = {0, 0, 0};
 VECTOR  scale       = {ONE, ONE, ONE};
 
 MATRIX  world = {0};
+MATRIX  view  = {0};
 
 VECTOR vel = {0, 0, 0};
 VECTOR acc = {0, 0, 0};
@@ -81,7 +85,12 @@ setup(void)
 
     pos.vx = 0;
     pos.vy = -400;
-    pos.vz = 1400;
+    pos.vz = 1800;
+
+    camera.position.vx = 500;
+    camera.position.vy = -1000; // Y grows down
+    camera.position.vz = -1500; // Push the camera back further
+    camera.lookat = (MATRIX){0};
 }
 
 void
@@ -96,19 +105,27 @@ update(void)
     joypad_update();
 
     if(joypad_check(PAD1_LEFT)) {
-        rotation.vy += 24;
+        camera.position.vx -= 50;
     }
 
     if(joypad_check(PAD1_RIGHT)) {
-        rotation.vy -= 24;
+        camera.position.vx += 50;
     }
 
     if(joypad_check(PAD1_UP)) {
-        rotation.vx -= 24;
+        camera.position.vy -= 50;
     }
 
     if(joypad_check(PAD1_DOWN)) {
-        rotation.vx += 24;
+        camera.position.vy += 50;
+    }
+
+    if(joypad_check(PAD1_CROSS)) {
+        camera.position.vz -= 50;
+    }
+
+    if(joypad_check(PAD1_CIRCLE)) {
+        camera.position.vz += 50;
     }
 
     vel.vx += acc.vx;
@@ -124,12 +141,16 @@ update(void)
         vel.vy = -45;
     }
 
+    // Look at cube
+    look_at(&camera, &camera.position, &pos, &(VECTOR){0, -ONE, 0});
+
     /* Cube rendering with quads */
     RotMatrix(&rotation, &world);
     TransMatrix(&world, &pos);
     ScaleMatrix(&world, &scale);
-    SetRotMatrix(&world);
-    SetTransMatrix(&world);
+    CompMatrixLV(&camera.lookat, &world, &view);
+    SetRotMatrix(&view);
+    SetTransMatrix(&view);
 
     for(i = 0; i < NUM_QUAD_FACES * 4; i += 4) {
         qpoly = (POLY_G4*)get_next_prim();
@@ -165,8 +186,9 @@ update(void)
     RotMatrix(&floor_rotation, &world);
     TransMatrix(&world, &floor_translation);
     ScaleMatrix(&world, &floor_scale);
-    SetRotMatrix(&world);
-    SetTransMatrix(&world);
+    CompMatrixLV(&camera.lookat, &world, &view);
+    SetRotMatrix(&view);
+    SetTransMatrix(&view);
 
     for(i = 0; i < NUM_FLOOR_FACES * 3; i += 3) {
         poly = (POLY_F3*)get_next_prim();
