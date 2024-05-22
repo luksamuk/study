@@ -1,0 +1,173 @@
+#+title: CD-ROM Access
+
+* CD-ROM Basics
+
+So far, all the data we've been using is in our executable.
+
+- We need more than 2MB of RAM for executable and assets.
+- We need images, textures, 3D mesh data, audio, etc.
+
+The PlayStation allows CD-ROM with up to 650 MB of information.
+
+The CD-ROM has sections and sectors, but it is also divided in areas such as the
+lead-in area, table of Content (TOC), and lead-out area.
+
+Hard  drives  are  magnetic  disks,  so   they  use  magnetic  forces  to  store
+information (repulsion and attraction are 1's and 0's).
+
+The  CD-ROM, though,  is  optic media,  so  it'll  either have  a  scratch or  a
+reflection simbolizing 0's and 1's.
+
+** Rainbow books
+
+The rainbow books are a collection of CD format specifications generally written
+and published by standards bodies including the ISO, IEC, and ECMA.
+
+| Kind   | Color   | Year | Description               |
+|--------+---------+------+---------------------------|
+| CD-DA  | Red     | 1980 | Digital Audio             |
+| CD-ROM | Yellow  | 1983 | Read-Only Memory          |
+| CD-I   | Green   | 1986 | Interactive               |
+| CD-RW  | Orange  | 1990 | Recordable & Rewritable   |
+| PCD    | Beige   | 1992 | Photo CD                  |
+| VCD    | White   | 1993 | Video CD & Super Video CD |
+| E-CD   | Blue    | 1995 | Enhanced                  |
+| SA-CD  | Scarlet | 1999 | Super Audio               |
+| DD-CD  | Purple  | 2000 | Double Density            |
+
+Source: [[https://en.wikipedia.org/wiki/Rainbow_Books][Wikipedia]]
+
+** Data tracks
+
+#+begin_example
+CD
+└─ Section 1
+   └─ Track 1
+      ├─ TEXTURES
+      │  └─ GRASS.TIM
+      └─ MODELS
+         ├─ CUBE.OBJ
+         └─ FLOOR.OBJ
+#+end_example
+
+- PlayStation CDs are  made up of small data blocks  called *sectors*, each 2048
+  bytes long.
+- Sectors are grouped in *tracks* (either data or audio), and tracks are grouped
+  into *sections*.
+- PS1 disks _usually_ contain one single data track.
+- Data track information is organized using the standard filesystem *ISO-9660*.
+
+** ISO generation with 32-bit toolchain
+
+For ISO generation on  32-bit contexts (Windows XP preferably), we  use a set of
+three tools.
+
+*** ~BUILDCD.EXE~
+
+Generates ~GAME.IMG~ image from ~CDLAYOUT.CTI~. Here is an example of this file:
+
+#+begin_src conf
+Define GameName "MyGame"
+Define GameDir .
+Disc CDROMXA_PSX
+  CatalogNumber 0000000000000
+  Leadin XA
+    Empty 300
+    PostGap 150
+  EndTrack
+
+  Track XA
+    Pause 150
+    Volume ISO9660
+      SystemArea .\LCNSFILE\LICENSEE.DAT
+      PrimaryVolume
+        SystemIdentifier "PLAYSTATION"
+        VolumeIdentifier [GameName]
+        VolumeSetIdentifier [GameName]
+        PublisherIdentifier "SCEE"
+        DataPreparerIdentifier "SONY"
+        ApplicationIdentifier "PLAYSTATION"
+        LPath
+        OptionalLpath
+        MPath
+        OptionalMpath
+
+        Hierarchy
+          XAFileAttributes  Form1 Audio
+          XAVideoAttributes ApplicationSpecific
+          XAAudioAttributes ADPCM_C Stereo
+
+          File SYSTEM.CNF
+            XAFileAttributes Form1 Data
+            Source [GameDir]\SYSTEM.TXT
+          EndFile
+
+          File MAIN.EXE
+            XAFileAttributes Form1 Data
+            Source [GameDir]\MAIN.EXE
+          EndFile
+
+          File CUBE.OBJ
+            XAFileAttributes Form1 Data
+            Source [GameDir]\CUBE.OBJ
+          EndFile
+        EndHierarchy
+      EndPrimaryVolume
+    EndVolume
+  EndTrack
+EndDisk
+#+end_src
+
+*** ~PSXLICENSE.EXE~
+
+Bundles the Sony license ~LICENSEE.DAT~ into CD image file.
+
+*** ~STRIPISO.EXE~
+
+Generate ~ISO~ file ~GAME.ISO~ from ~GAME.IMG~.
+
+*** Utility BAT file
+
+We would  probably have  to create  a ~BUILDISO.BAT~  helper file  somewhat like
+this:
+
+#+begin_src bat
+@ECHO OFF
+
+ECHO Compiling and generating executable...
+psymake
+
+ECHO Building IMG file...
+BUILDCD -l -iGAME.IMG CDLAYOUT.CTI
+
+ECHO Converting GAME.IMG to GAME.ISO...
+STRIPISO S 2352 GAME.IMG GAME.ISO
+
+ECHO Bundling license to game ISO...
+PSXLICENSE /eu /i GAME.ISO
+
+ECHO The ISO file was built successfully!
+#+end_src
+
+* Generating an ISO on Windows XP
+
+* Generating an ISO on Windows 11
+
+* What is SYSTEM.CNF?
+
+* A Function to Read Files from the CD
+
+* CD-ROM Access via BIOS Functions
+
+* Understanding the ~MODEL.BIN~ File
+
+* Dynamically Allocating Buffers
+
+* Heap Initialization
+
+* Interpreting Bytes as Numbers
+
+* Handling Different Order of Bytes
+
+* Reading Vertices & Faces from a File
+

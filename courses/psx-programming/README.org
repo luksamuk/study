@@ -24,6 +24,7 @@ These are my notes for the PlayStation development course.
 17. [[./17-controller-input.org][Controller Input]]
 18. [[file:18-linking-multiple-files.org][Linking Multiple Files]]
 19. [[file:19-camera-transformation.org][Camera Transformation]]
+20. [[file:20-cd-rom-access.org][CD-ROM Access]]
     
 * Extra documents
 
