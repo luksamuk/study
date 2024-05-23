@@ -151,6 +151,64 @@ ECHO The ISO file was built successfully!
 
 * Generating an ISO on Windows XP
 
+* Generating an ISO with Docker
+
+This is not an actual section.
+
+I'm  just building  a Docker  toolchain for  building stuff,  just like  the PSP
+toolchain.
+
+You'll need a ~LICENSEA.DAT~ file. There are  ways to obtain that. It used to be
+redistributed along with the original Psy-Q SDK.
+
+#+begin_src dockerfile :tangle toolchain/Dockerfile
+FROM ubuntu:latest AS base
+RUN apt update && apt upgrade -y
+
+FROM base AS builder
+RUN apt install -y git build-essential cmake
+WORKDIR /
+RUN git clone --depth=1 https://github.com/Lameguy64/mkpsxiso &&\
+    cd mkpsxiso &&\
+    git submodule update --init --recursive &&\
+    cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release &&\
+    cmake --build ./build
+
+FROM base
+RUN apt install -y \
+    git \
+    cmake \
+    bchunk \
+    gdb-multiarch \
+    gcc-mipsel-linux-gnu \
+    g++-mipsel-linux-gnu \
+    binutils-mipsel-linux-gnu
+RUN apt clean &&\
+    rm -rf /var/lib/apt/lists/*
+COPY --from=builder /mkpsxiso/build/mkpsxiso /usr/local/bin/mkpsxiso
+COPY --from=builder /mkpsxiso/build/dumpsxiso /usr/local/bin/dumpsxiso
+
+ENTRYPOINT [ "/bin/bash" ]
+#+end_src
+
+#+begin_src bash
+#!/bin/bash
+make
+mkpsxiso project.xml
+bchunk iso/project.bin iso/project.cue project.iso
+#+end_src
+
+#+begin_src bash
+docker buildx build . -t luksamuk/psxtoolchain:latest --push
+docker run -it --rm -v $(pwd):/source -w /source luksamuk/psxtoolchain:latest
+#+end_src
+
+
+#+begin_src bash
+mkpsxiso project.xml
+bchunk project.bin project.cue project.iso
+#+end_src
+
 * Generating an ISO on Windows 11
 
 * What is SYSTEM.CNF?

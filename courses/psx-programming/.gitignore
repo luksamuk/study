@@ -6,3 +6,7 @@
 *.ps-exe
 *.psexe
 *.html
+*.iso
+*.cue
+*.bin
+LICENSEA.DAT
