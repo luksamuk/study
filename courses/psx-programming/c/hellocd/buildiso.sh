@@ -4,5 +4,4 @@ exec docker run --rm \
      -v $(pwd):/source \
      -w /source \
      luksamuk/psxtoolchain:latest \
-     /source/buildiso.sh
-
+     "make && mkpsxiso -y CDLAYOUT.xml"

@@ -38,6 +38,7 @@ These are my notes for the PlayStation development course.
 - [[file:Sony-PlayStation-GTEInlineReference.pdf][GTE Inline Programming Reference]]
 - [[file:LibRef47.pdf][Psy-Q Run-Time Library Reference]] ([[https://psx.arthus.net/sdk/Psy-Q/DOCS/LibRef47.pdf][external]])
 - [[https://archive.org/details/psyq-sdk][Psy-Q SDK on Archive.org]]
+- [[https://github.com/luksamuk/psxtoolchain][Docker image with modern PSX toolchain]] (mine!)
   
 * Compiling ASM exercises
 

@@ -151,65 +151,185 @@ ECHO The ISO file was built successfully!
 
 * Generating an ISO on Windows XP
 
-* Generating an ISO with Docker
+We're  going  to   build  a  new  project  that  we're   going  to  create  from
+scratch. It'll  be called ~hellocd~.  I simply copied  everything -- and  I also
+created the ~Cube~ and ~Floor~ structs just to be 1:1 with the course project.
 
-This is not an actual section.
+Instead of  encoding vertices and  faces on our project  code files, we  want to
+have more dynamic stuff. So we're gonna make these data external, as data files.
 
-I'm  just building  a Docker  toolchain for  building stuff,  just like  the PSP
-toolchain.
+On Windows XP, let's start by adding our ~CDTOOLS~ to the Path.
 
-You'll need a ~LICENSEA.DAT~ file. There are  ways to obtain that. It used to be
-redistributed along with the original Psy-Q SDK.
+** CD-ROM building files
 
-#+begin_src dockerfile :tangle toolchain/Dockerfile
-FROM ubuntu:latest AS base
-RUN apt update && apt upgrade -y
+Now, let's add important files to our  directory. The files are:
 
-FROM base AS builder
-RUN apt install -y git build-essential cmake
-WORKDIR /
-RUN git clone --depth=1 https://github.com/Lameguy64/mkpsxiso &&\
-    cd mkpsxiso &&\
-    git submodule update --init --recursive &&\
-    cmake -S . -B ./build -DCMAKE_BUILD_TYPE=Release &&\
-    cmake --build ./build
+- ~LCNSFILE/LICENSEE.DAT~: Sony License file. I'm  not going to provide it here,
+  I'm sorry. It used to be redistributed along with the original Psy-Q SDK.
+- ~assets/model.bin~: Model data file.
+- ~SYSTEM.TXT~: CD-ROM configuration variables.
+- ~CDLAYOUT.CTI~:
 
-FROM base
-RUN apt install -y \
-    git \
-    cmake \
-    bchunk \
-    gdb-multiarch \
-    gcc-mipsel-linux-gnu \
-    g++-mipsel-linux-gnu \
-    binutils-mipsel-linux-gnu
-RUN apt clean &&\
-    rm -rf /var/lib/apt/lists/*
-COPY --from=builder /mkpsxiso/build/mkpsxiso /usr/local/bin/mkpsxiso
-COPY --from=builder /mkpsxiso/build/dumpsxiso /usr/local/bin/dumpsxiso
+*** ~SYSTEM.TXT~
 
-ENTRYPOINT [ "/bin/bash" ]
+These are the configurations for booting the CD-ROM.
+
+#+begin_src ini :tangle c/hellocd/SYSTEM.TXT
+BOOT=cdrom:\MAIN.EXE;1
+TCB=4
+EVENT=10
+STACK=801FFFF0
 #+end_src
 
-#+begin_src bash
-#!/bin/bash
-make
-mkpsxiso project.xml
-bchunk iso/project.bin iso/project.cue project.iso
+*** ~CDLAYOUT.CTI~
+
+These  are the  configurations for  building  the CD-ROM  image, licensing,  and
+ISO9660 filesystem configuration.
+
+#+begin_src conf :tangle c/hellocd/CDLAYOUT.CTI
+Define GameName "Game"
+Define GameDir .
+
+Disc CDROMXA_PSX
+  CatalogNumber 0000000000000
+
+  Leadin XA
+    Empty 300
+    PostGap 150
+  EndTrack
+
+  Track XA
+    Pause 150
+    Volume ISO9660
+      SystemArea .\LCNSFILE\LICENSEE.DAT
+
+      PrimaryVolume
+        SystemIdentifier "PLAYSTATION"
+        VolumeIdentifier [GameName]
+        VolumeSetIdentifier [GameName]
+        PublisherIdentifier "SCEE"
+        DataPreparerIdentifier "SONY"
+        ApplicationIdentifier "PLAYSTATION"
+        LPath
+        OptionalLpath
+        MPath
+        OptionalMpath
+
+        Hierarchy
+          XAFileAttributes  Form1 Audio
+          XAVideoAttributes ApplicationSpecific
+          XAAudioAttributes ADPCM_C Stereo
+
+          File SYSTEM.CNF
+            XAFileAttributes Form1 Data
+            Source [GameDir]\SYSTEM.TXT
+          EndFile
+
+          File MAIN.EXE
+            XAFileAttributes Form1 Data
+            Source [GameDir]\MAIN.EXE
+          EndFile
+
+          File MODEL.BIN
+            XAFileAttributes Form1 Data
+            Source [GameDir]\assets\MODEL.BIN
+          EndFile
+        EndHierarchy
+      EndPrimaryVolume
+    EndVolume
+  EndTrack
+EndDisk
 #+end_src
 
-#+begin_src bash
-docker buildx build . -t luksamuk/psxtoolchain:latest --push
-docker run -it --rm -v $(pwd):/source -w /source luksamuk/psxtoolchain:latest
+** Generating ISO
+
+Provided that the  toolchain binaries are on  your PATH, this is  easy. Just use
+the following ~BUILDISO.BAT~ file to build the project and also build the ISO:
+
+#+begin_src bat c/hellocd/BUILDISO.BAT
+@ECHO OFF
+psymake
+BUILDCD -l -iGAME.IMG CDLAYOUT.CTI
+STRIPISO S 2352 GAME.IMG GAME.ISO
+PSXLICENSE /eu /i GAME.ISO
 #+end_src
 
+** The filesystem
 
-#+begin_src bash
-mkpsxiso project.xml
-bchunk project.bin project.cue project.iso
-#+end_src
+On No$psx, go to Window > Filesystem. There,  you should be able to see that the
+CD-ROM drive has  a single track (Track 01) of  data, containing three important
+files: ~SYSTEM.CNF~, ~MAIN.EXE~ and ~MODEL.BIN~.
+
+There is also going to be a ~License.txt~ file and a ~Logo.tmd~ file.
+
+There  would also  be  a final  dummy  track  (Track AA),  which  is the  CD-ROM
+lead-out.
 
 * Generating an ISO on Windows 11
+
+If you're using a modern Windows 11 machine, there is also a way to generate the
+ISO.
+
+Make sure you already have the ~assets/model.bin~ and ~SYSTEM.TXT~ files.
+
+You'll also need to download [[https://github.com/Lameguy64/mkpsxiso][~mkpsxiso~]] and install it to your path.
+
+In the  case of  the modern  toolchain, we  are going  to have  a ~CDLAYOUT.xml~
+file. It has  basically the same idea as ~CDLAYOUT.CTI~,  except we're declaring
+it as a XML format for a different tool that builds our CD.
+
+#+begin_src xml :tangle c/hellocd/CDLAYOUT.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="GAME.ISO" cue_sheet="GAME.CUE" no_xa="0">
+  <track type="data">
+    <identifiers
+	system        = "PLAYSTATION"
+	application   = "PLAYSTATION"
+	volume        = "MYDISC"
+	volume_set    = "GAME"
+	publisher     = "ME"
+	data_preparer = "MKPSXISO"
+	copyright     = "COPYLEFT" />
+    <license file="LCNSFILE/LICENSEE.DAT" />
+    <directory_tree>
+      <file name="SYSTEM.CNF" type="data" source="SYSTEM.TXT" />
+      <file name="MAIN.EXE" type="data" source="hellocd.ps-exe" />
+      <file name="MODEL.BIN" type="data" source="assets/model.bin" />
+    </directory_tree>
+  </track>
+</iso_project>
+#+end_src
+
+Now just run ~mkpsxiso~:
+
+#+begin_src powershell
+mkpsxiso CDLAYOUT.xml
+#+end_src
+
+** Using the ISO with PCSX-Redux
+
+After you  build the ISO image  for the first time,  think of it as  a read-only
+storage for our asset files. You can run the ISO image on PCSX-Redux no problem,
+but if you still  want to be able to debug your application  like you were doing
+before,  first load  the  image, then  just  press  ~F5~ on  VSCode  to run  the
+~.ps-exe~ directly from your machine.
+
+* Generating the project using Docker
+
+I took  the liberty of  creating a Docker  project containing the  toolchain for
+building  these. The  Docker image  contains  both the  GCC-MIPSEL compiler  and
+mkpsxiso.
+
+The Dockerfile for the toolchain can be found [[https://github.com/luksamuk/psxtoolchain][here]].
+
+#+begin_src bash :tangle c/hellocd/buildiso.sh
+#!/bin/bash
+exec docker run --rm \
+     -v $(pwd):/source \
+     -w /source \
+     luksamuk/psxtoolchain:latest \
+     "make && mkpsxiso -y CDLAYOUT.xml"
+#+end_src
 
 * What is SYSTEM.CNF?
 
