@@ -10,55 +10,18 @@
 #include "joypad.h"
 #include "camera.h"
 #include "utils.h"
-
-#define NUM_VERTICES  8
-#define NUM_FACES 6
+#include "object.h"
 
 extern char __heap_start, __sp;
 
-typedef struct Cube {
-    SVECTOR rotation;
-    VECTOR position;
-    VECTOR scale;
-    VECTOR vel;
-    VECTOR acc;
-    SVECTOR vertices[8];
-    short faces[24];
-} Cube;
-
-Cube cube = {
-    {0, 0, 0},
-    {0, -400, 1800},
-    {ONE, ONE, ONE},
-    {0, 0, 0},
-    {0, 1, 0},
-    {
-        { -128, -128, -128 },
-        {  128, -128, -128 },
-        {  128, -128,  128 },
-        { -128, -128,  128 },
-        { -128,  128, -128 },
-        {  128,  128, -128 },
-        {  128,  128,  128 },
-        { -128,  128,  128 }
-    },
-    {
-        2, 1, 3, 0, // top
-        1, 5, 0, 4, // front
-        5, 6, 4, 7, // bottomn
-        2, 6, 1, 5, // right
-        7, 6, 3, 2, // back
-        7, 3, 4, 0  // left
-    }
-};
 
 Camera camera;
-
-POLY_F3 *poly;
-POLY_G4 *qpoly;
+Object object;
 
 MATRIX  world = {0};
 MATRIX  view  = {0};
+
+POLY_F4 *poly;
 
 void
 setup(void)
@@ -78,17 +41,68 @@ setup(void)
     camera.position.vz = -1500; // Push the camera back further
     camera.lookat = (MATRIX){0};
 
-    char *buffer;
+    char *bytes;
     u_long length;
 
-    buffer = file_read("\\MODEL.BIN;1", &length);
-    printf("Read %lu bytes from MODEL.BIN (ptr %p)\n", length, buffer);
+    bytes = file_read("\\MODEL.BIN;1", &length);
+    printf("Read %lu bytes from MODEL.BIN (ptr %p)\n", length, bytes);
+
+    u_long b = 0; // Counter of bytes
+
+    object.numverts = get_short_be((u_char *) bytes, &b);
+    object.vertices = malloc3(object.numverts * sizeof(SVECTOR));
+    for(u_long i = 0; i < object.numverts; i++) {
+        object.vertices[i].vx = get_short_be((u_char *) bytes, &b);
+        object.vertices[i].vy = get_short_be((u_char *) bytes, &b);
+        object.vertices[i].vz = get_short_be((u_char *) bytes, &b);
+        printf("VERTEX %ld, X=%d, Y=%d, Z=%d\n",
+            i,
+            object.vertices[i].vx,
+            object.vertices[i].vy,
+            object.vertices[i].vz);
+    }
+
+    object.numfaces = get_short_be((u_char *) bytes, &b);
+    object.faces = malloc3(object.numfaces * 4 * sizeof(short));
+    for(u_long i = 0; i < object.numfaces * 4; i += 4) {
+        object.faces[i] = get_short_be((u_char *) bytes, &b);
+        object.faces[i + 1] = get_short_be((u_char *) bytes, &b);
+        object.faces[i + 2] = get_short_be((u_char *) bytes, &b);
+        object.faces[i + 3] = get_short_be((u_char *) bytes, &b);
+        printf("FACES %ld ~ %ld: %d, %d, %d, %d\n",
+            i, i + 3,
+            object.faces[i],
+            object.faces[i + 1],
+            object.faces[i + 2],
+            object.faces[i + 3]);
+    }
+
+    object.numcolors = (short) get_byte((u_char *) bytes, &b);
+    object.colors = malloc3(object.numcolors * sizeof(CVECTOR));
+    for(u_long i = 0; i < object.numcolors; i++) {
+        object.colors[i].r = get_byte((u_char *) bytes, &b);
+        object.colors[i].g = get_byte((u_char *) bytes, &b);
+        object.colors[i].b = get_byte((u_char *) bytes, &b);
+        object.colors[i].cd = get_byte((u_char *) bytes, &b);
+        printf("COLOR %ld: R=%d G=%d B=%d CD=%d\n",
+            i,
+            object.colors[i].r,
+            object.colors[i].g,
+            object.colors[i].b,
+            object.colors[i].cd);
+    }
+
+    free(bytes);
+
+    setVector(&object.position, 0, 0, 0);
+    setVector(&object.rotation, 0, 0, 0);
+    setVector(&object.scale, ONE, ONE, ONE);
 }
 
 void
 update(void)
 {
-    int i, nclip;
+    int nclip;
     long otz, p, flg;
 
     // Empty the ordering table
@@ -120,47 +134,45 @@ update(void)
         camera.position.vz += 50;
     }
 
-    // Look at cube
-    look_at(&camera, &camera.position, &cube.position, &(VECTOR){0, -ONE, 0});
+    // Look at object
+    look_at(&camera, &camera.position, &object.position, &(VECTOR){0, -ONE, 0});
 
-    /* Cube rendering with quads */
-    RotMatrix(&cube.rotation, &world);
-    TransMatrix(&world, &cube.position);
-    ScaleMatrix(&world, &cube.scale);
+    /* Object rendering */
+    RotMatrix(&object.rotation, &world);
+    TransMatrix(&world, &object.position);
+    ScaleMatrix(&world, &object.scale);
     CompMatrixLV(&camera.lookat, &world, &view);
     SetRotMatrix(&view);
     SetTransMatrix(&view);
 
-    for(i = 0; i < NUM_FACES * 4; i += 4) {
-        qpoly = (POLY_G4*)get_next_prim();
-        setPolyG4(qpoly);
-        setRGB0(qpoly, 255, 0, 255);
-        setRGB1(qpoly, 255, 255, 0);
-        setRGB2(qpoly, 0, 255, 255);
-        setRGB3(qpoly, 255, 255, 255);
+    for(int i = 0, j = 0; i < object.numfaces * 4; i += 4, j++) {
+        poly = (POLY_F4*)get_next_prim();
+        setPolyF4(poly);
+        setRGB0(poly, object.colors[j].r, object.colors[j].g, object.colors[j].b);
 
         // Inline GTE quad calls
-        gte_ldv0(&cube.vertices[cube.faces[i + 0]]);
-        gte_ldv0(&cube.vertices[cube.faces[i + 0]]);
-        gte_ldv1(&cube.vertices[cube.faces[i + 1]]);
-        gte_ldv2(&cube.vertices[cube.faces[i + 2]]);
+        gte_ldv0(&object.vertices[object.faces[i + 0]]);
+        gte_ldv1(&object.vertices[object.faces[i + 1]]);
+        gte_ldv2(&object.vertices[object.faces[i + 2]]);
         gte_rtpt();
         gte_nclip();
         gte_stopz(&nclip);
         if(nclip <= 0) continue;
-        gte_stsxy0(&qpoly->x0);
+        gte_stsxy0(&poly->x0);
 
-        gte_ldv0(&cube.vertices[cube.faces[i + 3]]);
+        gte_ldv0(&object.vertices[object.faces[i + 3]]);
         gte_rtps();
-        gte_stsxy3(&qpoly->x1, &qpoly->x2, &qpoly->x3);
+        gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
         gte_avsz4();
         gte_stotz(&otz);
 
         if((otz > 0) && (otz < OT_LEN)) {
-            addPrim(get_ot_at(get_curr_buffer(), otz), qpoly);
-            increment_next_prim(sizeof(POLY_G4));
+            addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+            increment_next_prim(sizeof(POLY_F4));
         }
     }
+
+    object.rotation.vy += 20;
 }
 
 void

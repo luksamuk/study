@@ -631,7 +631,400 @@ You should not be able to see any results of ~printf~ with the log window (Debug
 
 * Interpreting Bytes as Numbers
 
+Let's start by cleaning up our project.
+
+Comment out  anything related to rendering  our cube.  We won't  be needing that
+for now, but we will tweak that later.
+
+** ~object~ library
+
+Create two files: ~object.h~ and ~object.c~ (add it to the Makefile!).
+
+On ~object.h~, add the ~Object~ definition as provided before.
+
+Include ~object.h~ on ~main.c~ and declare a global variable:
+
+#+begin_src c
+Object object;
+#+end_src
+
+Now we're gonna start loading the data from ~MODEL.BIN~ into this object.
+
+** Reading bytes
+
+On ~setup~, let's tweak a little how we're reading our file:
+
+#+begin_src c
+char *bytes;
+u_long length;
+
+bytes = file_read("\\MODEL.BIN;1", &length);
+printf("Read %lu bytes from MODEL.BIN (ptr %p)\n", length, bytes);
+
+// << New code goes here >>
+
+free(bytes);
+#+end_src
+
+Now, let's think about what we want on the indicated comment above.
+
+We want to read and count a number of bytes as we read our byte buffer.
+
+Let's start by reading a single ~short~ from our buffer -- the first number, the
+number of vertices on this object.
+
+#+begin_src c
+u_long b = 0; // Counter of bytes
+object.numverts = get_short(bytes, &b);
+printf("NUM VERTS = %d\n", object.numverts);
+#+end_src
+
+** Defining ~get_short~
+
+~get_short~ is going to be a function of ~utils.h~. Let's define it there.
+
+#+begin_src c
+short
+get_short(u_char *bytes, u_long *b)
+{
+    unsigned short value = 0;
+    value |= bytes[(*b)++];
+    value |= bytes[(*b)++] << 8;
+    return (short) value;
+}
+#+end_src
+
+Notice that we're returning an unsigned cast  to signed short because we want to
+be able to read signed values.
+
+However, once we run our code, we will see that the console shows the following:
+
+#+begin_example
+NUM VERTS = 2048
+#+end_example
+
+So what is going on?
+
+** My two cents on the problem
+
+We're reading  a number on  *big endian* format  instead of *little  endian*. So
+we think we're reading ~0x0008~, but the PSX hardware is little endian, so these
+bytes are understood in the order ~0x0800~, which is equal to ~2048~.
+
 * Handling Different Order of Bytes
+
+The reason  that our number is  wrong is because  the file is being  provided in
+*big endian* format, while our hardware expects *little endian* format.
+
+Don't worry, this is  on purpose. We don't need a file  in little endian format;
+this knowledge will come in handy very soon.
+
+Let's split  our functions into  two: ~get_short_le~ and ~get_short_be~.  As the
+names suggest, one is  for _little endian_ (original one), and  the other is for
+_big endian_.
+
+#+begin_src c
+short
+get_short_le(u_char *bytes, u_long *b)
+{
+    unsigned short value = 0;
+    value |= bytes[(*b)++];
+    value |= bytes[(*b)++] << 8;
+    return (short) value;
+}
+
+short
+get_short_be(u_char *bytes, u_long *b)
+{
+    unsigned short value = 0;
+    value |= bytes[(*b)++] << 8;
+    value |= bytes[(*b)++];
+    return (short) value;
+}
+#+end_src
+
+** Adjusting our code
+
+On ~main.c~, let's ensure that we're reading using the _big endian_ format:
+
+#+begin_src c
+object.numverts = get_short_be(bytes, &b);
+#+end_src
+
+Now everything looks fine:
+
+#+begin_example
+NUM VERTS = 8
+#+end_example
+
+** Reading vertices
+
+Now that we  have what we need, we  can read the vertices of our  file and start
+storing them onto our object:
+
+#+begin_src c
+u_long b = 0; // Counter of bytes
+object.numverts = get_short_be((u_char *) bytes, &b);
+object.vertices = malloc3(object.numverts * sizeof(SVECTOR));
+for(u_long i = 0; i < object.numverts; i++) {
+    object.vertices[i].vx = get_short_be((u_char *) bytes, &b);
+    object.vertices[i].vy = get_short_be((u_char *) bytes, &b);
+    object.vertices[i].vz = get_short_be((u_char *) bytes, &b);
+    printf("VERTEX %ld, X=%d, Y=%d, Z=%d\n",
+           i,
+           object.vertices[i].vx,
+           object.vertices[i].vy,
+           object.vertices[i].vz);
+}
+#+end_src
+
+Everything looks pretty fine, including the signal:
+
+#+begin_example
+Read 125 bytes from MODEL.BIN (ptr 801fa6f8)
+VERTEX 0, X=-128, Y=-128, Z=-128
+VERTEX 1, X=128, Y=-128, Z=-128
+VERTEX 2, X=128, Y=-128, Z=128
+VERTEX 3, X=-128, Y=-128, Z=128
+VERTEX 4, X=-128, Y=128, Z=-128
+VERTEX 5, X=128, Y=128, Z=-128
+VERTEX 6, X=128, Y=128, Z=128
+VERTEX 7, X=-128, Y=128, Z=128
+#+end_example
+
+** Exercise: Read the face indices from the file
+
+Ok, let's try that.
+
+I recall from before  that the number of faces is a short  value, and then every
+face has four shorts.  So we'll be reading four shorts per face,  and we need to
+be careful how we're going to iterate there.
+
+#+begin_src c
+object.numfaces = get_short_be((u_char *) bytes, &b);
+object.faces = malloc3(object.numfaces * 4 * sizeof(short));
+#+end_src
+
+To iterate,  we'll be moving 4  by 4 elements and  getting a short for  each. We
+could also iterate on  ~4 * object.numfaces~, but nah, let's  make this a little
+more difficult.
+
+#+begin_src c
+for(u_long i = 0; i < object.numfaces * 4; i += 4) {
+    object.faces[i] = get_short_be((u_char *) bytes, &b);
+    object.faces[i + 1] = get_short_be((u_char *) bytes, &b);
+    object.faces[i + 2] = get_short_be((u_char *) bytes, &b);
+    object.faces[i + 3] = get_short_be((u_char *) bytes, &b);
+    printf("FACES %ld ~ %ld: %d, %d, %d, %d\n",
+           i, i + 3,
+           object.faces[i],
+           object.faces[i + 1],
+           object.faces[i + 2],
+           object.faces[i + 3]);
+}
+#+end_src
+
+Let's take a look...
+
+#+begin_example
+FACES 0 ~ 3: 3, 2, 0, 1
+FACES 4 ~ 7: 0, 1, 4, 5
+FACES 8 ~ 11: 4, 5, 7, 6
+FACES 12 ~ 15: 1, 2, 5, 6
+FACES 16 ~ 19: 2, 3, 6, 7
+FACES 20 ~ 23: 3, 0, 7, 4
+#+end_example
+
+Ok, on range 0 to 7... Looking good. I think that's it.
+
+** Exercise: Read the color values from the file
+
+So the  color vectors are  of type ~CVECTOR~, which  is composed of  four ~char~
+values.
+
+Each color component is composed of four bytes, read on the order ~R~, ~G~, ~B~,
+and a padding value.
+
+Let's start  by making a new  function on ~utils.h~ called  ~get_byte~. We won't
+need to account for endianness here, since bytes are not affected by it:
+
+#+begin_src c
+char
+get_byte(u_char *bytes, u_long *b)
+{
+    return (char) bytes[(*b)++];
+}
+#+end_src
+
+Now let's read the number of bytes and allocate the vectors:
+
+#+begin_src c
+object.numcolors = (short) get_byte((u_char *) bytes, &b);
+object.colors = malloc3(object.numcolors * sizeof(CVECTOR));
+#+end_src
+
+Notice  how I'm  casting  the  result of  ~get_byte~  there  because our  struct
+actually holds the number of colors as ~short~.
+
+Now all  we have to do  is iterate normally,  reading bytes (one per  each color
+component):
+
+#+begin_src c
+for(u_long i = 0; i < object.numcolors; i++) {
+    object.colors[i].r = get_byte((u_char *) bytes, &b);
+    object.colors[i].g = get_byte((u_char *) bytes, &b);
+    object.colors[i].b = get_byte((u_char *) bytes, &b);
+    object.colors[i].cd = get_byte((u_char *) bytes, &b);
+    printf("COLOR %ld: R=%d G=%d B=%d CD=%d\n",
+           i,
+           object.colors[i].r,
+           object.colors[i].g,
+           object.colors[i].b,
+           object.colors[i].cd);
+}
+#+end_src
+
+Let's see the result...
+
+#+begin_example
+COLOR 0: R=255 G=0 B=0 CD=0
+COLOR 1: R=0 G=255 B=0 CD=0
+COLOR 2: R=0 G=0 B=255 CD=0
+COLOR 3: R=255 G=0 B=255 CD=0
+COLOR 4: R=255 G=255 B=0 CD=0
+COLOR 5: R=0 G=255 B=255 CD=0
+#+end_example
+
+Perfect!
 
 * Reading Vertices & Faces from a File
 
+*IMPORTANT:* So, the only thing I need  to be aware of is that ~object.numfaces~
+ is not holding the number of faces * 4. So when iterating for rendering, I have
+ to remember that.
+
+** Util functions for reading long values
+ 
+Let's go ahead and create our ~long~ readers for big endian and little endian on
+~utils.h~:
+
+#+begin_src c
+long
+get_long_le(u_char *bytes, u_long *b)
+{
+    unsigned long value = 0;
+    value |= bytes[(*b)++];
+    value |= bytes[(*b)++] << 8;
+    value |= bytes[(*b)++] << 16;
+    value |= bytes[(*b)++] << 24;
+    return (long) value;
+}
+
+long
+get_long_be(u_char *bytes, u_long *b)
+{
+    unsigned long value = 0;
+    value |= bytes[(*b)++] << 24;
+    value |= bytes[(*b)++] << 16;
+    value |= bytes[(*b)++] << 8;
+    value |= bytes[(*b)++];
+    return (long) value;
+}
+#+end_src
+
+** Tweaking the object and rendering
+
+Let's tweak the Object definition a  little, adding again a position, a rotation
+and a scale to it.
+
+#+begin_src c
+typedef struct Object {
+    SVECTOR rotation;
+    VECTOR  position;
+    VECTOR  scale;
+
+    short numverts;
+    SVECTOR *vertices;
+
+    short numfaces;
+    short *faces;
+
+    short numcolors;
+    CVECTOR *colors;
+} Object;
+#+end_src
+
+Now let's uncomment our code for rendering. Tweak  it in any way you must, so we
+can use a flat shaded quad (~POLY_F4~) for each face:
+
+#+begin_src c
+POLY_F4 *poly;
+
+...
+
+// Look at object
+look_at(&camera, &camera.position, &object.position, &(VECTOR){0, -ONE, 0});
+
+/* Object rendering */
+RotMatrix(&object.rotation, &world);
+TransMatrix(&world, &object.position);
+ScaleMatrix(&world, &object.scale);
+CompMatrixLV(&camera.lookat, &world, &view);
+SetRotMatrix(&view);
+SetTransMatrix(&view);
+
+for(int i = 0, j = 0; i < object.numfaces * 4; i += 4, j++) {
+    poly = (POLY_F4*)get_next_prim();
+    setPolyF4(poly);
+    setRGB0(poly, object.colors[j].r, object.colors[j].g, object.colors[j].b);
+
+    // Inline GTE quad calls
+    gte_ldv0(&object.vertices[object.faces[i + 0]]);
+    gte_ldv0(&object.vertices[object.faces[i + 0]]);
+    gte_ldv1(&object.vertices[object.faces[i + 1]]);
+    gte_ldv2(&object.vertices[object.faces[i + 2]]);
+    gte_rtpt();
+    gte_nclip();
+    gte_stopz(&nclip);
+    if(nclip <= 0) continue;
+    gte_stsxy0(&poly->x0);
+
+    gte_ldv0(&object.vertices[object.faces[i + 3]]);
+    gte_rtps();
+    gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+    gte_avsz4();
+    gte_stotz(&otz);
+
+    if((otz > 0) && (otz < OT_LEN)) {
+        addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+        increment_next_prim(sizeof(POLY_F4));
+    }
+}
+#+end_src
+
+The only "weird"  thing here is how  we're declaring ~j~ to  increment little by
+little so we can have a proper index for our color that doesn't go up 4 by 4.
+
+Further, on ~setup~, let's use the macro ~setVector~ to initialize our position,
+rotation and scale:
+
+#+begin_src c
+setVector(&object.position, 0, 0, 0);
+setVector(&object.rotation, 0, 0, 0);
+setVector(&object.scale, ONE, ONE, ONE);
+#+end_src
+
+Let's also go back  to the end of ~update~ and add a  little rotation on Y axis,
+just to be cool:
+
+#+begin_src c
+object.rotation.vy += 20;
+#+end_src
+
+Everything should look fine now!
+
+[[file:img/hellocd-final.png]]
+
+Here is a video of it in action:
+
+[[file:img/hellocd-video.mp4]]
