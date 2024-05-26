@@ -12,7 +12,7 @@
     <license file="LCNSFILE/LICENSEE.DAT" />
     <directory_tree>
       <file name="SYSTEM.CNF" type="data" source="SYSTEM.TXT" />
-      <file name="MAIN.EXE" type="data" source="hellocd.ps-exe" />
+      <file name="MAIN.EXE" type="data" source="hellotexture.ps-exe" />
       <file name="MODEL.BIN" type="data" source="assets/model.bin" />
     </directory_tree>
   </track>

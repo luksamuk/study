@@ -167,6 +167,19 @@ Now all we have to do is read, load, and use that texture.
 
 * Read TIM File from the CD
 
+We're  going to  do something  now. For  ~hellotexture~, let's  create an  ~src~
+directory and move all ~.c~ and ~.h~ there.
+
+As for my Win11-based Makefile, I did this:
+
+#+begin_src makefile
+SRCS = \
+third_party/nugget/common/crt0/crt0.s \
+$(wildcard src/*.c)
+#+end_src
+
+
+
 * Textured Cube Faces
 
 * Wobbly Textures

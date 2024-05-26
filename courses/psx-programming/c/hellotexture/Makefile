@@ -1,15 +1,9 @@
-TARGET = hellocd
+TARGET = hellotexture
 TYPE = ps-exe
 
 SRCS = \
 third_party/nugget/common/crt0/crt0.s \
-globals.c \
-display.c \
-joypad.c \
-camera.c \
-utils.c \
-object.c \
-main.c
+$(wildcard src/*.c)
 
 CPPFLAGS += -Ithird_party/psyq-iwyu/include
 LDFLAGS += -Lthird_party/psyq/lib
