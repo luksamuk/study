@@ -1,0 +1,180 @@
+#+title: Textured Polygons
+#+startup: content
+
+* UV Coordinates, TPAGE, and CLUT
+
+When handling textures, we should have a UV coordinate for each vertex.
+
+UV coordinates are  the coordinates (X and  Y) on the texture that  maps to that
+particular vertex. The pixels inbetween are then interpolated by the GPU.
+
+- Textures are stored in VRAM alongside the display and the drawing buffers.
+- Once texture images  have been loaded into  VRAM, they can be  mapped and used
+  with a polygon primitive.
+- The traditional way of mapping textures into primitive vertices is by using UV
+  coordinates.
+- Besides  UV  coordinates,  the  PS1   also  uses  TPAGE  (texture  page)  CLUT
+  (color look-up table) information.
+
+For example,  for the  case of ~POLY_FT3~,  we will also  have the  fields ~u0~,
+~v0~; ~u1~, ~v1~; ~u2~, ~v2~; ~tpage~; ~clut~.
+
+** TPAGE
+
+TPAGE is a texture page.
+
+- The PS1  addresses VRAM in *pages*.  The VRAM is  divided into a grid  of 16x2
+  cells of 64x256 16-bit pixels each.
+- The actual texture page coordinates are  (X, Y), but with a 64x256 granularity
+  instead.
+- When we specify  the UV coordinates of  a primitive, *they will  be offsets of
+  the texture page boundary*.
+- Setting a  TPAGE serves as an  anchor point at which  textured primitives will
+  source texture data from a top-left ~(0, 0)~.
+
+** CLUT
+
+CLUT is a color look-up table.
+
+- The PS1 supports texture color depths of 4, 8, and 16 bits per pixel.
+- Because VRAM  addresses pixels in 16-bit  words, 8-bit and 4-bit  textures are
+  stored  at  $\tfrac{1}{2}$ and  $\tfrac{1}{4}$  of  the  actual width  of  the
+  texture. So imagine that, with the expense  of the amount of stored width, you
+  can have  more or less  VRAM usage (the lower  the depth, the  more compressed
+  it'll seem when viewing the VRAM).
+- 4-bit  and 8-bit  textures  usually  have a  companiont  *Color Look-up  Table
+  (CLUT)*.
+- A  CLUT is  a  *16x1* or  a  *256x1*  16-bit pixel  image  (that also  resides
+  somewhere in the VRAM).
+- In simple terms, the CLUT is basically a color palette of the texture.
+  
+* Installing TIM Tool
+
+So, about  the TIM  Tool, there are  the Programmer's Tools  which work  fine on
+Windows XP. I basically just opened my  Windows XP VM and installed it using the
+provided ISO.
+
+I also found [[https://github.com/alex-free/TIMedit][a fork of Lameguy64's TIMedit]] that compiles for Linux, and that may
+provide an  alternative to the TIM  Tool. It is  the best tool around  for Linux
+machines, and for Windows 11.
+
+Here's my script for running it with my PSX toolchain:
+
+#+begin_src bash
+#!/bin/bash
+exec docker run -it --rm \
+       -e DISPLAY=${DISPLAY} \
+       -v /tmp/.X11-unix:/tmp/.X11-unix \
+       -v ~/.Xauthority:/root/.Xauthority \
+       -v $(pwd):/source \
+       -w /source \
+       --net=host \
+       luksamuk/psxtoolchain:latest \
+       timedit
+#+end_src
+
+* TIM File Format
+
+- Textures are usually handled using the TIM file format.
+- We can use the  *TIM TOOL* executable from the Developer  Tools CD to generate
+  TIM files based on BMP, JPG, PNG, etc.
+- A TIM format is  a simple image format that stores not only  the pixels of the
+  image data, but *also* the image X, Y coordinates in VRAM and CLUT data.
+
+** Using TIM Tool
+
+On Framebuffer Options, set the Graphics  Mode to 320x240 NTSC (Framebuffer menu
+on TIMedit).
+
+The green area is the display buffer,  the yellow area is the draw buffer (light
+green and dark green on TIMedit).
+
+This area is the place where we're not going to upload any texture whatsoever.
+
+First of all, I'm going to copy ~hellocd~ to a ~hellotexture~ directory:
+
+#+begin_src bash
+cp -r hellocd hellotexture
+cd hellotexture/third_party/
+rm -rf nugger psyq-iwyu
+git submodule add https://github.com/pcsx-redux/nugget.git
+git submodule add https://github.com/johnbaumann/psyq_include_what_you_use.git psyq-iwyu/
+#+end_src
+
+** Converting the texture
+
+This isn't part of the course, but  I couldn't help but notice that the textures
+were not being imported like TIM Tool.  We couldn't use a 4-bit CLUT, also there
+would always be a trailing space of apparently transparent colors.
+
+So here's what I did to convert the provident .bmp brick image to a 16-bit color
+image that could behave like I needed.
+
+Here's what you're going to need:
+
+- GIMP, latest version possible (~gimp~ package on Arch Linux);
+- [[https://www.gmic.eu/][G'Mic]] (~gmic~ package on Arch Linux);
+- G'Mic plugin for GIMP (~gimp-plugin-gmic~ on Arch Linux).
+
+After installation, here's what I did:
+
+1. Open the target image normally on GIMP.
+
+[[file:img/timedit01.png]]
+
+2. Go  to the  menu Filters >  G'Mic-Qt. It'll  open a new  window to  the G'Mic
+   plugin. On Available  Filters, find Colors > Colormap.  Select "Adaptive" and
+   lower the number of tones to 16.
+
+[[file:img/timedit02.png]]
+
+3. Click "Apply" and  then "Ok". You should be able to view  your image with the
+   applied filter on the preview, and after applying, on the main GIMP canvas as
+   well. Now  go to GIMP's  File > Export  as... and save  your image as  a .gif
+   file (*ensure you remove the interlacing and comments on the next dialogue*).
+
+[[file:img/timedit03.png]]
+
+4. Now go back to TIMedit. Go to File > Import image... and find your .gif image
+   normally.
+
+[[file:img/timedit04.png]]
+
+5. When importing, ensure you set the  Target Bpp to 4, and this should generate
+   a proper CLUT for our image.
+
+[[file:img/timedit05.png]]
+
+6. You should  now be able to manipulate  and put a proper texture  and its CLUT
+   into a single TPAGE.
+
+[[file:img/timedit06.png]]
+
+** Importing the texture
+
+Now,  on ~assets~,  I left  the  ~brick.gif~ image  that we're  going to  import
+instead of the original brick texture.
+
+Import  this image  (if using  TIMedit, setting  the target  bpp to  4-bit depth
+should be  fine for this  example). Move  it to the  texture page on  the upmost
+right,  close   to  the  display   buffer.  The   image  offset  should   be  in
+320x0. Position the CLUT at 320x82 like the course video.
+
+On TIM Tool,  go to TIM Options >  Save Modified TIM's (or save  the project and
+save the TIM's on TIMedit). Ensure it is named ~bricks.tim~.
+
+Now all we have to do is read, load, and use that texture.
+
+* Read TIM File from the CD
+
+* Textured Cube Faces
+
+* Wobbly Textures
+
+* Polygon Jitter
+
+* TPAGE Limitations and Techniques
+
+* Dev Tools CD Samples
+
+ 

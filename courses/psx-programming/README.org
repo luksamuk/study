@@ -25,7 +25,8 @@ These are my notes for the PlayStation development course.
 18. [[file:18-linking-multiple-files.org][Linking Multiple Files]]
 19. [[file:19-camera-transformation.org][Camera Transformation]]
 20. [[file:20-cd-rom-access.org][CD-ROM Access]]
-    
+21. [[./21-textured-polygons.org][Textured Polygons]]
+
 * Extra documents
 
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]

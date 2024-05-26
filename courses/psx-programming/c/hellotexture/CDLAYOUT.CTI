@@ -1,0 +1,52 @@
+Define GameName "Game"
+Define GameDir .
+
+Disc CDROMXA_PSX
+  CatalogNumber 0000000000000
+
+  Leadin XA
+    Empty 300
+    PostGap 150
+  EndTrack
+
+  Track XA
+    Pause 150
+    Volume ISO9660
+      SystemArea .\LCNSFILE\LICENSEE.DAT
+
+      PrimaryVolume
+        SystemIdentifier "PLAYSTATION"
+        VolumeIdentifier [GameName]
+        VolumeSetIdentifier [GameName]
+        PublisherIdentifier "SCEE"
+        DataPreparerIdentifier "SONY"
+        ApplicationIdentifier "PLAYSTATION"
+        LPath
+        OptionalLpath
+        MPath
+        OptionalMpath
+
+        Hierarchy
+          XAFileAttributes  Form1 Audio
+          XAVideoAttributes ApplicationSpecific
+          XAAudioAttributes ADPCM_C Stereo
+
+          File SYSTEM.CNF
+            XAFileAttributes Form1 Data
+            Source [GameDir]\SYSTEM.TXT
+          EndFile
+
+          File MAIN.EXE
+            XAFileAttributes Form1 Data
+            Source [GameDir]\MAIN.EXE
+          EndFile
+
+          File MODEL.BIN
+            XAFileAttributes Form1 Data
+            Source [GameDir]\assets\MODEL.BIN
+          EndFile
+        EndHierarchy
+      EndPrimaryVolume
+    EndVolume
+  EndTrack
+EndDisk
