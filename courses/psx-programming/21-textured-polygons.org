@@ -275,12 +275,159 @@ So now we have our image and its CLUT on the VRAM! But it looks a bit weird...
 
 * Textured Cube Faces
 
+Let's start texturing our cube.
+
+First off, go to  the face rendering routine. on ~setRGB0~,  set a neutral color
+(not too  bright, not too dark),  such as ~(128,  128, 128)~. As for  the object
+colors, ignore them.
+
+So our texture is 64x64 and we always think of its origin as the top left corner
+(Y grows  downwards, as always).  We could use  the function ~setUV4~  here, but
+instead, let's set the values directly. Remember that we're doing a zigzag here,
+much like a Z:
+
+#+begin_src c
+poly->u0 = 0;   poly->v0 = 0;
+poly->u1 = 63;  poly->v1 = 0;
+poly->u2 = 0;   poly->v2 = 63;
+poly->u3 = 63;  poly->v3 = 63;
+#+end_src
+
+Now we have to specify the TPAGE and the CLUT for this face.
+
+For that --  and for now -- let's  store the rectangles for the  texture and the
+CLUT on some global variables.
+
+#+begin_src c
+u_long timmode;  // Pixel mode of the TIM
+RECT   timprect; // Rectangle of texture
+RECT   timcrect; // Rectangle of texture CLUT
+#+end_src
+
+Now  go  back  to  ~load_texture~  and,  before  freeing  the  bytes,  save  the
+information:
+
+#+begin_src c
+timmode = tim.mode;
+timprect = *tim.prect;
+timcrect = *tim.crect;
+#+end_src
+
+So now, going  back to our drawing  routine, we can use the  ~getTPage~ macro to
+calculate the TPAGE for our rect.
+
+~getTPage~ requires four parameters:
+
+- ~tp~: The color depth of our TPAGE. (0: 4 bits, 1: 8 bits, 2: 16 bits);
+- ~abr~: Blend operator (for semitransparent primitives. We can pass 0 for now).
+- ~x~, ~y~: Coordinates of our texture in VRAM.
+
+We're also going to  be smart and take our color depth directly  from our TIM by
+AND'ing it with ~0x3~.
+
+#+begin_src c
+poly->tpage = getTPage(timmode & 0x3, 0, timprect.x, timprect.y);
+#+end_src
+
+As for the CLUT...  let's use the ~getClut~ macro. In this case,  all we need to
+do is pass the coordinates of our CLUT in VRAM.
+
+#+begin_src c
+poly->clut = getClut(timcrect.x, timcrect.y);
+#+end_src
+
+Now everything seems nice!...
+
+[[file:img/hellotexture02.png]]
+
+...but  if you  actually see  this running,  you'll notice  that the  texture is
+wobbling.
+
+Texture wobbling  and polygon  jittering are  two very  common artifacts  on the
+PlayStation.
+
 * Wobbly Textures
+
+So,  when we  have a  perspective  projection, we  can  map our  texture to  our
+resulting (2D) triangles  in two ways: with *affine* texture  mapping, or with a
+*perspective-correct* texture mapping.
+
+The *affine* mapping  creates a sort of distortion, almost  like a "zigzag"-line
+pattern  at the  center  of a  quad,  showing almost  explicitly  where the  two
+triangles meet. That's not what we would expect in a perspective-correct texture
+mapping.
+
+As said  earlier, the PS1 has  a 2D GPU, that  doesn't know the concept  of a 3D
+world space; it only knows of X and Y coordinates. So a way of thinking is that,
+when we see a  quad with one of its parts at a  bigger depth than other (further
+away), the GPU only  "sees" two flat 2D triangles on the screen  that need to be
+filled with pixels sampled from a flat texture -- in other words, the GPU has no
+idea  of  depth.  This is  what  an  *affine*  mapping  is --  a  simple  linear
+interpolation for sampling texture parts, with no accounting of depth.
+
+To solve  this problem, we  would have  to use the  original Z component  of our
+vertices,  or  more exactly,  $\dfrac{1}{z}$.  But  we  can't  solve it  on  the
+PlayStation because  this relates to how  the GPU works, and  it's not something
+that  can  be solved  via  software,  since we  can't  retroactively  use the  Z
+coordinate for our vertices again, since they'll be 2D by then:
+
+#+begin_src c
+gte_ldv0(&object.vertices[object.faces[i + 0]]);
+gte_ldv1(&object.vertices[object.faces[i + 1]]);
+gte_ldv2(&object.vertices[object.faces[i + 2]]);
+gte_rtpt();
+gte_nclip();
+gte_stopz(&nclip);
+if(nclip <= 0) continue;
+// At this point, we don't have access to Z anymore!
+// Our points are now composed of X and Y coordinates only.
+// Without a properly calculated Z here, we can't fix X and Y.
+gte_stsxy0(&poly->x0);
+gte_ldv0(&object.vertices[object.faces[i + 3]]);
+gte_rtps();
+// ...same problem here!
+gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+#+end_src
+
+In theory,  we could  reduce the  wobbliness by using  smaller triangles  on our
+scene. Then  they would be much  less visible. So we  could tesselate (subdivide
+our primitives into smaller ones) to make our games look good.
 
 * Polygon Jitter
 
+The other  common artifact on PlayStation  is polygon jittering, which  does not
+relate to textures. It is related to how the GPU rasterizes primitives.
+
+- Another  very popular  graphical  artifact of  PlayStation  games is  *polygon
+  jittering*.
+- The PlayStation GPU does *not* have *sub-pixel rasterization*.
+- Screen coordinates  are rounded up or  down to *integer* values  and *snap* to
+  the pixel grid.
+
+Besides  not  having  an  FPU,   the  PlayStation  GTE  outputs  integer  screen
+coordinates to the GPU.
+
 * TPAGE Limitations and Techniques
+
+- While the width of  4-bit and 8-bit textures on VRAM varies  from the width of
+  the actual  image, the  UV coordinates do  *not* need to  be adjusted  and are
+  always the absolute value  in pixels, as long as we  specify the correct color
+  depth in  the texture page. That's  why we still used  coordinates ranged 0-63
+  even though our texture had a 4-bit color depth.
+- Since UV  coordinates are  of type  ~u_char~ (1 byte  / 8  bits), we  can only
+  specify coordinates on  range 0-255, so it is *not  possible* to draw textures
+  larger than  256x256, regardless of  color depth. To  do that, we  *must* draw
+  multiple primitives until they fill the area of the larger image.
 
 * Dev Tools CD Samples
 
- 
+The developer tools CD is full of cool samples.
+
+Go look at them.
+
+There is a folder ~C:\PS\psx\sample~. There are numerous interesting samples for
+things that we didn't look into here (such as lighting, etc).
+
+Seriously.  Go look  at it.  You'll need  the toolchain  properly configured  on
+Windows XP to do so, but that can be easily arranged.
+

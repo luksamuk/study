@@ -23,6 +23,10 @@ MATRIX  view  = {0};
 
 POLY_FT4 *poly;
 
+u_long timmode;  // Pixel mode of the TIM
+RECT   timprect; // Rectangle of texture
+RECT   timcrect; // Rectangle of texture CLUT
+
 void
 load_model(char *filename)
 {
@@ -100,6 +104,10 @@ load_texture(char *filename)
         LoadImage(tim.crect, tim.caddr);
         DrawSync(0);
     }
+
+    timmode = tim.mode;
+    timprect = *tim.prect;
+    timcrect = *tim.crect;
 
     free(bytes);
 }
@@ -179,7 +187,15 @@ update(void)
     for(int i = 0, j = 0; i < object.numfaces * 4; i += 4, j++) {
         poly = (POLY_FT4*)get_next_prim();
         setPolyFT4(poly);
-        setRGB0(poly, object.colors[j].r, object.colors[j].g, object.colors[j].b);
+        setRGB0(poly, 128, 128, 128);
+
+        poly->u0 = 0;   poly->v0 = 0;
+        poly->u1 = 63;  poly->v1 = 0;
+        poly->u2 = 0;   poly->v2 = 63;
+        poly->u3 = 63;  poly->v3 = 63;
+
+        poly->tpage = getTPage(timmode & 0x3, 0, timprect.x, timprect.y);
+        poly->clut = getClut(timcrect.x, timcrect.y);
 
         // Inline GTE quad calls
         gte_ldv0(&object.vertices[object.faces[i + 0]]);

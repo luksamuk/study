@@ -21,7 +21,6 @@
       "autorun": [
         "monitor reset shellhalt",
         "load ${workspaceRootFolderName}.elf",
-        "tbreak main",
         "continue"
       ]
     }
