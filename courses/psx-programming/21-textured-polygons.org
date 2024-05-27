@@ -178,7 +178,100 @@ third_party/nugget/common/crt0/crt0.s \
 $(wildcard src/*.c)
 #+end_src
 
+** Editing the CDLAYOUT
 
+Add the texture to the CDLAYOUT:
+
+#+begin_src conf
+File BRICKS.TIM
+  XAFileAttributes Form1 Data
+  Source [GameDir]\assets\BRICK.TIM
+EndFile
+#+end_src
+
+Or, in modern toolchain...
+
+#+begin_src xml
+<file name="BRICKS.TIM" type="data" source="assets/brick.tim" />
+#+end_src
+
+** Editing ~main.c~
+
+Let's now tweak our program.
+
+First of  all, instead of using  ~POLY_F4~, let's use ~POLY_FT4~  (flat textured
+quad).  A simple  replace on  the whole  file should  suffice. Also  remember to
+replace the  variable name to  ~polyft4~. Also  remember to change  the function
+~setPolyF4~ to ~setPolyFT4~.
+
+Now, take  all the code for  loading our model and  put it on a  function called
+~load_model~, which takes a string as an argument.
+
+We  will  also want  to  create  a function  ~load_texture~  which  will load  a
+texture. Let's do some wishful thinking. Add the following on ~setup~:
+
+#+begin_src c
+load_texture("\\BRICKS.TIM;1");
+#+end_src
+
+So, ~load_texture~ should be similar to ~load_model~ because we would still have
+to read the file bytes.
+
+The TIM file  is actually chunks of 32  bits, so we won't have to  read byte per
+byte. So we need to have our bytes as a ~u_long~ pointer:
+
+#+begin_src c
+void
+load_texture(char *filename)
+{
+    u_long *bytes;
+    u_long length;
+
+    bytes = (u_long *)file_read(filename, &length);
+    printf("Read %lu bytes from %s (ptr %p)\n", length, filename, bytes);
+
+    // ...rest of the code goes here...
+
+    free(bytes);
+}
+#+end_src
+
+What we need to  do now is use the function ~OpenTIM~  from ~libgpu.h~, and then
+use  ~ReadTIM~ to  read the  file. And  then hold  information on  a ~TIM_IMAGE~
+struct.
+
+#+begin_src c
+// Among variables...
+TIM_IMAGE tim;
+
+// After reading bytes...
+OpenTIM(bytes);
+ReadTIM(&tim);
+#+end_src
+
+Next, we  need to load  the actual image  into our VRAM.  For that, we  send the
+destination rect on FrameBuffer  and the pointer to the image  data. Then we use
+~DrawSync~ to wait for the image copy process to finish.
+
+#+begin_src c
+LoadImage(tim.prect, tim.paddr);
+DrawSync(0);
+#+end_src
+
+We also need to ask  to copy the CLUT into VRAM -- but only  if we really have a
+CLUT to copy. We just  need to test if the 4th bit of  ~tim.mode~ is ~1~ to know
+that.
+
+#+begin_src c
+if(tim.mode & 0x8) {
+    LoadImage(tim.crect, tim.caddr);
+    DrawSync(0);
+}
+#+end_src
+
+So now we have our image and its CLUT on the VRAM! But it looks a bit weird...
+
+[[file:img/hellotexture01.png]]
 
 * Textured Cube Faces
 

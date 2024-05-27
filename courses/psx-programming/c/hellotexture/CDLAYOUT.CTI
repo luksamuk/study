@@ -45,6 +45,11 @@ Disc CDROMXA_PSX
             XAFileAttributes Form1 Data
             Source [GameDir]\assets\MODEL.BIN
           EndFile
+
+          File BRICKS.TIM
+            XAFileAttributes Form1 Data
+            Source [GameDir]\assets\BRICK.TIM
+          EndFile
         EndHierarchy
       EndPrimaryVolume
     EndVolume

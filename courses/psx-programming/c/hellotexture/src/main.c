@@ -21,31 +21,16 @@ Object object;
 MATRIX  world = {0};
 MATRIX  view  = {0};
 
-POLY_F4 *poly;
+POLY_FT4 *poly;
 
 void
-setup(void)
+load_model(char *filename)
 {
-    // Stack and heap initialization
-    InitHeap3((unsigned long *) (&__heap_start), (&__sp - 0x5000) - &__heap_start);
-
-    screen_init();
-    joypad_init();
-    CdInit();
-
-    // Reset next primitive pointer to the start of the primitive buffer
-    reset_next_prim(get_curr_buffer());
-
-    camera.position.vx = 500;
-    camera.position.vy = -1000; // Y grows down
-    camera.position.vz = -1500; // Push the camera back further
-    camera.lookat = (MATRIX){0};
-
     char *bytes;
     u_long length;
 
-    bytes = file_read("\\MODEL.BIN;1", &length);
-    printf("Read %lu bytes from MODEL.BIN (ptr %p)\n", length, bytes);
+    bytes = file_read(filename, &length);
+    printf("Read %lu bytes from %s (ptr %p)\n", length, filename, bytes);
 
     u_long b = 0; // Counter of bytes
 
@@ -93,10 +78,56 @@ setup(void)
     }
 
     free(bytes);
+}
+
+void
+load_texture(char *filename)
+{
+    u_long *bytes;
+    u_long length;
+    TIM_IMAGE tim;
+
+    bytes = (u_long *)file_read(filename, &length);
+    printf("Read %lu bytes from %s (ptr %p)\n", length, filename, bytes);
+
+    OpenTIM(bytes);
+    ReadTIM(&tim);
+
+    LoadImage(tim.prect, tim.paddr);
+    DrawSync(0);
+
+    if(tim.mode & 0x8) {
+        LoadImage(tim.crect, tim.caddr);
+        DrawSync(0);
+    }
+
+    free(bytes);
+}
+
+void
+setup(void)
+{
+    // Stack and heap initialization
+    InitHeap3((unsigned long *) (&__heap_start), (&__sp - 0x5000) - &__heap_start);
+
+    screen_init();
+    joypad_init();
+    CdInit();
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    reset_next_prim(get_curr_buffer());
+
+    camera.position.vx = 500;
+    camera.position.vy = -1000; // Y grows down
+    camera.position.vz = -1500; // Push the camera back further
+    camera.lookat = (MATRIX){0};
 
     setVector(&object.position, 0, 0, 0);
     setVector(&object.rotation, 0, 0, 0);
     setVector(&object.scale, ONE, ONE, ONE);
+
+    load_model("\\MODEL.BIN;1");
+    load_texture("\\BRICKS.TIM;1");
 }
 
 void
@@ -146,8 +177,8 @@ update(void)
     SetTransMatrix(&view);
 
     for(int i = 0, j = 0; i < object.numfaces * 4; i += 4, j++) {
-        poly = (POLY_F4*)get_next_prim();
-        setPolyF4(poly);
+        poly = (POLY_FT4*)get_next_prim();
+        setPolyFT4(poly);
         setRGB0(poly, object.colors[j].r, object.colors[j].g, object.colors[j].b);
 
         // Inline GTE quad calls
@@ -168,7 +199,7 @@ update(void)
 
         if((otz > 0) && (otz < OT_LEN)) {
             addPrim(get_ot_at(get_curr_buffer(), otz), poly);
-            increment_next_prim(sizeof(POLY_F4));
+            increment_next_prim(sizeof(POLY_FT4));
         }
     }
 
