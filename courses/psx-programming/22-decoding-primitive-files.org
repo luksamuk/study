@@ -1,0 +1,38 @@
+#+title: Decoding Primitive Files
+#+startup: content
+
+* Intro to our Final Project
+
+Let's tackle something bigger.
+
+We're gonna reuse assets from the game Wipeout.
+
+The Wipeout CD-ROM has several tracks, plus the directories ~COMMON~ and ~SFX~.
+
+Inside ~COMMON~, we're going to find the files ~ALLSH.PRM~ and ~ALLSH.CMP~.
+
+~ALLSH.PRM~ is  a binary file containing  the *primitives for all  ships*. So it
+contains vertices, face  indices, triangles, quads, colors, UV  coords, CLUT and
+TPAGE info, etc.
+
+We'll begin by analyzing the structure of this file and then we can move forward
+from there.
+
+* Importing Project Assets
+
+* PRM File Layout
+
+* Reading Object Name from PRM File
+
+* Reading Vertices from PRM File
+
+* Handling Different Primitive Types
+
+* Reading Primitives from PRM File
+
+* Drawing Flat-Shaded Object Faces
+
+* Using sizeof with Variable Name
+
+* Reverse Engineering Wipeout Files
+

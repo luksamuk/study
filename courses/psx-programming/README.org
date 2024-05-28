@@ -4,6 +4,13 @@ These are my notes for the PlayStation development course.
 
 * Chapters
 
+** Introduction
+
+0. Introduction
+0. History & Early Years
+
+** MIPS, Assembly, and the PlayStation
+
 1. [[./01-hardware.org][Hardware]]
 2. [[./02-mips-assembly.org][MIPS Assembly]]
 3. [[./03-mips-pipeline.org][MIPS Pipeline]]
@@ -27,6 +34,21 @@ These are my notes for the PlayStation development course.
 20. [[file:20-cd-rom-access.org][CD-ROM Access]]
 21. [[./21-textured-polygons.org][Textured Polygons]]
 
+** Final Project
+
+22. [[./22-decoding-primitive-files.org][Decoding Primitive Files]]
+23. Decoding Texture Files
+24. Multiple 3D Models
+25. Loading Landscape Objects
+26. Loading Track Faces
+27. Loading Track Texture
+28. Polygon Subdivision
+29. Movement & Physics
+30. Refactoring Track Visibility
+31. Audio
+32. Running on Real Hardware
+33. Conclusion & Next Steps
+    
 * Extra documents
 
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
