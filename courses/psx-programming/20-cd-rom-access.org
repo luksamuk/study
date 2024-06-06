@@ -566,6 +566,44 @@ So we have:
 00000070: 00ff 00ff 00ff ff00 0000 ffff 00
 #+end_example
 
+We could also use a hex editor  (I recommend [[https://imhex.werwolv.net/][ImHex]]) to watch this layout. Here's
+the code for the Pattern Editor:
+
+#+begin_src c
+struct SVECTOR {
+    be u16 vx;
+    be u16 vy;
+    be u16 vz;
+};
+
+struct QuadFaces {
+    be u16 a;
+    be u16 b;
+    be u16 c;
+    be u16 d;
+};
+
+struct Color {
+    u8 r;
+    u8 g;
+    u8 b;
+    padding[1];
+};
+
+struct Layout {
+    be u16 numverts;
+    SVECTOR vertices[numverts];
+    be u16 numfaces;
+    QuadFaces faces[numfaces];
+    u8 numcolors;
+    Color colors[numcolors];
+};
+
+Layout layout @ 0x0;
+#+end_src
+
+[[file:img/imhex000.png]]
+
 * Dynamically Allocating Buffers
 
 First things first, remove the floor, the cube movement and its collision. Let's
