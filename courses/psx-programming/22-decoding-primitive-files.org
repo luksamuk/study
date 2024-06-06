@@ -20,7 +20,167 @@ from there.
 
 * Importing Project Assets
 
+So, hmm, this project is going to reuse a lot of assets from Wipeout, so I'm not
+gonna share it here. :)
+
+I just created a  ~wipefaux~ project somewhere else. I'll try  to be thorough on
+my explanations so it remains reproducible from my notes.
+
+I  copied  most  files  to  it  (~CDLAYOUT.{XML;CTI}~,  build  scripts,  license
+files...)
+
+Plus,  there is  only a  vanilla project  now. Not  rendering anything.  And our
+~Object~ struct still remains to be rewritten.
+
 * PRM File Layout
+
+** Understanding the layout of ~ALLSH.PRM~
+
+~ALLSH.PRM~ contains the primitive data of all ships, as the name suggests.
+
+Let's take a look at the file using  a hex editor (I recommend [[https://imhex.werwolv.net/][ImHex]], just so we
+match PCSX-Redux which makes extensible use of dear imgui).
+
+Here's the  file layout  for ImHex's Pattern  Editor. I also  used [[https://github.com/phoboslab/wipeout/blob/master/wipeout.js][this  link]] as
+reference for missing fields that were not described on the video.
+
+#+begin_src c
+#include <std/io.pat>
+#include <std/mem.pat>
+#include <type/color.pat>
+
+struct SVECTOR {
+    be s16 vx;
+    be s16 vy;
+    be s16 vz;
+    padding[2];
+};
+
+struct CVECTOR {
+    le type::RGB8 rgb;
+    u8 code;
+};
+
+struct TVECTOR {
+    u8 u;
+    u8 v;
+};
+
+struct VECTOR {
+    be s32 vx;
+    be s32 vy;
+    be s32 vz;
+};
+
+struct Header {
+    char name[15];
+    padding[1];
+    be u16 numverts;
+    padding[6];
+    be u16 numnormals;
+    padding[6];
+    be u16 numprimitives;
+    padding[20];
+    be u16 index1;
+    be u16 flags;
+    padding[26];
+    VECTOR origin;
+    padding[20];
+    VECTOR position;
+    padding[16];
+};
+
+enum PrimitiveType: u16 {
+    Unknown = 0x00,
+    F3      = 0x01,
+    FT3     = 0x02,
+    F4      = 0x03,
+    FT4     = 0x04,
+    G3      = 0x05,
+    GT3     = 0x06,
+    G4      = 0x07,
+    GT4     = 0x08,
+    SpriteTopAnchor = 0x0A,
+    SpriteBottomAnchor = 0x0B,
+};
+
+
+struct Primitive {
+    be PrimitiveType type;
+    be u16 flag;
+    
+    if(type == PrimitiveType::F3) {
+        be u16 coords[3];
+        padding[2];
+        CVECTOR color;
+    } else if(type == PrimitiveType::F4) {
+        be u16 coords[4];
+        CVECTOR color;
+    } else if(type == PrimitiveType::FT3) {
+        be u16 coords[3];
+        be u16 texture;
+        be u16 clut;
+        be u16 tpage;
+        TVECTOR uv[3];
+        padding[2];
+        CVECTOR color;
+    } else if(type == PrimitiveType::FT4) {
+        be u16 coords[4];
+        be u16 texture;
+        be u16 clut;
+        be u16 tpage;
+        TVECTOR uv[4];
+        padding[2];
+        CVECTOR color;
+    }else if(type == PrimitiveType::G3) {
+        be u16 coords[3];
+        padding[2];
+        CVECTOR colors[3];
+    } else if(type == PrimitiveType::GT3) {
+        be u16 coords[3];
+        be u16 texture;
+        be u16 clut;
+        be u16 tpage;
+        TVECTOR uv[3];
+        padding[2];
+        CVECTOR colors[3];
+    } else if(type == PrimitiveType::G4) {
+        be u16 coords[4];
+        CVECTOR colors[4];
+    } else if(type == PrimitiveType::GT4) {
+        be u16 coords[4];
+        be u16 texture;
+        be u16 clut;
+        be u16 tpage;
+        TVECTOR uv[4];
+        padding[2];
+        CVECTOR colors[4];
+    } else if(type == PrimitiveType::SpriteTopAnchor || type == PrimitiveType::SpriteBottomAnchor) {
+        be u16 index;
+        be u16 width;
+        be u16 height;
+        be u16 texture;
+        be u16 color;
+    } else {
+        std::error(std::format("Undefined polygon type: {}\n", type));
+    }
+};
+
+struct Object {
+    Header header;
+    SVECTOR vertices[header.numverts];
+    SVECTOR normals[header.numnormals];
+    Primitive primitives[header.numprimitives];
+};
+
+Object objs[while(!std::mem::eof())] @ 0x0;
+#+end_src
+
+[[file:img/imhex001.png]]
+
+One important thing to notice is that, even though we are marking a lot of bytes
+as padding (unused),  it doesn't mean that there isn't  relevant stuff there. It
+just means that these fields will not be used.
 
 * Reading Object Name from PRM File
 
