@@ -184,6 +184,305 @@ just means that these fields will not be used.
 
 * Reading Object Name from PRM File
 
+Let's start by adding the ~ALLSH.PRM~ file to the CD.
+
+On ~CDLAYOUT.CTI~:
+
+#+begin_src txt
+          File ALLSH.PRM
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\COMMON\ALLSH.PRM
+          EndFile
+#+end_src
+
+...or on ~CDLAYOUT.xml~:
+
+#+begin_src xml
+      <file name="ALLSH.PRM" type="data" source="ASSETS/COMMON/ALLSH.PRM" />
+#+end_src
+
+Now let's go to ~object.h~ and define our object.
+
+#+begin_src c
+#include <sys/types.h>
+#include <libgpu.h>
+
+typedef struct Object {
+    char name[16];
+    short flags;
+    VECTOR origin;
+    short numvertices;
+    SVECTOR *vertices;
+    short numnormals;
+    SVECTOR *normals;
+    //short numprimitives;
+    //Primitive *primitives;
+    SVECTOR rotation;
+    VECTOR position;
+    VECTOR scale;
+} Object;
+#+end_src
+
+The  ~flags~ dictate  how objects  should be  displayed. Plus,  we're commenting
+primitive data  because we still haven't  defined them, so we  won't worry about
+them right now.
+
+Now on  ~main.c~, on  the ~setup~  function, call  a hypotetical  function which
+loads our file:
+
+#+begin_src c
+load_object_prm(&object, "\\ALLSH.PRM;1");
+#+end_src
+
+Declare the prototype  on ~object.h~, then let's start writing  that function on
+~object.c~.
+
+#+begin_src c
+#include "object.h"
+#include "utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+void
+load_object_prm(Object *object, char *filename)
+{
+    u_char *bytes;
+    u_long b;
+    u_long length;
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+
+    for(int i = 0; i < 16; i++) {
+        object->name[i] = get_char(bytes, &b);
+    }
+    printf("Loading object: %s\n", object->name);
+
+    // TODO
+
+    free3(bytes);
+}
+#+end_src
+
+We should now be able to see the first ship's name (~sophia~) on the console.
+
+** Exercise: Loading the rest of the stuff
+
+Ok,  here goes.  I've already  explored the  layout of  the bytes  through ImHex
+before watching the video, so let's do this.
+
+First things first... we know that the file is in big endian, so it shouldn't be
+a problem.
+
+I ended up  not taking a few shortcuts  (for example, I could manage  to read an
+entire ~VECTOR~ or ~SVECTOR~ at once since  the layouts match and it was all big
+endian), but I took the course's approach and just read each component (X, Y, Z)
+one by one.
+
+Here's the full function, with a lot of printf's for debugging:
+
+#+begin_src c
+void
+load_object_prm(Object *object, char *filename)
+{
+    u_char *bytes;
+    u_long b;
+    u_long length;
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+
+    for(int i = 0; i < 16; i++) {
+        object->name[i] = get_byte(bytes, &b);
+    }
+    printf("Loading object: %s\n", object->name);
+
+    object->numvertices = get_short_be(bytes, &b);
+    b += 6 * sizeof(u_char);
+    printf("Vertices: %d\n", object->numvertices);
+
+    object->numnormals = get_short_be(bytes, &b);
+    b += 6 * sizeof(u_char);
+    printf("Normals: %d\n", object->numnormals);
+
+    object->numprimitives = get_short_be(bytes, &b);
+    b += 20 * sizeof(u_char);
+    printf("Primitives: %d\n", object->numprimitives);
+    b += sizeof(u_short); // Read index1
+
+    object->flags = get_short_be(bytes, &b);
+    b += 26 * sizeof(u_char);
+    printf("Flags: %x\n", object->flags);
+
+    object->origin.vx = get_long_be(bytes, &b);
+    object->origin.vy = get_long_be(bytes, &b);
+    object->origin.vz = get_long_be(bytes, &b);
+    printf("Origin: %ld %ld %ld\n", object->origin.vx, object->origin.vy, object->origin.vz);
+    b += 20 * sizeof(u_char);
+    b += 3 * sizeof(long); // read position
+    b += 16 * sizeof(u_char);
+
+    object->vertices = malloc3(object->numvertices * sizeof(SVECTOR));
+    for(short i = 0; i < object->numvertices; i++) {
+        object->vertices[i].vx = get_short_be(bytes, &b);
+        object->vertices[i].vy = get_short_be(bytes, &b);
+        object->vertices[i].vz = get_short_be(bytes, &b);
+        b += sizeof(u_short);
+        printf("Vertex %d: %d %d %d\n", i, object->vertices[i].vx, object->vertices[i].vy, object->vertices[i].vz);
+    }
+
+    object->normals = malloc3(object->numnormals * sizeof(SVECTOR));
+    for(short i = 0; i < object->numnormals; i++) {
+        object->normals[i].vx = get_short_be(bytes, &b);
+        object->normals[i].vy = get_short_be(bytes, &b);
+        object->normals[i].vz = get_short_be(bytes, &b);
+        b += sizeof(u_short);
+        printf("Normal %d: %d %d %d\n", i, object->normals[i].vx, object->normals[i].vy, object->normals[i].vz);
+    }
+
+    free3(bytes);
+}
+#+end_src
+
+My logs ended up like this:
+
+#+begin_example
+PS-X Realtime Kernel Ver.2.5
+Copyright 1993,1994 (C) Sony Computer Entertainment Inc. 
+BIOS Trace1: 0x06
+KERNEL SETUP!
+Configuration : EvCB	0x10		TCB	0x04
+BIOS Trace1: 0x07
+Shell reached in gdb-server, pausing execution now.
+Unknown GDB command: Xffffffff8000f800,0:
+Unknown GDB command: Hcp1.0
+Breakpoint triggered: PC=0x80010428 - Cause: 80010428::Exec::4 (GDB client) 
+ResetGraph:jtb=8001a3c8,env=8001a410
+Got an unknown GPU data word: 0001a3c8
+TYPE : 6 free button or flying-V form
+PS-X Control PAD Driver  Ver 3.0
+CD_init:addr=800191d8
+Loading object: sophia
+Vertices: 96
+Normals: 0
+Primitives: 122
+Flags: 0
+Origin: 0 3 157
+Vertex 0: -51 -3 -362
+Vertex 1: -7 -11 417
+Vertex 2: 29 -68 -94
+Vertex 3: 94 -3 -193
+Vertex 4: -63 -15 -362
+Vertex 5: 113 15 -425
+Vertex 6: 181 82 -263
+Vertex 7: 181 82 -315
+Vertex 8: -113 15 -425
+Vertex 9: -181 82 -315
+Vertex 10: -113 15 -373
+Vertex 11: -15 -3 425
+Vertex 12: 94 -3 -161
+Vertex 13: -45 -3 230
+Vertex 14: -57 -3 149
+Vertex 15: 13 -68 1
+Vertex 16: -9 -25 313
+Vertex 17: 51 -3 -362
+Vertex 18: 29 -68 -161
+Vertex 19: -94 -3 -161
+Vertex 20: 94 -3 -320
+Vertex 21: 94 -3 -94
+Vertex 22: -94 -3 -320
+Vertex 23: 63 -15 -362
+Vertex 24: 9 -25 313
+Vertex 25: 98 39 81
+Vertex 26: 45 -3 230
+Vertex 27: 57 -3 149
+Vertex 28: 11 -44 177
+Vertex 29: -94 -3 -94
+Vertex 30: 7 -11 417
+Vertex 31: -63 -35 -362
+Vertex 32: 63 -35 -362
+Vertex 33: -29 -68 -228
+Vertex 34: -181 82 -263
+Vertex 35: -11 -44 177
+Vertex 36: 29 -68 -228
+Vertex 37: 15 -3 425
+Vertex 38: -13 -68 1
+Vertex 39: -29 -68 -161
+Vertex 40: 113 15 -373
+Vertex 41: -29 -68 -94
+Vertex 42: -94 -3 -193
+Vertex 43: -94 -3 -193
+Vertex 44: -98 39 81
+Vertex 45: 15 -82 -94
+Vertex 46: -15 -82 -94
+Vertex 47: 15 -82 -173
+Vertex 48: -15 -82 -173
+Vertex 49: -63 -15 -393
+Vertex 50: -94 -3 -393
+Vertex 51: -97 -20 -210
+Vertex 52: -97 -20 -393
+Vertex 53: -79 -38 -393
+Vertex 54: -79 -38 -210
+Vertex 55: -74 -3 -393
+Vertex 56: -74 -3 -268
+Vertex 57: -79 -38 -361
+Vertex 58: -74 -3 -361
+Vertex 59: -97 -20 -361
+Vertex 60: -94 -3 -361
+Vertex 61: -62 -35 -191
+Vertex 62: -78 -19 -393
+Vertex 63: -67 -31 -393
+Vertex 64: -67 -16 -393
+Vertex 65: -79 -33 -393
+Vertex 66: -92 -20 -393
+Vertex 67: -90 -7 -393
+Vertex 68: -75 -7 -393
+Vertex 69: -63 -35 -393
+Vertex 70: 63 -15 -393
+Vertex 71: 94 -3 -393
+Vertex 72: 97 -20 -210
+Vertex 73: 97 -20 -393
+Vertex 74: 79 -38 -393
+Vertex 75: 79 -38 -210
+Vertex 76: 74 -3 -393
+Vertex 77: 74 -3 -268
+Vertex 78: 79 -38 -361
+Vertex 79: 74 -3 -361
+Vertex 80: 97 -20 -361
+Vertex 81: 94 -3 -361
+Vertex 82: 62 -35 -191
+Vertex 83: 78 -19 -393
+Vertex 84: 67 -31 -393
+Vertex 85: 67 -16 -393
+Vertex 86: 79 -33 -393
+Vertex 87: 92 -20 -393
+Vertex 88: 90 -7 -393
+Vertex 89: 75 -7 -393
+Vertex 90: 63 -35 -393
+Vertex 91: -181 82 -263
+Vertex 92: 94 -3 -193
+Vertex 93: -113 15 -373
+Vertex 94: -78 -19 -360
+Vertex 95: 78 -19 -360
+#+end_example
+
+...of course, most of this information was really easy to check and program once
+I got the layout right by using ImHex:
+
+[[file:img/imhex002.png]]
+
 * Reading Vertices from PRM File
 
 * Handling Different Primitive Types
