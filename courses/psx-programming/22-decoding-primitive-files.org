@@ -330,8 +330,10 @@ load_object_prm(Object *object, char *filename)
     object->origin.vy = get_long_be(bytes, &b);
     object->origin.vz = get_long_be(bytes, &b);
     printf("Origin: %ld %ld %ld\n", object->origin.vx, object->origin.vy, object->origin.vz);
+
+    // Skip 48 bytes containing "skeleton" information, rotation matrices and extra flags
     b += 20 * sizeof(u_char);
-    b += 3 * sizeof(long); // read position
+    b += 3 * sizeof(long);
     b += 16 * sizeof(u_char);
 
     object->vertices = malloc3(object->numvertices * sizeof(SVECTOR));
@@ -485,9 +487,32 @@ I got the layout right by using ImHex:
 
 * Reading Vertices from PRM File
 
+See subsection above.
+
 * Handling Different Primitive Types
 
+So here's the basic idea:
+
+1. There are many types of primitives on the WipEout files.
+2. We are going to declare all of them.
+3. We are going to encapsulate pointers to each of them within a ~Prm~ *union*.
+4. We  are going  to declare  a struct called  ~PrimitiveNode~, which  holds the
+   variables ~type~, ~flag~  (both shorts), and a pointer to  a ~Prm~ which will
+   be determined by the ~type~ variable.
+5. ~object.primitives~ will  now basically be an array-based  linked list ending
+   with a ~NULL~ pointer to a  ~PrimitiveNode~ (but again, should it? We already
+   have our number of primitives...)
+
+At this point I believe I will also update the ImHex project above to take other
+primitives into consideration, especially the one I already know are not used in
+~ALLSH.PRM~ specifically, since they might be used on other files. Who knows.
+
 * Reading Primitives from PRM File
+
+ * TODO:
+   - Review last video and copy types manually
+   - Review ImHex pattern code
+   - Add union and shenanigans types
 
 * Drawing Flat-Shaded Object Faces
 
