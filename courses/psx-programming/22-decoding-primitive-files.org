@@ -509,14 +509,902 @@ primitives into consideration, especially the one I already know are not used in
 
 * Reading Primitives from PRM File
 
- * TODO:
-   - Review last video and copy types manually
-   - Review ImHex pattern code
-   - Add union and shenanigans types
+Here's a transcription of the primitive types.
+
+Default polygons:
+
+#+begin_src c
+typedef struct F3 {
+    short type;
+    short flag;
+    short coords[3];
+    short pad1;
+    CVECTOR color;
+} F3;
+
+typedef struct FT3 {
+    short type;
+    short flag;
+    short coords[3];
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    short pad1;
+    CVECTOR color;
+} FT3;
+
+typedef struct F4 {
+    short type;
+    short flag;
+    short coords[4];
+    CVECTOR color;
+} F4;
+
+typedef struct FT4 {
+    short type;
+    short flag;
+    short coords[4];
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    char u3;
+    char v3;
+    short pad1;
+    CVECTOR color;
+} FT4;
+
+typedef struct G3 {
+    short type;
+    short flag;
+    short coords[3];
+    short pad1;
+    CVECTOR color[3];
+};
+
+typedef struct GT3 {
+    short type;
+    short flag;
+    short coords[3];
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    short pad1;
+    CVECTOR color[3];
+} GT3;
+
+typedef struct G4 {
+    short type;
+    short flag;
+    short coords[4];
+    CVECTOR color[4];
+} G4;
+
+typedef struct GT4 {
+    short type;
+    short flag;
+    short coords[4];
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    char u3;
+    char v3;
+    short pad1;
+    CVECTOR color[4];
+} GT4;
+#+end_src
+
+Light-sourced polygons:
+
+#+begin_src c
+typedef struct LSF3 {
+    short type;
+    short flag;
+    short coords[3];
+    short normal;
+    CVECTOR color;
+} LSF3;
+
+typedef struct LSFT3 {
+    short type;
+    short flag;
+    short coords[3];
+    short normal;
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    CVECTOR color;
+} LSFT3;
+
+typedef struct LSF4 {
+    short type;
+    short flag;
+    short coords[4];
+    short normal;
+    short pad1;
+    CVECTOR color;
+} LSF4;
+
+typedef struct LSFT4 {
+    short type;
+    short flag;
+    short coords[4];
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    char u3;
+    char v3;
+    short pad1;
+    CVECTOR color;
+} LSFT4;
+
+typedef struct LSG3 {
+    short type;
+    short flag;
+    short coords[3];
+    short normals[3];
+    CVECTOR color[3];
+} LSG3;
+
+typedef struct LSGT3 {
+    short type;
+    short flag;
+    short coords[3];
+    short normals[3];
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    short pad1;
+    CVECTOR color[3];
+} LSGT3;
+
+typedef struct LSG4 {
+    short type;
+    short flag;
+    short coords[4];
+    short normals[4];
+    CVECTOR color[4];
+} LSG4;
+
+typedef struct LSGT4 {
+    short type;
+    short flag;
+    short coords[4];
+    short normals[4];
+    short texture;
+    short clut;
+    short tpage;
+    char u0;
+    char v0;
+    char u1;
+    char v1;
+    char u2;
+    char v2;
+    char u3;
+    char v3;
+    short pad1;
+    CVECTOR color[4];
+} LSGT4;
+#+end_src
+
+Other primitive types:
+
+#+begin_src c
+typedef struct {
+    u_long *tag;
+    CVECTOR color0;
+    DVECTOR xy0;
+    DVECTOR xy1;
+} LineF2;
+
+typedef struct LF2 {
+    short type;
+    short flag;
+    short lines;
+    LineF2 *line[2]; // 2 GPU primitive arrays for double buffer
+} LF2;
+
+typedef struct SPR {
+    short type;
+    short flag;
+    short coord;
+    short width;
+    short height;
+    short texture;
+    CVECTOR color;
+} SPR;
+
+typedef struct Spline {
+    short type;
+    short flag;
+    SVECTOR control1;
+    SVECTOR position;
+    SVECTOR control2;
+    CVECTOR color;
+} Spline;
+
+typedef struct PointLight {
+    short type;
+    short flag;
+    VECTOR position;
+    CVECTOR color;
+    short startFalloff;
+    short endFalloff;
+} PointLight;
+
+typedef struct SpotLight {
+    short type;
+    short flag;
+    VECTOR position;
+    SVECTOR direction;
+    CVECTOR color;
+    short startFalloff;
+    short endFalloff;
+    short coneAngle;
+    short spreadAngle;
+} SpotLight;
+
+typedef struct InfiniteLight {
+    short type;
+    short flag;
+    SVECTOR direction;
+    CVECTOR color;
+} InfiniteLight;
+#+end_src
+
+Now some important definitions:
+
+#+begin_src c
+// Primitive flags
+#define FLAG_SINGLE_SIDED 0x0001
+#define FLAG_SHIP_ENGINE  0x0002
+#define FLAG_TRANSLUCENT  0x0004
+
+// Primitive types
+#define TYPE_F3            1
+#define TYPE_FT3           2
+#define TYPE_F4            3
+#define TYPE_FT4           4
+#define TYPE_G3            5
+#define TYPE_GT3           6
+#define TYPE_G4            7
+#define TYPE_GT4           8
+
+#define TYPE_LF2           9
+#define TYPE_TSPR          10
+#define TYPE_BSPR          11
+
+#define TYPE_LSF3          12
+#define TYPE_LSFT3         13
+#define TYPE_LSF4          14
+#define TYPE_LSFT4         15
+#define TYPE_LSG3          16
+#define TYPE_LSGT3         17
+#define TYPE_LSG4          18
+#define TYPE_LSGT4         19
+
+#define TYPE_SPLINE        20
+
+#define TYPE_INFINITELIGHT 21
+#define TYPE_POINTLIGHT    22
+#define TYPE_SPOTLIGHT     23
+#+end_src
+
+Now the actual generic Primitive declaration:
+
+#+begin_src c
+typedef union Prm {
+    F3    *f3;
+    FT3   *ft3;
+    F4    *f4;
+    FT4   *ft4;
+    G3    *g3;
+    GT3   *gt3;
+    G4    *g4;
+    GT4   *gt4;
+    SPR   *spr;
+    LSF3  *lsf3;
+    LSFT3 *lsft3;
+    LSF4  *lsf4;
+    LSFT4 *lsft4;
+    LSG3  *lsg3;
+    LSGT3 *lsgt3;
+    LSG4  *lsg4;
+    LSGT4 *lsgt4;
+} Prm;
+
+typedef struct PrimitiveNode {
+    short type;
+    short flag;
+    Prm *primitive;
+} PrimitiveNode;
+#+end_src
+
+Now the actual object struct:
+
+#+begin_src c
+typedef struct Object {
+    char           name[16];
+    short          flags;
+    VECTOR         origin;
+    short          numvertices;
+    SVECTOR       *vertices;
+    short          numnormals;
+    SVECTOR       *normals;
+    short          numprimitives;
+    PrimitiveNode *primitives;
+    SVECTOR        rotation;
+    VECTOR         position;
+    VECTOR         scale;
+} Object;
+#+end_src
+
+I won't be fixing the ImHex patterns for now since they're not really needed for
+~ALLSH.PRM~.
+
+** Loading primitives
+
+Loading  primitives  is  a tedious  job,  since  it  involves  typing a  lot  of
+boilerplate.
+
+I've edited it  a bit to go with  my codebase, so I'll go ahead  and provide the
+entire corno-job typing here so it can be copypasted on future references.
+
+Here's the entire ~load_object_prm~ function *for now*.
+
+#+begin_src c
+void
+load_object_prm(Object *object, char *filename)
+{
+    u_char *bytes;
+    u_long b;
+    u_long length;
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+
+    for(int i = 0; i < 16; i++) {
+        object->name[i] = get_byte(bytes, &b);
+    }
+    printf("Loading object: %s\n", object->name);
+
+    object->numvertices = get_short_be(bytes, &b);
+    b += 6 * sizeof(u_char);
+    printf("Vertices: %d\n", object->numvertices);
+
+    object->numnormals = get_short_be(bytes, &b);
+    b += 6 * sizeof(u_char);
+    printf("Normals: %d\n", object->numnormals);
+
+    object->numprimitives = get_short_be(bytes, &b);
+    b += 20 * sizeof(u_char);
+    printf("Primitives: %d\n", object->numprimitives);
+    b += sizeof(u_short); // Read index1
+
+    object->flags = get_short_be(bytes, &b);
+    b += 26 * sizeof(u_char);
+    printf("Flags: %x\n", object->flags);
+
+    object->origin.vx = get_long_be(bytes, &b);
+    object->origin.vy = get_long_be(bytes, &b);
+    object->origin.vz = get_long_be(bytes, &b);
+    printf("Origin: %ld %ld %ld\n", object->origin.vx, object->origin.vy, object->origin.vz);
+    
+    // Skip 48 bytes containing "skeleton" information, rotation matrices and extra flags
+    b += 20 * sizeof(u_char);
+    b += 3 * sizeof(long);
+    b += 16 * sizeof(u_char);
+
+    object->vertices = malloc3(object->numvertices * sizeof(SVECTOR));
+    for(short i = 0; i < object->numvertices; i++) {
+        object->vertices[i].vx = get_short_be(bytes, &b);
+        object->vertices[i].vy = get_short_be(bytes, &b);
+        object->vertices[i].vz = get_short_be(bytes, &b);
+        b += sizeof(u_short);
+        printf("Vertex %d: %d %d %d\n", i, object->vertices[i].vx, object->vertices[i].vy, object->vertices[i].vz);
+    }
+
+    object->normals = malloc3(object->numnormals * sizeof(SVECTOR));
+    for(short i = 0; i < object->numnormals; i++) {
+        object->normals[i].vx = get_short_be(bytes, &b);
+        object->normals[i].vy = get_short_be(bytes, &b);
+        object->normals[i].vz = get_short_be(bytes, &b);
+        b += sizeof(u_short);
+        printf("Normal %d: %d %d %d\n", i, object->normals[i].vx, object->normals[i].vy, object->normals[i].vz);
+    }
+    
+    // Read the primitives one by one from the file, testing the primitive type
+    object->primitives = malloc3(object->numprimitives * sizeof(PrimitiveNode));
+    for(int i = 0; i < object->numprimitives; i++) {
+        object->primitives[i].type = get_short_be(bytes, &b);
+        object->primitives[i].flag = get_short_be(bytes, &b);
+        switch (object->primitives[i].type) {
+        case TYPE_F3: {
+            F3 *prm;
+            printf("Loading primitive type F3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(F3));
+            prm            = (F3*) object->primitives[i].primitive;
+            prm->type      = TYPE_F3;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->pad1      = get_short_be(bytes, &b);
+            prm->color.r   = get_byte(bytes, &b);
+            prm->color.g   = get_byte(bytes, &b);
+            prm->color.b   = get_byte(bytes, &b);
+            prm->color.cd  = get_byte(bytes, &b);
+            break;
+        }
+        case TYPE_FT3: {
+            FT3 *prm;
+            printf("Loading primitive type FT3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(FT3));
+            prm            = (FT3*) object->primitives[i].primitive;
+            prm->type      = TYPE_FT3;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->texture   = get_short_be(bytes, &b);
+            prm->clut      = get_short_be(bytes, &b);
+            prm->tpage     = get_short_be(bytes, &b);
+            prm->u0        = get_byte(bytes, &b);
+            prm->v0        = get_byte(bytes, &b);
+            prm->u1        = get_byte(bytes, &b);
+            prm->v1        = get_byte(bytes, &b);
+            prm->u2        = get_byte(bytes, &b);
+            prm->v2        = get_byte(bytes, &b);
+            prm->pad1      = get_short_be(bytes, &b);
+            prm->color     = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_F4: {
+            F4 *prm;
+            printf("Loading primitive type F4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(F4));
+            prm            = (F4*) object->primitives[i].primitive;
+            prm->type      = TYPE_F4;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->coords[3] = get_short_be(bytes, &b);
+            prm->color     = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_FT4: {
+            FT4 *prm;
+            printf("Loading primitive type FT4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(FT4));
+            prm            = (FT4*) object->primitives[i].primitive;
+            prm->type      = TYPE_FT4;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->coords[3] = get_short_be(bytes, &b);
+            prm->texture   = get_short_be(bytes, &b);
+            prm->clut      = get_short_be(bytes, &b);
+            prm->tpage     = get_short_be(bytes, &b);
+            prm->u0        = get_byte(bytes, &b);
+            prm->v0        = get_byte(bytes, &b);
+            prm->u1        = get_byte(bytes, &b);
+            prm->v1        = get_byte(bytes, &b);
+            prm->u2        = get_byte(bytes, &b);
+            prm->v2        = get_byte(bytes, &b);
+            prm->u3        = get_byte(bytes, &b);
+            prm->v3        = get_byte(bytes, &b);
+            prm->pad1      = get_short_be(bytes, &b);
+            prm->color     = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_G3: {
+            G3 *prm;
+            printf("Loading primitive type G3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(G3));
+            prm            = (G3*) object->primitives[i].primitive;
+            prm->type      = TYPE_G3;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->pad1      = get_short_be(bytes, &b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_GT3: {
+            GT3 *prm;
+            printf("Loading primitive type GT3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(GT3));
+            prm            = (GT3*) object->primitives[i].primitive;
+            prm->type      = TYPE_GT3;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->texture   = get_short_be(bytes, &b);
+            prm->clut      = get_short_be(bytes, &b);
+            prm->tpage     = get_short_be(bytes, &b);
+            prm->u0        = get_byte(bytes, &b);
+            prm->v0        = get_byte(bytes, &b);
+            prm->u1        = get_byte(bytes, &b);
+            prm->v1        = get_byte(bytes, &b);
+            prm->u2        = get_byte(bytes, &b);
+            prm->v2        = get_byte(bytes, &b);
+            prm->pad1      = get_short_be(bytes, &b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_G4: {
+            G4 *prm;
+            printf("Loading primitive type G4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(G4));
+            prm            = (G4*) object->primitives[i].primitive;
+            prm->type      = TYPE_G4;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->coords[3] = get_short_be(bytes, &b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[3]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_GT4: {
+            GT4 *prm;
+            printf("Loading primitive type GT4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(GT4));
+            prm            = (GT4*) object->primitives[i].primitive;
+            prm->type      = TYPE_GT4;
+            prm->coords[0] = get_short_be(bytes, &b);
+            prm->coords[1] = get_short_be(bytes, &b);
+            prm->coords[2] = get_short_be(bytes, &b);
+            prm->coords[3] = get_short_be(bytes, &b);
+            prm->texture   = get_short_be(bytes, &b);
+            prm->clut      = get_short_be(bytes, &b);
+            prm->tpage     = get_short_be(bytes, &b);
+            prm->u0        = get_byte(bytes, &b);
+            prm->v0        = get_byte(bytes, &b);
+            prm->u1        = get_byte(bytes, &b);
+            prm->v1        = get_byte(bytes, &b);
+            prm->u2        = get_byte(bytes, &b);
+            prm->v2        = get_byte(bytes, &b);
+            prm->u3        = get_byte(bytes, &b);
+            prm->v3        = get_byte(bytes, &b);
+            prm->pad1      = get_short_be(bytes, &b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            prm->color[3]  = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_TSPR:
+        case TYPE_BSPR: {
+            SPR *prm;
+            printf("Loading primitive type SPR\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(SPR));
+            prm            = (SPR*) object->primitives[i].primitive;
+            prm->type      = TYPE_TSPR;
+            prm->coord     = get_short_be(bytes, &b);
+            prm->width     = get_short_be(bytes, &b);
+            prm->height    = get_short_be(bytes, &b);
+            prm->texture   = get_short_be(bytes, &b);
+            prm->color     = (CVECTOR) { get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b), get_byte(bytes, &b) };
+            break;
+        }
+        case TYPE_SPLINE: {
+            printf("Loading primitive type Spline\n");
+            b += 52; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_POINTLIGHT: {
+            printf("Loading primitive type PointLight\n");
+            b += 24; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_SPOTLIGHT: {
+            printf("Loading primitive type SpotLight\n");
+            b += 36; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_INFINITELIGHT: {
+            printf("Loading primitive type InfiniteLight\n");
+            b += 12; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSF3: {
+            printf("Loading primitive type LSF3\n");
+            b += 12; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSFT3: {
+            printf("Loading primitive type LSFT3\n");
+            b += 24; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSF4: {
+            printf("Loading primitive type LSF4\n");
+            b += 16; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSFT4: {
+            printf("Loading primitive type LSFT4\n");
+            b += 28; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSG3: {
+            printf("Loading primitive type LSG3\n");
+            b += 24; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSGT3: {
+            printf("Loading primitive type LSGT3\n");
+            b += 36; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSG4: {
+            printf("Loading primitive type LSG4\n");
+            b += 32; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSGT4: {
+            printf("Loading primitive type LSGT4\n");
+            b += 42; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        };
+    }
+
+    free3(bytes);
+}
+#+end_src
 
 * Drawing Flat-Shaded Object Faces
 
+Now that  we have all  the info, all  we need to do  is basically loop  over the
+object's primitives and display them.
+
+Let's not  have any  texture yet.  We're going  to assume  everything is  a flat
+triangle or quad.
+
+First off,  after freeing those  bytes, initialize the object's  position, scale
+and rotation:
+
+#+begin_src c
+object->position = (VECTOR){object->origin.vx, object->origin.vy, object->origin.vz};
+object->scale    = (VECTOR){ONE, ONE, ONE};
+object->rotation = (SVECTOR){0, 0, 0};
+#+end_src
+
+** Changes on ~update~ function
+
+Let's go back to ~main.c~.
+
+We do  what we normally  do: empty the  ordering table, update  joypad controls,
+make  the  camera   look  at  the  object's  position,  and   then  call  a  new
+~render_object~ function which we'll talk about soon.
+
+#+begin_src c
+void
+update(void)
+{
+    empty_ot(get_curr_buffer());
+    joypad_update();
+
+    if(joypad_check(PAD1_LEFT)) {
+        object.rotation.vy -= 15;
+    }
+
+    if(joypad_check(PAD1_RIGHT)) {
+        object.rotation.vy += 15;
+    }
+
+    look_at(&camera, &camera.position, &object.position, &(VECTOR){0, -ONE, 0});
+
+    render_object(&object, &camera);
+}
+#+end_src
+
+** Implementing the rendering
+
+Back to ~object.h~  and ~object.c~, we're going to define  the prototype for the
+~render_object~  function (we'll  have to  include ~camera.h~  on the  header as
+well), and then implement it.
+
+Well, the implementation is  no different than what we've seen  so far, and it's
+all boilerplate, so let's just go ahead and shamelessly copypaste it:
+
+#+begin_src c
+#include <libgte.h>
+#include <inline_n.h>
+#include "globals.h"
+
+// ...
+
+void
+render_object(Object *object, Camera *camera)
+{
+    int i;
+    short nclip;
+    long otz, p, flg;
+
+    MATRIX worldmat;
+    MATRIX viewmat;
+
+    RotMatrix(&object->rotation, &worldmat);
+    TransMatrix(&worldmat, &object->position);
+    ScaleMatrix(&worldmat, &object->scale);
+
+    CompMatrixLV(&camera->lookat, &worldmat, &viewmat);
+
+    SetRotMatrix(&viewmat);
+    SetTransMatrix(&viewmat);
+
+    for (i = 0; i < object->numprimitives; i++) {
+        switch (object->primitives[i].type) {
+        case TYPE_F3:
+        case TYPE_FT3:
+        case TYPE_G3:
+        case TYPE_GT3: {
+            POLY_F3* poly;
+            F3* prm;
+            prm = (F3*) object->primitives[i].primitive;
+            poly = (POLY_F3*) get_next_prim();
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                SetPolyF3(poly);
+                poly->r0 = 255;    // prm->color.r;
+                poly->g0 = 255;    // prm->color.g;
+                poly->b0 = 0;      // prm->color.b;
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_F3));
+            }
+            break;
+            }
+        case TYPE_F4:
+        case TYPE_FT4:
+        case TYPE_G4:
+        case TYPE_GT4: {
+            POLY_F4* poly;
+            F4* prm;
+            prm = (F4*) object->primitives[i].primitive;
+            poly = (POLY_F4*) get_next_prim();
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                SetPolyF4(poly);
+                poly->r0 = 255;    // prm->color.r;
+                poly->g0 = 0;      // prm->color.g;
+                poly->b0 = 255;    // prm->color.b;
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_F4));
+            }
+            break;
+            }
+        default: break;
+        }
+    }
+}
+#+end_src
+
+Notice that, independent on whether our polygons are flat or gouraud, colored or
+textured, we're  deliberately choosing to  render a  flat primitive and  that is
+all.
+
+** Wireframe mode on PCSX-Redux
+
+Everything rendered  in magenta color is  a quad; everything rendered  in yellow
+color is a triangle.
+
+If you're using the OpenGL-Accelerated backend on PCSX-Redux, on Configuration >
+GPU, you should be able to view the ship in wireframe mode.
+
+[[file:img/pcsx-wireframe.png]]
+
 * Using sizeof with Variable Name
 
+So you didn't see any of this magic, but I changed all defines to uppercase. :)
+
+Back then, we were using types to define the size of our allocated memory:
+
+#+begin_src c
+G4 *prm;
+object->primitives[i].primitive = (Prm*) malloc3(sizeof(G4));
+#+end_src
+
+Remember  that, if  we  wished to,  we  could've just  used  variables with  the
+~sizeof~ operator instead -- sans parentheses, if you will:
+
+#+begin_src c
+G4 *prm;
+object->primitives[i].primitive = (Prm*) malloc3(sizeof *prm);
+#+end_src
+
 * Reverse Engineering Wipeout Files
+
+The original wipEout was developed by Psygnosis.
+
+Most of the art and promotional graphics were created by [[https://www.thedesignersrepublic.com/wipeout][The Designer's
+Republic]].
+
+[[https://twitter.com/MonstersGo][MonstersGoBoom]] worked on the original MS-DOS port of wipEout.
+
+Dominic Szablewski published  a [[https://phoboslab.org/log/2015/04/reverse-engineering-wipeout-psx][blog post]] on reverse engineering  the game files
+and how they were organized.
+
+There is even a [[https://phoboslab.org/wipeout/][WebGL-based wipEout model viewer]], and to be honest, I first used
+this viewer's source code to build the ImHex patterns.
+
+Oh, and apparently... [[https://twitter.com/forestillusion/status/1508048268176990209][there was a source code leak in 2022 as well]].
 
