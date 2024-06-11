@@ -166,8 +166,9 @@ load_texture_cmp(char *filename)
     u_long length;
     u_char *bytes;
     u_long numtextures;
-    u_long timoffsets[400];
-    void   *timsbaseaddr;
+
+    static u_long timoffsets[400];
+    static void   *timsbaseaddr;
     
     bytes = (u_char *)file_read(filename, &length);
 
@@ -509,13 +510,14 @@ create a generic ~Texture~ pointer which we can return later.
 #include <libgte.h>
 
 //...
-Texture *texture = malloc3(sizeof(Texture));
+Texture *texture = NULL;
 Tim *tim = (Tim *) ptr;
 RECT rect;
 
 switch(CLUTTYPE(tim)) {
 case CLUT_4BIT: {
     TimClut4 *tc4 = (TimClut4 *)tim;
+    texture = (Texture *)malloc3(sizeof(Texture));
     texture->type = CLUT4;
     texture->textureX = tc4->textureX;
     texture->textureY = tc4->textureY;
@@ -559,6 +561,7 @@ case CLUT_4BIT: {
     } break;
 case CLUT_8BIT: {
     TimClut8 *tc8 = (TimClut8 *)tim;
+    texture = (Texture *)malloc3(sizeof(Texture));
     texture->type = CLUT8;
     texture->textureX = tc8->textureX;
     texture->textureY = tc8->textureY;
@@ -620,6 +623,433 @@ at least.
 [[file:img/cmprender.png]]
 
 * Global Texture Store Array
+
+So let's look back at how we're loading our objects from .PRM files.
+
+#+begin_src c
+// From TYPE_FT3 case
+prm->texture   = get_short_be(bytes, &b); // Texture number
+prm->clut      = get_short_be(bytes, &b);
+prm->tpage     = get_short_be(bytes, &b);
+#+end_src
+
+~prm->texture~ is an index of a texture in an array of textures.
+
+So let's go ahead and create a global texture store in ~texture.c~.
+
+#+begin_src c
+// In texture.h
+#define MAX_TEXTURES       800
+
+// In texture.c
+static Texture *texturestore[MAX_TEXTURES];
+static u_short  texturecount = 0;
+
+//...
+
+static u_long timoffsets[MAX_TEXTURES];
+
+//...
+
+// Upload to VRAM
+printf("Uploading textures to VRAM...\n");
+for(i = 0; i < numtextures; i++) {
+    printf("Uploading texture %lu...\n", i);
+    Texture *texture = upload_texture_to_vram(timoffsets[i]);
+    if(texture != NULL) texturestore[texturecount++] = texture;
+    if(texturecount >= MAX_TEXTURES)
+        printf("Warning: Texture global store is full!\n");
+}
+#+end_src
+
+Now create some getters:
+
+#+begin_src c
+Texture *
+get_from_texture_store(u_int i) {
+    return texturestore[i];
+}
+
+u_short
+get_texture_count() {
+    return texturecount;
+}
+#+end_src
+
+** Using textures within object
+
+Back to ~object.c~, let's use our textures:
+
+#+begin_src c
+#include "texture.h"
+
+// At the beginning of load_object_prm
+Texture *texture;
+u_short uoffset, voffset;
+
+// At end of TYPE_FT3 and TYPE_GT3 cases
+texture = get_from_texture_store(prm->texture);
+uoffset = texture->u0;
+voffset = texture->v0;
+prm->u0 += uoffset;
+prm->v0 += voffset;
+prm->u1 += uoffset;
+prm->v1 += voffset;
+prm->u2 += uoffset;
+prm->v2 += voffset;
+prm->tpage = texture->tpage;
+prm->clut  = texture->clut;
+
+// At the end of TYPE_FT4 and TYPE_GT4 cases
+texture = get_from_texture_store(prm->texture);
+uoffset = texture->u0;
+voffset = texture->v0;
+prm->u0 += uoffset;
+prm->v0 += voffset;
+prm->u1 += uoffset;
+prm->v1 += voffset;
+prm->u2 += uoffset;
+prm->v2 += voffset;
+prm->u3 += uoffset;
+prm->v3 += voffset;
+prm->tpage = texture->tpage;
+prm->clut  = texture->clut;
+#+end_src
+
+Ok, now all we have to do is use the actual textures in our rendering.
+
 * Rendering Textured Triangles
+
+Here's what we need to do:
+
+1. Don't hardcode the colors. We're going to load them.
+2. Use gouraud shading when available.
+3. Pass on the texture information when available.
+
+I'll  just  go  ahead  and  provide the  entire  ~render_object~  function  from
+~object.c~ since it is mostly boilerplate.
+
+#+begin_src c
+void
+render_object(Object *object, Camera *camera)
+{
+    int i;
+    short nclip;
+    long otz, p, flg;
+
+    MATRIX worldmat;
+    MATRIX viewmat;
+
+    RotMatrix(&object->rotation, &worldmat);
+    TransMatrix(&worldmat, &object->position);
+    ScaleMatrix(&worldmat, &object->scale);
+
+    CompMatrixLV(&camera->lookat, &worldmat, &viewmat);
+
+    SetRotMatrix(&viewmat);
+    SetTransMatrix(&viewmat);
+
+    for (i = 0; i < object->numprimitives; i++) {
+        switch (object->primitives[i].type) {
+        case TYPE_F3: {
+            POLY_F3* poly;
+            F3* prm;
+            prm = (F3*) object->primitives[i].primitive;
+            poly = (POLY_F3*) get_next_prim();
+            SetPolyF3(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_F3));
+            }
+            } break;
+        case TYPE_G3: {
+            POLY_G3* poly;
+            G3* prm;
+            prm = (G3*) object->primitives[i].primitive;
+            poly = (POLY_G3*) get_next_prim();
+            SetPolyG3(poly);
+            setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+            setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+            setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_G3));
+            }
+            } break;
+        case TYPE_FT3: {
+            POLY_FT3* poly;
+            FT3* prm;
+            prm = (FT3*) object->primitives[i].primitive;
+            poly = (POLY_FT3*) get_next_prim();
+            SetPolyFT3(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV3(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_FT3));
+            }
+            } break;
+        case TYPE_GT3: {
+            POLY_GT3* poly;
+            GT3* prm;
+            prm = (GT3*) object->primitives[i].primitive;
+            poly = (POLY_GT3*) get_next_prim();
+            SetPolyGT3(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV3(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_GT3));
+            }
+            } break;
+        case TYPE_F4: {
+            POLY_F4* poly;
+            F4* prm;
+            prm = (F4*) object->primitives[i].primitive;
+            poly = (POLY_F4*) get_next_prim();
+            SetPolyF4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_F4));
+            }
+            break;
+            }
+        case TYPE_G4: {
+            POLY_G4* poly;
+            G4* prm;
+            prm = (G4*) object->primitives[i].primitive;
+            poly = (POLY_G4*) get_next_prim();
+            SetPolyG4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                setRGB3(poly, prm->color[3].r, prm->color[3].g, prm->color[3].b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_G4));
+            }
+            break;
+            }
+        case TYPE_FT4: {
+            POLY_FT4* poly;
+            FT4* prm;
+            prm = (FT4*) object->primitives[i].primitive;
+            poly = (POLY_FT4*) get_next_prim();
+            SetPolyFT4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV4(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2, prm->u3, prm->v3);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_FT4));
+            }
+            break;
+            }
+        case TYPE_GT4: {
+            POLY_GT4* poly;
+            GT4* prm;
+            prm = (GT4*) object->primitives[i].primitive;
+            poly = (POLY_GT4*) get_next_prim();
+            SetPolyGT4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                setRGB3(poly, prm->color[3].r, prm->color[3].g, prm->color[3].b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV4(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2, prm->u3, prm->v3);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_GT4));
+            }
+            break;
+            }
+        default: break;
+        }
+    }
+}
+#+end_src
+
 * Visualizing Textured 3D Objects
+
+[[file:img/noice.png]]
+
+Noice. :)
+
 * TSB & CBA
+
+Let us understand the implementation of macros ~CLUT~ and ~TPAGE~.
+
+#+begin_src c
+#define CLUT(x, y)         ((y << 6) | x)
+#define TPAGE(c, a, x, y)  ((c << 7) | (a << 5) | ((x >> 6) + ((y & 0x100) >> 4)))
+#+end_src
+
+They are implemented like this because  of how the PlayStation primitives expect
+TPAGE and CLUT values to be encoded.
+
+When we set the CLUT value of a polygon primitive, the PlayStation expects it to
+be  in a  special format  called CBA,  which  encodes inside  both the  Y and  X
+coordinates of our CLUT on VRAM.
+
+The information for the CBA can be seen on [[https://psx.arthus.net/sdk/Psy-Q/DOCS/Devrefs/Filefrmt.pdf][Sony File Format Documentation]].
+
+The CBA is a 16-bit value.  The six least-significant (rightmost) bits encode the
+X coordinate value, and the nine  most-significant bits (excepting the last bit)
+encode the Y coordinate value. So this is why Y is shifted 6 bits to the left on
+~CLUT()~ macro.
+
+As for the ~TPAGE()~ macro, something like that happens. It uses a format called
+~TSB~.
+
+~TSB~  encodes,  in   a  single  32-bit  number,  the  values   for  the  TPAGE,
+semi-transparency rate (ABR), and the pixel depth used by the texture.
+
+The least-significant  (rightmost) bits  encode the  TPN (texture  page number);
+then  after there  is  a translucence  rate (ABR)  for  blending foreground  and
+background at differente rates); and then, the pixel-depth of the texture (TPF).
+
+** Texture offsets
+
+As for our magic texture offset numbers...
+
+#+begin_src c
+#define TEXTUREHOFFSET(x)  (x & 0xffc0)
+#define TEXTUREVOFFSET(y)  (y & 0x100)
+#+end_src
+
+Remember that we're looking for the texture offset wrt. a TPAGE cell, so:
+
+- ~0xffc0~  is  the  bit  pattern  ~1111_1111_1100_0000~,  which  masks  the  10
+  most-significant bits of a 16-bit value.
+- ~0x100~ is simply the decimal number 256;  256 is the height of our TPAGE, and
+  also half the height of our entire VRAM.
+
+If we use these masks to mask the values on both X and Y of our textures, we get
+a remainder which  should be subtracted from these values,  thus "limiting" them
+to  values relative  to our  TPAGE  position --  which  is exactly  what our  UV
+coordinates are!
+
+Again,  this  is basically  us  saving  calculations involving  calculating  the
+leftmost top  position of our  TPAGE on  VRAM so we  could subtract it  from the
+texture X and Y. Instead, by masking our values, we can do both these arithmetic
+steps with a simple AND and a subtraction.
+
+

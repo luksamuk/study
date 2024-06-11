@@ -54,6 +54,7 @@ These are my notes for the PlayStation development course.
 - [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
 - [[file:MIPS-Instruction-Set-Reference.pdf][MIPS Instruction Set Reference]]
 - [[file:Sony-PlayStation-Hardware.pdf][Sony PlayStation Developer Reference]]
+- [[https://psx.arthus.net/sdk/Psy-Q/DOCS/Devrefs/Filefrmt.pdf][Sony File Format Reference]]
 - [[file:psx-spx.txt][no$psx PSXSPX PlayStation Specifications]] (txt format)
   - [[https://problemkaputt.de/psx-spx.htm][web link]]
   - [[https://psx-spx.consoledev.net/graphicsprocessingunitgpu/][wiki-style web link]] (easier to navigate)
