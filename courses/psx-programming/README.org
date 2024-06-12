@@ -38,7 +38,7 @@ These are my notes for the PlayStation development course.
 
 22. [[./22-decoding-primitive-files.org][Decoding Primitive Files]]
 23. [[./23-decoding-texture-files.org][Decoding Texture Files]]
-24. Multiple 3D Models
+24. [[./24-multiple-3d-models.org][Multiple 3D Models]]
 25. Loading Landscape Objects
 26. Loading Track Faces
 27. Loading Track Texture

@@ -1,0 +1,747 @@
+#+title: Multiple 3D Models
+#+startup: content
+
+* Loading Multiple CMP Files
+
+Let's see  if que  can load  ~RESCU.CMP~ and ~RESCU.PRM~,  which are  the rescue
+ships.
+
+First, add them to the CD-ROM.
+
+#+begin_src fundamental
+          File RESCU.PRM
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\COMMON\RESCU.PRM
+          EndFile
+
+          File RESCU.CMP
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\COMMON\RESCU.CMP
+          EndFile
+#+end_src
+
+#+begin_src xml
+<file name="RESCU.PRM" type="data" source="ASSETS/COMMON/RESCU.PRM" />
+<file name="RESCU.CMP" type="data" source="ASSETS/COMMON/RESCU.CMP" />
+#+end_src
+
+Now let's tweak ~main.c~.
+
+#+begin_src c
+// Global scope
+Object ship;
+Object rescue;
+
+// setup function
+load_texture_cmp("\\ALLSH.CMP;1");
+load_object_prm(&ship, "\\ALLSH.PRM;1");
+load_texture_cmp("\\RESCU.CMP;1");
+load_object_prm(&rescue, "\\RESCU.PRM;1");
+
+// update function: render and rotate rescue ship only
+if(joypad_check(PAD1_LEFT)) {
+    rescue.rotation.vy -= 15;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    rescue.rotation.vy += 15;
+}
+
+look_at(&camera, &camera.position, &rescue.position, &(VECTOR){0, -ONE, 0});
+
+render_object(&rescue, &camera);
+#+end_src
+
+[[file:img/wrongtextures.png]]
+
+Oops. Something  is wrong.  The rescue  ship is mapping  to the  original ship's
+textures.
+
+** Solving the problem
+
+A naive  approach to solving  this is by creating  two variables and  saving the
+texture  count before  loading them,  and them  pass it  along when  loading the
+object:
+
+#+begin_src c
+// setup function
+u_short shipstarttexture;
+u_short rescuestarttexture;
+
+// ...
+
+shipstarttexture = get_texture_count();
+load_texture_cmp("\\ALLSH.CMP;1");
+load_object_prm(&ship, "\\ALLSH.PRM;1", shipstarttexture);
+rescuestarttexture = get_texture_count();
+load_texture_cmp("\\RESCU.CMP;1");
+load_object_prm(&rescue, "\\RESCU.PRM;1", rescuestarttexture);
+// ...
+#+end_src
+
+Now on ~object.c~,  let's update our function (don't forget  to tweak ~object.h~
+as well!):
+
+#+begin_src c
+void
+load_object_prm(Object *object, char *filename, u_short texturestart)
+{
+    // ...
+    // For ANY textured primitive:
+    prm->texture += texturestart;
+    texture = get_from_texture_store(prm->texture);
+    // ...
+}
+#+end_src
+
+[[file:img/righttextures.png]]
+
+Cool. :)
+
+** Extra
+
+You know what? I'm going to try and render both these ships on the screen at the
+same time.
+
+#+begin_src c
+// On setup function
+ship.position.vx -= 400;
+rescue.position.vx += 400;
+
+// On update function
+if(joypad_check(PAD1_LEFT)) {
+    ship.rotation.vy += 15;
+    rescue.rotation.vy -= 15;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    ship.rotation.vy -= 15;
+    rescue.rotation.vy += 15;
+}
+
+VECTOR middle = (VECTOR){
+    (ship.position.vx + rescue.position.vx) >> 1,
+    (ship.position.vy + rescue.position.vy) >> 1,
+    (ship.position.vz + rescue.position.vz) >> 1,
+};
+look_at(&camera, &camera.position, &middle, &(VECTOR){0, -ONE, 0});
+
+render_object(&ship, &camera);
+render_object(&rescue, &camera);
+#+end_src
+
+[[file:img/both.png]]
+
+Coooooooooooool. :)
+
+* Exercise: Linked List of Objects
+
+We're going to implement a linked list of ~Object~.
+
+For that, our ~Object~ struct is going to have a pointer to the ~next~ object.
+
+TODO:
+
+1. Change the  way we are reading the  PRM file to load a linked  list in memory
+   with all the objects from that file.
+2. Change the rendering logic so we can press left/right on the joypad to select
+   which ship we want to visualize.
+3. Pressing  left/right should  only take  effect once  we release  the previous
+   button. Pressing right only advances to the next ship, and pressing left only
+   returns to  the previous ship. The  button press should only  happen once the
+   previous button press was released!
+
+** Implementation
+
+Ok, I don't think  this exercise is simple for someone that hasn't  had a lot of
+experience with C, but let's just go ahead and do it. Seems rather fun.
+
+*** Loading a list of ships
+
+First, let's tweak the ~Object~ struct.
+
+#+begin_src c
+typedef struct Object {
+    char name[16];
+    short flags;
+    VECTOR origin;
+    short numvertices;
+    SVECTOR *vertices;
+    short numnormals;
+    SVECTOR *normals;
+    short numprimitives;
+    PrimitiveNode *primitives;
+    SVECTOR rotation;
+    VECTOR position;
+    VECTOR scale;
+    struct Object *next;
+} Object;
+#+end_src
+
+Now, we're going  to build the actual  function to add an element  to the linked
+list. Notice that we  won't be implementing a way to  deallocate the linked list
+since it will persist in memory, so whatever. :)
+
+#+begin_src c
+Object *
+load_object_list_prm(char *filename, u_short texturestart, u_short *out_num_objects)
+{
+    u_char *bytes;
+    u_long b;
+    u_long length;
+    Object *root, *last;
+    root = last = NULL;
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return NULL;
+    }
+
+    b = 0;
+
+    while(b < length) {
+        Object *object = malloc3(sizeof(Object));
+        load_object_prm(object, bytes, &b, texturestart);
+        (*out_num_objects)++;
+
+        if(last == NULL) {
+            root = last = object;
+            continue;
+        }
+
+        last->next = object;
+        last = object;
+    }
+
+    free3(bytes);
+    return root;
+}
+#+end_src
+
+This function not only handles file reading but also calls a modified version of
+~load_object_prm~ which  receives a pointer  to the  bytes and the  current byte
+position  instead of  the file  name. Plus,  it initializes  the list  and keeps
+reading objects from  the file and appending  to the end of the  list, until ~b~
+reaches the end of file.
+
+Notice also how  *we're not setting the contents of  out_num_objects to 0*. This
+is for a trick which we'll explore on ~main.c~.
+
+Let's take a  look at the modified ~load_object_prm~. Most  of the tweaking here
+is just pointer  manipulation and rearranging some function calls.  Plus, at the
+end, the ~next~ field is always set to ~NULL~.
+
+#+begin_src c
+void
+load_object_prm(Object *object, u_char *bytes, u_long *b, u_short texturestart)
+{
+    Texture *texture;
+    u_short uoffset, voffset;
+
+    for(int i = 0; i < 16; i++) {
+        object->name[i] = get_byte(bytes, b);
+    }
+    printf("Loading object: %s\n", object->name);
+
+    object->numvertices = get_short_be(bytes, b);
+    (*b) += 6 * sizeof(u_char);
+    printf("Vertices: %d\n", object->numvertices);
+
+    object->numnormals = get_short_be(bytes, b);
+    (*b) += 6 * sizeof(u_char);
+    printf("Normals: %d\n", object->numnormals);
+
+    object->numprimitives = get_short_be(bytes, b);
+    (*b) += 20 * sizeof(u_char);
+    printf("Primitives: %d\n", object->numprimitives);
+    (*b) += sizeof(u_short); // Read index1
+
+    object->flags = get_short_be(bytes, b);
+    (*b) += 26 * sizeof(u_char);
+    printf("Flags: %x\n", object->flags);
+
+    object->origin.vx = get_long_be(bytes, b);
+    object->origin.vy = get_long_be(bytes, b);
+    object->origin.vz = get_long_be(bytes, b);
+    printf("Origin: %ld %ld %ld\n", object->origin.vx, object->origin.vy, object->origin.vz);
+    
+    // Skip 48 bytes containing "skeleton" information, rotation matrices and extra flags
+    (*b) += 20 * sizeof(u_char);
+    (*b) += 3 * sizeof(long);
+    (*b) += 16 * sizeof(u_char);
+
+    object->vertices = malloc3(object->numvertices * sizeof(SVECTOR));
+    for(short i = 0; i < object->numvertices; i++) {
+        object->vertices[i].vx = get_short_be(bytes, b);
+        object->vertices[i].vy = get_short_be(bytes, b);
+        object->vertices[i].vz = get_short_be(bytes, b);
+        (*b) += sizeof(u_short);
+        printf("Vertex %d: %d %d %d\n", i, object->vertices[i].vx, object->vertices[i].vy, object->vertices[i].vz);
+    }
+
+    object->normals = malloc3(object->numnormals * sizeof(SVECTOR));
+    for(short i = 0; i < object->numnormals; i++) {
+        object->normals[i].vx = get_short_be(bytes, b);
+        object->normals[i].vy = get_short_be(bytes, b);
+        object->normals[i].vz = get_short_be(bytes, b);
+        (*b) += sizeof(u_short);
+        printf("Normal %d: %d %d %d\n", i, object->normals[i].vx, object->normals[i].vy, object->normals[i].vz);
+    }
+    
+    // Read the primitives one by one from the file, testing the primitive type
+    object->primitives = malloc3(object->numprimitives * sizeof(PrimitiveNode));
+    for(int i = 0; i < object->numprimitives; i++) {
+        object->primitives[i].type = get_short_be(bytes, b);
+        object->primitives[i].flag = get_short_be(bytes, b);
+        switch (object->primitives[i].type) {
+        case TYPE_F3: {
+            F3 *prm;
+            printf("Loading primitive type F3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(F3));
+            prm            = (F3*) object->primitives[i].primitive;
+            prm->type      = TYPE_F3;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->pad1      = get_short_be(bytes, b);
+            prm->color.r   = get_byte(bytes, b);
+            prm->color.g   = get_byte(bytes, b);
+            prm->color.b   = get_byte(bytes, b);
+            prm->color.cd  = get_byte(bytes, b);
+            break;
+        }
+        case TYPE_FT3: {
+            FT3 *prm;
+            printf("Loading primitive type FT3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(FT3));
+            prm            = (FT3*) object->primitives[i].primitive;
+            prm->type      = TYPE_FT3;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->texture   = get_short_be(bytes, b);
+            prm->clut      = get_short_be(bytes, b);
+            prm->tpage     = get_short_be(bytes, b);
+            prm->u0        = get_byte(bytes, b);
+            prm->v0        = get_byte(bytes, b);
+            prm->u1        = get_byte(bytes, b);
+            prm->v1        = get_byte(bytes, b);
+            prm->u2        = get_byte(bytes, b);
+            prm->v2        = get_byte(bytes, b);
+            prm->pad1      = get_short_be(bytes, b);
+            prm->color     = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+
+            prm->texture += texturestart;
+            texture = get_from_texture_store(prm->texture);
+            uoffset = texture->u0;
+            voffset = texture->v0;
+            prm->u0 += uoffset;
+            prm->v0 += voffset;
+            prm->u1 += uoffset;
+            prm->v1 += voffset;
+            prm->u2 += uoffset;
+            prm->v2 += voffset;
+            prm->tpage = texture->tpage;
+            prm->clut  = texture->clut;
+            break;
+        }
+        case TYPE_F4: {
+            F4 *prm;
+            printf("Loading primitive type F4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(F4));
+            prm            = (F4*) object->primitives[i].primitive;
+            prm->type      = TYPE_F4;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->coords[3] = get_short_be(bytes, b);
+            prm->color     = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            break;
+        }
+        case TYPE_FT4: {
+            FT4 *prm;
+            printf("Loading primitive type FT4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(FT4));
+            prm            = (FT4*) object->primitives[i].primitive;
+            prm->type      = TYPE_FT4;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->coords[3] = get_short_be(bytes, b);
+            prm->texture   = get_short_be(bytes, b);
+            prm->clut      = get_short_be(bytes, b);
+            prm->tpage     = get_short_be(bytes, b);
+            prm->u0        = get_byte(bytes, b);
+            prm->v0        = get_byte(bytes, b);
+            prm->u1        = get_byte(bytes, b);
+            prm->v1        = get_byte(bytes, b);
+            prm->u2        = get_byte(bytes, b);
+            prm->v2        = get_byte(bytes, b);
+            prm->u3        = get_byte(bytes, b);
+            prm->v3        = get_byte(bytes, b);
+            prm->pad1      = get_short_be(bytes, b);
+            prm->color     = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+
+            prm->texture += texturestart;
+            texture = get_from_texture_store(prm->texture);
+            uoffset = texture->u0;
+            voffset = texture->v0;
+            prm->u0 += uoffset;
+            prm->v0 += voffset;
+            prm->u1 += uoffset;
+            prm->v1 += voffset;
+            prm->u2 += uoffset;
+            prm->v2 += voffset;
+            prm->u3 += uoffset;
+            prm->v3 += voffset;
+            prm->tpage = texture->tpage;
+            prm->clut  = texture->clut;
+            break;
+        }
+        case TYPE_G3: {
+            G3 *prm;
+            printf("Loading primitive type G3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(G3));
+            prm            = (G3*) object->primitives[i].primitive;
+            prm->type      = TYPE_G3;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->pad1      = get_short_be(bytes, b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            break;
+        }
+        case TYPE_GT3: {
+            GT3 *prm;
+            printf("Loading primitive type GT3\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(GT3));
+            prm            = (GT3*) object->primitives[i].primitive;
+            prm->type      = TYPE_GT3;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->texture   = get_short_be(bytes, b);
+            prm->clut      = get_short_be(bytes, b);
+            prm->tpage     = get_short_be(bytes, b);
+            prm->u0        = get_byte(bytes, b);
+            prm->v0        = get_byte(bytes, b);
+            prm->u1        = get_byte(bytes, b);
+            prm->v1        = get_byte(bytes, b);
+            prm->u2        = get_byte(bytes, b);
+            prm->v2        = get_byte(bytes, b);
+            prm->pad1      = get_short_be(bytes, b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+
+            prm->texture += texturestart;
+            texture = get_from_texture_store(prm->texture);
+            uoffset = texture->u0;
+            voffset = texture->v0;
+            prm->u0 += uoffset;
+            prm->v0 += voffset;
+            prm->u1 += uoffset;
+            prm->v1 += voffset;
+            prm->u2 += uoffset;
+            prm->v2 += voffset;
+            prm->tpage = texture->tpage;
+            prm->clut  = texture->clut;
+            break;
+        }
+        case TYPE_G4: {
+            G4 *prm;
+            printf("Loading primitive type G4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(G4));
+            prm            = (G4*) object->primitives[i].primitive;
+            prm->type      = TYPE_G4;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->coords[3] = get_short_be(bytes, b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[3]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            break;
+        }
+        case TYPE_GT4: {
+            GT4 *prm;
+            printf("Loading primitive type GT4\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(GT4));
+            prm            = (GT4*) object->primitives[i].primitive;
+            prm->type      = TYPE_GT4;
+            prm->coords[0] = get_short_be(bytes, b);
+            prm->coords[1] = get_short_be(bytes, b);
+            prm->coords[2] = get_short_be(bytes, b);
+            prm->coords[3] = get_short_be(bytes, b);
+            prm->texture   = get_short_be(bytes, b);
+            prm->clut      = get_short_be(bytes, b);
+            prm->tpage     = get_short_be(bytes, b);
+            prm->u0        = get_byte(bytes, b);
+            prm->v0        = get_byte(bytes, b);
+            prm->u1        = get_byte(bytes, b);
+            prm->v1        = get_byte(bytes, b);
+            prm->u2        = get_byte(bytes, b);
+            prm->v2        = get_byte(bytes, b);
+            prm->u3        = get_byte(bytes, b);
+            prm->v3        = get_byte(bytes, b);
+            prm->pad1      = get_short_be(bytes, b);
+            prm->color[0]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[1]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[2]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            prm->color[3]  = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+
+            prm->texture += texturestart;
+            texture = get_from_texture_store(prm->texture);
+            uoffset = texture->u0;
+            voffset = texture->v0;
+            prm->u0 += uoffset;
+            prm->v0 += voffset;
+            prm->u1 += uoffset;
+            prm->v1 += voffset;
+            prm->u2 += uoffset;
+            prm->v2 += voffset;
+            prm->u3 += uoffset;
+            prm->v3 += voffset;
+            prm->tpage = texture->tpage;
+            prm->clut  = texture->clut;
+            break;
+        }
+        case TYPE_TSPR:
+        case TYPE_BSPR: {
+            SPR *prm;
+            printf("Loading primitive type SPR\n");
+            object->primitives[i].primitive = (Prm*) malloc3(sizeof(SPR));
+            prm            = (SPR*) object->primitives[i].primitive;
+            prm->type      = TYPE_TSPR;
+            prm->coord     = get_short_be(bytes, b);
+            prm->width     = get_short_be(bytes, b);
+            prm->height    = get_short_be(bytes, b);
+            prm->texture   = get_short_be(bytes, b);
+            prm->color     = (CVECTOR) { get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b), get_byte(bytes, b) };
+            break;
+        }
+        case TYPE_SPLINE: {
+            printf("Loading primitive type Spline\n");
+            (*b) += 52; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_POINTLIGHT: {
+            printf("Loading primitive type PointLight\n");
+            (*b) += 24; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_SPOTLIGHT: {
+            printf("Loading primitive type SpotLight\n");
+            (*b) += 36; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_INFINITELIGHT: {
+            printf("Loading primitive type InfiniteLight\n");
+            (*b) += 12; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSF3: {
+            printf("Loading primitive type LSF3\n");
+            (*b) += 12; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSFT3: {
+            printf("Loading primitive type LSFT3\n");
+            (*b) += 24; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSF4: {
+            printf("Loading primitive type LSF4\n");
+            (*b) += 16; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSFT4: {
+            printf("Loading primitive type LSFT4\n");
+            (*b) += 28; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSG3: {
+            printf("Loading primitive type LSG3\n");
+            (*b) += 24; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSGT3: {
+            printf("Loading primitive type LSGT3\n");
+            (*b) += 36; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSG4: {
+            printf("Loading primitive type LSG4\n");
+            (*b) += 32; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        case TYPE_LSGT4: {
+            printf("Loading primitive type LSGT4\n");
+            (*b) += 42; // --> skip this amount of bytes to bypass this primitive type
+            break;
+        }
+        };
+    }
+
+    object->position = (VECTOR){object->origin.vx, object->origin.vy, object->origin.vz};
+    object->scale    = (VECTOR){ONE, ONE, ONE};
+    object->rotation = (SVECTOR){0, 0, 0};
+    object->next     = NULL;
+}
+#+end_src
+
+We're also going to  need a small function to fetch an object  from index on the
+list. Notice that this function is not idiot-proof, so if you provide an invalid
+index, you're basically fuarrrked.
+
+Notice  also that  this  function is  O(n)  due to  how  the implementation  was
+requested. To be quite honest... I would have implemented it with arrays so that
+the access is O(1). PSX needs it that much.
+
+#+begin_src c
+Object *
+get_object_from_list(Object *root, u_short index)
+{
+    u_short i = 0;
+    Object *itr = root;
+    while(i < index) {
+        itr = itr->next;
+        i++;
+    }
+    return itr;
+}
+#+end_src
+
+~render_object~ was not  changed, since it expects an ~Object~  pointer which we
+will need.
+
+*** Adding a button tap function
+
+I added  a function  to verify  for a button  tap. The  concept is  very simple:
+always hold the state  of the last frame, and when  checking, verify whether the
+button was not pressed on the last frame, but is pressed on this one.
+
+#+begin_src c
+// Add a new global
+static u_long oldstate;
+
+// Tweak initialization out of a guarantee
+void
+joypad_init(void)
+{
+    PadInit(0);
+    padstate = oldstate = 0;
+}
+
+// Tweak update
+void
+joypad_update(void)
+{
+    u_long pad;
+    pad = PadRead(0);
+    oldstate = padstate;
+    padstate = pad;
+}
+
+// New function
+int
+joypad_check_tap(int p)
+{
+    return (padstate & p) && !(oldstate & p);
+}
+#+end_src
+
+*** Tweaking ~main.c~
+
+Let's load our ships. And we're gonna do this from *both files*.
+
+Remember how we're not  setting the number of ships to 0  at the beginning? This
+will come in handy here.
+
+#+begin_src c
+/* Replacing our global ship objects... */
+Object *objects;
+u_short numobjects;
+
+Object *current;
+u_short curobjidx;
+
+
+/* On setup function */
+// ...
+Object *last, *tmp;
+// ...
+
+// Load all objects
+numobjects = 0;
+shipstarttexture = get_texture_count();
+load_texture_cmp("\\ALLSH.CMP;1");
+objects = load_object_list_prm("\\ALLSH.PRM;1", shipstarttexture, &numobjects);
+
+// Load more ships! Append to end of list.
+last = get_object_from_list(objects, numobjects - 1);
+rescuestarttexture = get_texture_count();
+load_texture_cmp("\\RESCU.CMP;1");
+tmp = load_object_list_prm("\\RESCU.PRM;1", rescuestarttexture, &numobjects);
+last->next = tmp;
+
+current = objects;
+curobjidx = 0;
+
+printf("Number of loaded ships: %u\n", numobjects);
+#+end_src
+
+As you can see, we end up appending all objects from ~RESCU.PRM~ to the original
+list by  manually replacing the ~next~  pointer on the last  list element. Plus,
+when loading the file, we also end up incrementing ~numobjects~, since it is not
+set to an initial value within ~load_object_list_prm~.
+
+Now all we need to do is render the object pointed by ~current~, and also change
+that object  as needed. And...  while we're  at it, I  set the current  model to
+rotate automatically as well.
+
+#+begin_src c
+void
+update(void)
+{
+    empty_ot(get_curr_buffer());
+
+    joypad_update();
+
+    current->rotation.vy += 15;
+
+    if(joypad_check_tap(PAD1_LEFT)) {
+        if(curobjidx == 0) curobjidx = numobjects - 1;
+        else curobjidx--;
+        current = get_object_from_list(objects, curobjidx);
+        printf("Current ship: %s\n", current->name);
+    }
+
+    if(joypad_check_tap(PAD1_RIGHT)) {
+        if(curobjidx == (numobjects - 1)) curobjidx = 0;
+        else curobjidx++;
+        current = get_object_from_list(objects, curobjidx);
+        printf("Current ship: %s\n", current->name);
+    }
+
+    look_at(&camera, &camera.position, &current->position, &(VECTOR){0, -ONE, 0});
+
+    render_object(current, &camera);
+}
+#+end_src
+
+There probably is a better way to implement the object rotation without if/else,
+perharps by using the mod operation, but I didn't want to risk having a negative
+value on ~curobjidx~, nor did I want to change its type to a signed type.
+
+[[file:img/ships.gif]]
+
+* Linked List Implementation
+
+* Joypad Press & Release
+
