@@ -743,5 +743,9 @@ value on ~curobjidx~, nor did I want to change its type to a signed type.
 
 * Linked List Implementation
 
+There are many implementations... see above.
+
 * Joypad Press & Release
+
+Many implementations too, see above as well. :)
 
