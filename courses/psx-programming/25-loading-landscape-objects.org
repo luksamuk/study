@@ -208,3 +208,32 @@ Ok, fair enough, we got something else on screen.
 
 * Drawing Scene Objects
 
+Let's start  by initializing  the ship  to its proper  start position,  and then
+reposition the camera.
+
+#+begin_src c
+// On Setup function
+setVector(&ship->position, 32599, -347, -45310);
+
+setVector(&camera.position, ship->position.vx, ship->position.vy - 100, ship->position.vz - 1000);
+camera.lookat = (MATRIX){0};
+#+end_src
+
+[[file:img/sceneobjects002.png]]
+
+Let's also  update our minimum  distance on ~object.c~  to a smaller  value that
+makes more sense. This should help with framerates.
+
+#+begin_src c
+const u_long min_draw_distance = 700000000;
+#+end_src
+
+[[file:img/sceneobjects003.png]]
+
+Ok, fair enough.
+
+But here's the catch,  the way we're computing the distance is  not going to fly
+for us here. It is way too much  stuff for the PlayStation to handle in a single
+loop.  We'll  have  to  find  another way  to  handle  these  objects,  perharps
+pre-computing some values, so it would only be a matter of performing lookups.
+
