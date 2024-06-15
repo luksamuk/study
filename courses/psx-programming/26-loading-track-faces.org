@@ -474,8 +474,8 @@ render_track(Track *track, Camera *camera)
 
     do {
         d.vx = currsection->center.vx - camera->position.vx;
-        d.vy = currsection->center.vx - camera->position.vy;
-        d.vz = currsection->center.vx - camera->position.vz;
+        d.vy = currsection->center.vy - camera->position.vy;
+        d.vz = currsection->center.vz - camera->position.vz;
         distmagsq = (d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz);
         distmag = SquareRoot12(distmagsq);
         if(distmag < 2500000) {
@@ -677,5 +677,246 @@ Let's set some different face colors based on ~face->flags~.
 Fair enough.
 
 * Drawing Quad Lines
+
+It is interesting to draw lines around our quad so we can see its edges.
+
+On ~render_track_section~, do the following:
+
+#+begin_src c
+LINE_F2 *line0, line1, line2, line3;
+
+// within the loop, after adding our primitive, within the otz check...
+line0 = (LINE_F2*)get_next_prim();
+setLineF2(line0);
+setXY2(line0, poly->x0, poly->y0, poly->x1, poly->y1);
+setRGB0(line0, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line0);
+increment_next_prim(sizeof(LINE_F2));
+
+line1 = (LINE_F2*)get_next_prim();
+setLineF2(line1);
+setXY2(line1, poly->x1, poly->y1, poly->x3, poly->y3);
+setRGB0(line1, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line1);
+increment_next_prim(sizeof(LINE_F2));
+
+line2 = (LINE_F2*)get_next_prim();
+setLineF2(line2);
+setXY2(line2, poly->x3, poly->y3, poly->x2, poly->y2);
+setRGB0(line2, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line2);
+increment_next_prim(sizeof(LINE_F2));
+
+line3 = (LINE_F2*)get_next_prim();
+setLineF3(line3);
+setXY2(line3, poly->x2, poly->y2, poly->x0, poly->y0);
+setRGB0(line3, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line3);
+increment_next_prim(sizeof(LINE_F2));
+#+end_src
+
+[[file:img/quad-lines.png]]
+
+K cool
+
 * Avoiding the GTE 16-bit Limitation
+
+The idea  is this: since we  have a big mesh  with many vertices related  to the
+mesh  origin,   let's  change   the  coordinate  system   to  something   a  bit
+more... local.
+
+And this local part could be... the camera.
+
+So we can do everything with 32-bit points, but a little before the GTE step, we
+perform the vertices  translation by hand (by subtracting  the camera position),
+and then we would still have to perform the camera LookAt's rotation.
+
+So that's exactly what we're going to do.
+
+We  subtract  the camera  position,  and  hopefully  this  will give  us  vertex
+positions  that  would  fit  in  a  16-bit  value.  Afterwards,  we  take  these
+translated-by-hand vertices and perform a "Look-At rotation".
+
 * Clamping Overflow Values
+
+** Un-shrink the scene
+
+Let's start by reverting  a few things. Remove the shrinking  factor and set the
+track vertices to 32-bit again.
+
+#+begin_src c
+// In globals.h
+#define SHRINK_FACTOR 0
+#+end_src
+
+#+begin_src c
+// In track.h
+typedef struct Track {
+    //...
+    VECTOR *vertices;
+    //...
+} Track;
+#+end_src
+
+#+begin_src c
+// In track.c, function load_track_vertices
+track->vertices = malloc3(track->numvertices * sizeof(VECTOR));
+#+end_src
+
+We're gonna remove all this shrinking later.
+
+** Saving camera rotation
+
+We need to have a separate Camera rotation matrix for this to work.
+
+So go to ~camera.h~ and add a rotation matrix to the camera:
+
+#+begin_src c
+typedef struct {
+    VECTOR  position;
+    SVECTOR rotation;
+    MATRIX  rotmat;
+    MATRIX  lookat;
+} Camera;
+#+end_src
+
+Now go to the ~look_at~ function in ~camera.c~.
+
+Right  before applying  our  matrix (with  ~ApplyMatrixLV~),  save the  rotation
+components within the rotation matrix, much like we did before with the ~lookat~
+matrix:
+
+#+begin_src c
+// Save the rotation matrix
+camera->rotmat.m[0][0] = x.vx;
+camera->rotmat.m[0][1] = x.vy;
+camera->rotmat.m[0][2] = x.vz;
+
+camera->rotmat.m[1][0] = y.vx;
+camera->rotmat.m[1][1] = y.vy;
+camera->rotmat.m[1][2] = y.vz;
+
+camera->rotmat.m[2][0] = z.vx;
+camera->rotmat.m[2][1] = z.vy;
+camera->rotmat.m[2][2] = z.vz;
+#+end_src
+
+** Performing rotation and translation separately
+
+Now back on ~track.c~. Let's adjust  the track rendering to perform the rotation
+first, and then we manually translate  those vertices so that they are processed
+by the GTE later:
+
+#+begin_src c
+// Function render_track_section
+
+// Before the loop...
+CompMatrixLV(&camera->rotmat, &worldmat, &viewmat);
+
+// Within the loop...
+SVECTOR v0, v1, v2, v3;
+v0.vx = (short) track->vertices[face->indices[1]].vx - camera->position.vx;
+v0.vy = (short) track->vertices[face->indices[1]].vy - camera->position.vy;
+v0.vz = (short) track->vertices[face->indices[1]].vz - camera->position.vz;
+
+v1.vx = (short) track->vertices[face->indices[0]].vx - camera->position.vx;
+v1.vy = (short) track->vertices[face->indices[0]].vy - camera->position.vy;
+v1.vz = (short) track->vertices[face->indices[0]].vz - camera->position.vz;
+
+v2.vx = (short) track->vertices[face->indices[2]].vx - camera->position.vx;
+v2.vy = (short) track->vertices[face->indices[2]].vy - camera->position.vy;
+v2.vz = (short) track->vertices[face->indices[2]].vz - camera->position.vz;
+
+v3.vx = (short) track->vertices[face->indices[3]].vx - camera->position.vx;
+v3.vy = (short) track->vertices[face->indices[3]].vy - camera->position.vy;
+v3.vz = (short) track->vertices[face->indices[3]].vz - camera->position.vz;
+
+gte_ldv0(&v0); // Changed
+gte_ldv1(&v1); // Changed
+gte_ldv2(&v2); // Changed
+gte_rtpt();
+gte_nclip();
+gte_stopz(&nclip);
+if (nclip < 0) {
+    continue;
+}
+gte_stsxy0(&poly->x0);
+gte_ldv0(&v3); // Changed
+gte_rtps();
+gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+gte_avsz4();
+gte_stotz(&otz);
+#+end_src
+
+** Fixing draw distance
+
+We're still overflowing  on draw distance when calculating  the distance between
+the camera and the faces. So everything ends up looking weird still.
+
+After all... the GTE is being used on ~SquareRoot12~.
+
+Let's adjust this with some wishful thinking  first -- and also, adjust the draw
+distance:
+
+#+begin_src c
+// track.c, function render_track
+d.vx = clamp_16bits(currsection->center.vx - camera->position.vx);
+d.vy = clamp_16bits(currsection->center.vy - camera->position.vy);
+d.vz = clamp_16bits(currsection->center.vz - camera->position.vz);
+distmagsq = (d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz);
+distmag = SquareRoot12(distmagsq);
+if(distmag < 1350000) {
+    render_track_section(track, currsection, camera);
+}
+#+end_src
+
+The function definition is very simple:
+
+#+begin_src c
+// Defined right above render_track
+long
+clamp_16bits(long value)
+{
+    if(value > 32767) return 32767;
+    if(value < -32767) return -32767;
+    return value;
+}
+#+end_src
+
+** Adjusting the code
+
+Let's push our camera back further again so we can see our ship.
+
+#+begin_src c
+// main.c, setup function
+setVector(&camera.position, ship->position.vx, ship->position.vy - 200, ship->position.vz - 800);
+// ...
+camera.rotmat = (MATRIX){0}; // Initialize rotmat as a safeguard
+#+end_src
+
+Change the ship movement back again.
+
+#+begin_src c
+if(joypad_check(PAD1_LEFT)) {
+    camera.position.vx -= 100;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    camera.position.vx += 100;
+}
+
+if(joypad_check(PAD1_UP)) {
+    camera.position.vz += 100;
+    ship->position.vz += 100;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    camera.position.vz -= 100;
+    ship->position.vz -= 100;
+}
+#+end_src
+
+[[file:img/flat-tracks-final.png]]
+
+OK! LOOKING GOOOOOD!!!
+
