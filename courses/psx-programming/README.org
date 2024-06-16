@@ -41,13 +41,14 @@ These are my notes for the PlayStation development course.
 24. [[./24-multiple-3d-models.org][Multiple 3D Models]]
 25. [[./25-loading-landscape-objects.org][Loading Landscape Objects]]
 26. [[./26-loading-track-faces.org][Loading Track Faces]]
-27. Loading Track Texture
+27. [[./27-loading-track-texture.org][Loading Track Texture]]
 28. Polygon Subdivision
 29. Movement & Physics
 30. Refactoring Track Visibility
-31. Audio
-32. Running on Real Hardware
-33. Conclusion & Next Steps
+31. Attracting Ship & Track
+32. Audio
+33. Running on Real Hardware
+34. Conclusion & Next Steps
     
 * Extra documents
 
