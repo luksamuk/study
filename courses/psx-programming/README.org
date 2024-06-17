@@ -42,7 +42,7 @@ These are my notes for the PlayStation development course.
 25. [[./25-loading-landscape-objects.org][Loading Landscape Objects]]
 26. [[./26-loading-track-faces.org][Loading Track Faces]]
 27. [[./27-loading-track-texture.org][Loading Track Texture]]
-28. Polygon Subdivision
+28. [[./28-polygon-subdivision.org][Polygon Subdivision]]
 29. Movement & Physics
 30. Refactoring Track Visibility
 31. Attracting Ship & Track

@@ -1,0 +1,328 @@
+#+title: Polygon Subdivision
+#+startup: content
+
+* Tessellation & Polygon Subdivision
+
+Right now the biggest artifacts we are experiencing are:
+
+- Texture warping (texture distortion on quads);
+- Near clipping issues (holes that appear on our mesh as we get close).
+
+The texture warping can't really be  resolved since the PlayStation doesn't have
+a z-buffer, so we could try to minimize it.
+
+One solution would be to use proper *polygon clipping*. So we could go ahead and
+actually  "cut" our  polygons,  performing  a clipping  against  the view  plane
+itself, and therefore  creating a new polygon with its  own characteristics that
+we  could  safely  render  onscreen.  One  example  of  such  algorithm  is  the
+Sutherland-Hodgman Algorithm.
+
+But clipping means a lot of computation! Sometimes, the clipping of one triangle
+might need multiple passes and result in multiple triangles. Calculations become
+more complex and we end up with texture jumping artifacts.
+
+So we're not going  to use perfect clipping like this,  especially when it comes
+to the PlayStation;  we don't have a  lot of processing power to  give away like
+that.
+
+We are going  with *polygon subdivision*. This is a  practice encouraged by Sony
+back then,  and this is going  to tackle both  the texture warping and  the near
+clipping holes. So we  subdivide the polygons that are too big  and too close to
+the camera. One issue,  though, is that we end up  increasing our polygon count,
+and we also are going to need an efficient subdivision algorithm for that.
+
+We can  define _how many_  subdivisions we must perform  for each face  based on
+*LOD* (/level of detail/). One popular  method is to keep subdividing our fraces
+until we reach the desired LOD depth using *recursion*.
+
+The first implementation is going to  be a naïve approach from first principles,
+but this  operation is  *hot code*, meaning  it has to  be implemented  for each
+polygon, on each frame, etc. So performance  is crucial. Since this is hot code,
+no wonder this  was usually implemented directly with assembly  language in some
+cases.
+
+* Drawing Quads Recursively
+
+Psy-Q actually provides a few implementations for polygon subdivision algorithms
+that are already able to work for us, but we're going to do that by hand instead
+of  using premade  stuff. We  might replace  it by  something smarter  or faster
+later.
+
+The  idea is  simple,  just precalculate  the depth  according  to the  distance
+between the section center and the  camera position and define the LOD according
+to distance  thresholds. Loop over the  faces in a section,  calling a recursive
+function, passing along the LOD and an  initial level of 0. Keep subdividing the
+face's sizes by 2 (with a bit  shift) until reaching the bottom LOD, then render
+the currently handled vertices as a FT4 polygon.
+
+Also: The subdivision  is done in 3D  space, not in 2D space.  First perform the
+subdivision, later let the GTE handle whatever it should.
+
+* A Function to Draw Quads Recursively
+
+First off, in ~track.c~, go to ~render_track~ and pass the ~distmag~ variable as
+a parameter to ~render_track_section~.
+
+#+begin_src c
+void
+render_track(Track *track, Camera *camera)
+{
+    // ...
+    do {
+        // ...
+        distmag = SquareRoot12(distmagsq);
+        if(distmag < 1350000) {
+            render_track_section(track, currsection, camera, distmag);
+        }
+        // ...
+    } while(currsection != track->sections);
+}
+#+end_src
+
+Now go  to ~render_track_section~.   Fix its signature,  remove all  the drawing
+routines, leaving  the GTE preparation  before the  loop and the  calculation of
+vertices  within the  loop.  Right after  it,  calculate the  depth  and call  a
+~draw_quad_recursive~ function as follows:
+
+#+begin_src c
+void
+render_track_section(Track *track, Section *section, Camera *camera, u_long distmag)
+{
+    // Remove POLY_FT4, LINE_F2 and other render constants from here
+    MATRIX worldmat, viewmat; // These lines left untouched
+    VECTOR pos, scale;
+    SVECTOR rot;
+    // ...
+    for(u_long i = 0; i < section->numfaces; i++) {
+        // Remove all polygon, color and texture info
+        // ...after calculating v0, v1, v2, v3...
+        u_short depth = 0;
+        if(distmag < 600000) depth = 1;
+        if(distmag < 200000) depth = 2;
+
+        render_quad_recursively(face, &v0, &v1, &v2, &v3, 0, depth);
+    }
+}
+#+end_src
+
+Now let's define ~draw_quad_recursive~ (no need to declare it in ~track.h~, just
+declare it above ~render_track_section~. It will basically contain the recursion
+we commented above and, when it is time to render, it will render using the same
+code we removed from ~render_track_section~.
+
+#+begin_src c
+void
+render_quad_recursively(Face *face, SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3, u_short level, u_short depth)
+{
+    if(level >= depth) {
+        short nclip;
+        long otz, p, flg;
+        POLY_FT4 *poly;
+        LINE_F2 *line0, *line1, *line2, *line3;
+
+        poly = (POLY_FT4*) get_next_prim();
+        SetPolyFT4(poly);
+        setRGB0(poly, face->color.r, face->color.g, face->color.b);
+        poly->tpage = face->tpage;
+        poly->clut  = face->clut;
+        setUV4(poly, face->u0, face->v0, face->u1, face->v1, face->u2, face->v2, face->u3, face->v3);
+        
+        gte_ldv0(v0); // NOTE: Not a reference anymore
+        gte_ldv1(v1); // NOTE: Not a reference anymore
+        gte_ldv2(v2);
+        gte_rtpt();
+        gte_nclip();
+        gte_stopz(&nclip);
+        if(nclip < 0) {
+            return;
+        }
+        gte_stsxy0(&poly->x0);
+        gte_ldv0(v3); // NOTE: Not a reference anymore
+        gte_rtps();
+        gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+        gte_avsz4();
+        gte_stotz(&otz);
+        if(otz > 0 && otz < OT_LEN) {
+            addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+            increment_next_prim(sizeof(POLY_FT4));
+
+            if(is_debugging()) {
+                line0 = (LINE_F2*)get_next_prim();
+                setLineF2(line0);
+                setXY2(line0, poly->x0, poly->y0, poly->x1, poly->y1);
+                setRGB0(line0, 255, 255, 0);
+                addPrim(get_ot_at(get_curr_buffer(), 0), line0);
+                increment_next_prim(sizeof(LINE_F2));
+
+                line1 = (LINE_F2*)get_next_prim();
+                setLineF2(line1);
+                setXY2(line1, poly->x1, poly->y1, poly->x3, poly->y3);
+                setRGB0(line1, 255, 255, 0);
+                addPrim(get_ot_at(get_curr_buffer(), 0), line1);
+                increment_next_prim(sizeof(LINE_F2));
+
+                line2 = (LINE_F2*)get_next_prim();
+                setLineF2(line2);
+                setXY2(line2, poly->x3, poly->y3, poly->x2, poly->y2);
+                setRGB0(line2, 255, 255, 0);
+                addPrim(get_ot_at(get_curr_buffer(), 0), line2);
+                increment_next_prim(sizeof(LINE_F2));
+
+                line3 = (LINE_F2*)get_next_prim();
+                setLineF2(line3);
+                setXY2(line3, poly->x2, poly->y2, poly->x0, poly->y0);
+                setRGB0(line3, 255, 255, 0);
+                addPrim(get_ot_at(get_curr_buffer(), 0), line3);
+                increment_next_prim(sizeof(LINE_F2));
+            }
+        }
+        return;
+    }
+
+    SVECTOR vm01, vm02, vm03, vm12, vm13, vm32;
+    vm01 = (SVECTOR){(v0->vx + v1->vx) >> 1, (v0->vy + v1->vy) >> 1, (v0->vz + v1->vz) >> 1};
+    vm02 = (SVECTOR){(v0->vx + v2->vx) >> 1, (v0->vy + v2->vy) >> 1, (v0->vz + v2->vz) >> 1};
+    vm03 = (SVECTOR){(v0->vx + v3->vx) >> 1, (v0->vy + v3->vy) >> 1, (v0->vz + v3->vz) >> 1};
+    vm12 = (SVECTOR){(v1->vx + v2->vx) >> 1, (v1->vy + v2->vy) >> 1, (v1->vz + v2->vz) >> 1};
+    vm13 = (SVECTOR){(v1->vx + v3->vx) >> 1, (v1->vy + v3->vy) >> 1, (v1->vz + v3->vz) >> 1};
+    vm32 = (SVECTOR){(v3->vx + v2->vx) >> 1, (v3->vy + v2->vy) >> 1, (v3->vz + v2->vz) >> 1};
+
+    render_quad_recursively(face,       v0, &vm01, &vm02, &vm03, level + 1, depth);
+    render_quad_recursively(face, &vm01,       v1, &vm03, &vm13, level + 1, depth);
+    render_quad_recursively(face, &vm02, &vm03,       v2, &vm32, level + 1, depth);
+    render_quad_recursively(face, &vm03, &vm13, &vm32,       v3, level + 1, depth);
+}
+#+end_src
+
+So the rendering part is basically the exact same thing we had before, except we
+are  passing  the vertices  by  name  directly  to  ~gte_ldvX~, since  they  are
+pointers passed by parameter.
+
+The subdivision part, though, is pretty straightforward. Our quade is defined by
+~v0~, ~v1~,  ~v2~, ~v3~ (in  zigzag Z order,  as always). All  we need to  do is
+calculate the  points inbetween these  coordinates (in  this case ~vm03~  is the
+center, and is calculated by averaging ~v0~ and ~v3~). Using these new vertices,
+we can call the function recursively and "pseudo-define" a new quad that will be
+the new  function parameters.  Four new quads,  four recursive  calls: top-left,
+top-right, bottom-left, bottom-right.
+
+[[file:img/polygon-subdivision.png]]
+
+This looks so nice!  We still need to tackle our UV coordinates,  but we have no
+near clipping anymore, and the texture warping is somewhat better now.
+
+** Exercise: UV Coordinates subdivision
+
+As proposed  exercise, we  are going  to fix the  UV coordinates  by subdividing
+them.
+
+I am going for  the naïve approach and pass these  UV coordinates as parameters,
+performing  exactly the  same approach  as before.  I know  this looks  ugly and
+probably has  a impact on  how the  stack is used  but...  at this  point, we're
+already using the stack quite a lot.
+
+On ~render_track_section~, let's pass the UV coordinates as parameters:
+
+#+begin_src c
+void
+render_track_section(Track *track, Section *section, Camera *camera, u_long distmag)
+{
+    // ...
+    for(u_long i = 0; i < section->numfaces; i++) {
+        // ...
+
+        render_quad_recursively(face,
+            &v0, &v1, &v2, &v3,
+            face->u0, face->v0, face->u1, face->v1, face->u2, face->v2, face->u3, face->v3,
+            0, depth);
+    }
+}
+#+end_src
+
+And now we change ~render_quad_recursively~:
+
+#+begin_src c
+void
+render_quad_recursively(
+    Face *face,
+    SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3,
+    short tu0, short tv0, short tu1, short tv1, short tu2, short tv2, short tu3, short tv3,
+    u_short level, u_short depth)
+{
+    if(level >= depth) {
+        // ...
+        setUV4(poly, tu0, tv0, tu1, tv1, tu2, tv2, tu3, tv3);
+        // ...
+        return;
+    }
+
+    // After the vertex midpoint calculations...
+    short
+        tum01 = (tu0 + tu1) >> 1, tvm01 = (tv0 + tv1) >> 1,
+        tum02 = (tu0 + tu2) >> 1, tvm02 = (tv0 + tv2) >> 1,
+        tum03 = (tu0 + tu3) >> 1, tvm03 = (tv0 + tv3) >> 1,
+        tum13 = (tu1 + tu3) >> 1, tvm13 = (tv1 + tv3) >> 1,
+        tum32 = (tu3 + tu2) >> 1, tvm32 = (tv3 + tv2) >> 1;
+
+    render_quad_recursively(face,    v0, &vm01, &vm02, &vm03,    tu0,     tv0, tum01, tvm01, tum02, tvm02, tum03, tvm03,   level + 1, depth);
+    render_quad_recursively(face, &vm01,    v1, &vm03, &vm13,    tum01, tvm01,   tu1,   tv1, tum03, tvm03, tum13, tvm13,   level + 1, depth);
+    render_quad_recursively(face, &vm02, &vm03,    v2, &vm32,    tum02, tvm02, tum03, tvm03,   tu2,   tv2, tum32, tvm32,   level + 1, depth);
+    render_quad_recursively(face, &vm03, &vm13, &vm32,    v3,    tum03, tvm03, tum13, tvm13, tum32, tvm32,   tu3,   tv3,   level + 1, depth);
+
+}
+#+end_src
+
+[[file:img/uvcoords-subdivision.png]]
+
+Looks so good! :)
+
+* Subdividing UV Coordinates
+
+See above.
+
+* T-Junctions
+
+If you look closely, you'll notice that there are small gaps between polygons in
+the very change of LOD between polygons.
+
+Well, most  people seem to be  tempted to say that  this happens due to  lack of
+*precision*  and  numeric representation  errors  --  and they  are  technically
+correct, since we're using fixed point numbers, so there are some limitations.
+
+But this actually has to do with the way we subdivided our quads.
+
+These gaps between faces are what we call *T-junction artifacts*, or *T-junction
+gaps*,  or  *seams*,  or  even  *sparks*. Anyway,  these  artifacts  are  called
+T-junctions because they happen  at the change of level of  detail.  That is, if
+we  have a  subdivided  depth-1  quad, which  was  therefore  subdivided into  4
+different quads, the part  that connects it to the nearest  depth-0 quad makes a
+"T", and above that "T", we get  a precision errors that make these gaps appear,
+due to the malformation of these subdivided quads.
+
+- Depending on how  we choose to tessellate a mesh,  we might create T-junctions
+  between polygons.
+- Due to precision issues, these  T-junctions can cause *gaps* (popularly called
+  /seams/) in between our primitives.
+
+This is  a very  common artifact.  And is  also common  on the  original Wipeout
+game.  And  on  many PSX  games.  And  even  on  newest games,  though  high-end
+processing may mask them.
+
+...we're not going to fix that. :)
+
+* Can We Reduce T-Junctions?
+
+So the course mentions a few methods for removing T-junctions. Sony recommended,
+back then, to  create a new triangle to  fill the gap, but I think  this is just
+pushing the problem under the rug.
+
+There are also approaches  to adjusting the indices of the  faces to replace the
+T-junction vertex by an existing vertex  outside the gap (which basically remove
+two  triangles close  to the  T-junction  and draws  one big  triangle in  their
+place),  and  another where  we  just  draw  degenerate triangles,  skewing  the
+triangles  and effectively  moving  the  triangles vertex  to  the  side of  the
+less-detailed quad; no "T", no problem.
+
+These ideas are actually very good and worth a try. I might revisit them later.
+
+
