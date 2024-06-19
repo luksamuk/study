@@ -1,0 +1,401 @@
+#+title: Movement & Physics
+#+startup: content
+
+* Ship Struct
+
+We are going to have a new struct called ~Ship~:
+
+#+begin_src c
+typedef struct {
+    Object *object;
+
+    VECTOR vel;
+    VECTOR acc;
+
+    VECTOR thrust;
+    VECTOR drag;
+
+    short yaw, pitch, roll;
+
+    short velyaw, velpitch, velroll;
+    short accyaw, accpitch, accroll;
+
+    short mass;
+    short speed;
+    short thrustmag;
+    short thrustmax;
+
+    VECTOR up, right, forward;
+} Ship;
+#+end_src
+
+And also some prototype functions:
+
+#+begin_src c
+void ship_init(Ship *ship, Track *track, VECTOR *startpos);
+void ship_update(Ship *ship);
+#+end_src
+
+* Adding the Ship Header File
+
+Create a  ~ship.h~ file  with the above  contents, and also  a ~ship.c~  file as
+well:
+
+#+begin_src c
+#include "ship.h"
+
+void
+ship_init(Ship *ship, Track *track, VECTOR *startpos)
+{
+    ship->object->position.vx = startpos->vx;
+    ship->object->position.vy = startpos->vy;
+    ship->object->position.vz = startpos->vz;
+
+    ship->vel = (VECTOR){0, 0, 0};
+    ship->acc = (VECTOR){0, 0, 0};
+
+    ship->thrust = (VECTOR){0, 0, 0};
+    ship->drag   = (VECTOR){0, 0, 0};
+
+    ship->yaw   = 0;
+    ship->pitch = 0;
+    ship->roll  = 0;
+
+    ship->velyaw   = 0;
+    ship->velpitch = 0;
+    ship->velroll  = 0;
+
+    ship->accyaw   = 0;
+    ship->accpitch = 0;
+    ship->accroll  = 0;
+
+    ship->speed     = 0;
+    ship->thrustmag = 0;
+    ship->thrustmax = 700;
+
+    ship->mass = 150;
+}
+
+void
+ship_update(Ship *ship)
+{
+    // 1. Find the orientation matrix and update orientation vectors (RIGHT, UP, FORWARD)
+    // 2. Compute forward velocity (speed * forward vector)
+    // 3. Compute the thrust force vector (thrustmag * forward vector)
+    // 4. Find the total force being applied on the ship (thrust, weight, drag, etc.)
+    // 5. Compute the acceleration (F = m * acc)
+    // 6. Compute the new velocity based on the acceleration (v_new = v_old + acc)
+    // 7. Compute the new position based on the velocity (new_pos = old_pos + vel)
+}
+#+end_src
+
+* Movement in Game Physics
+
+- The sum of all forces acting on an object results in an acceleration ($F=ma$).
+- Acceleration is the rate of velocity change per unit of time.
+- Velocity is the rate of position change per unit of time.
+
+We are going to program a framerate-dependent movement.
+
+This is all described  as basic Physics, so I think I don't  need to go too deep
+here in the notes. Go grab a school book if you're in trouble.
+
+* Changing the Thrust Magnitude
+
+Let's start by changing ~main.c~.
+
+Remove the ~Object *ship~ declaration, and replace it with a proper Ship:
+
+#+begin_src c
+#include "ship.h"
+
+// ...
+
+Ship ship;
+
+// In setup function:
+// ...
+ship.object = get_object_from_list(objects, 2);
+setVector(&ship.object->position, 32599, -347, -45310);
+setVector(&camera.position, ship.object->position.vx, ship.object->position.vy - 600, ship.object->position.vz - 1200);
+// ...
+
+
+// In update function:
+// ...
+if(joypad_check(PAD1_UP)) {
+    camera.position.vz += 100;
+    ship.object->position.vz += 100;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    camera.position.vz -= 100;
+    ship.object->position.vz -= 100;
+}
+// ...
+look_at(&camera, &camera.position, &ship.object->position, &(VECTOR){0, -ONE, 0});
+// ...
+render_object(ship.object, &camera);
+#+end_src
+
+** Changing the movement
+
+Let's start by not  changing the position of the ship directly.  What we want is
+the idea of accelerating forward.
+
+Rewriting the controls in ~update~:
+
+#+begin_src c
+if(joypad_check(PAD1_LEFT)) {
+    ship.object->rotation.vy -= 10;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    ship.object->rotation.vy += 10;
+}
+
+if(joypad_check(PAD1_UP)) {
+    ship.object->rotation.vx -= 10;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    ship.object->rotation.vx += 10;
+}
+
+if(joypad_check(PAD1_CROSS)) {
+    ship.thrustmag += 10;
+} else if(ship.thrustmag > 0) {
+    ship.thrustmag -= 100;
+}
+
+if(ship.thrustmag > ship.thrustmax) {
+    ship.thrustmag = ship.thrustmax;
+}
+#+end_src
+
+We're gonna have  a thrust value, that modifies the  acceleration, that modifies
+speed,  that modifies  position. So  we increase  thrust magnitude.  If we  stop
+pressing X, just decrease the thrust... fast.  Also, cap the maximum thrust to a
+certain value.
+
+Plus, the pad directionals now modify  the ship's rotation. Left/right to rotate
+around the Y axis, and up/down to rotate around the X axis.
+
+** Initializing and updating the ship
+
+Right after  loading our  ~ship.object~, let's initialize  our ship,  by calling
+~ship_init~:
+
+#+begin_src c
+// On main.c, setup function:
+VECTOR startpos;
+// ...
+setVector(&startpos, 32599, -347, -45310);
+ship_init(&ship, &track, &startpos);
+// ...
+// Remove the following line:
+//setVector(&ship.object->position, 32599, -347, -45310);
+#+end_src
+
+Also update the ship:
+
+#+begin_src c
+// On main.c, update function:
+// Right after the new controls
+ship_update(&ship);
+#+end_src
+
+* Applying the Thrust Force
+
+Let's start applying the thrust force in the ship's nose direction.
+
+Go to ~ship.c~.
+
+#+begin_src c
+/* Function ship_update */
+ship->forward = (VECTOR){0, 0, ONE};
+
+ship->thrust.vx = (ship->thrustmag * ship->forward.vx) >> 12;
+ship->thrust.vy = (ship->thrustmag * ship->forward.vy) >> 12;
+ship->thrust.vz = (ship->thrustmag * ship->forward.vz) >> 12;
+
+VECTOR force = (VECTOR){0, 0, 0};
+force.vx += ship->thrust.vx;
+force.vy += ship->thrust.vy;
+force.vz += ship->thrust.vz;
+
+ship->acc.vx += force.vx / ship->mass;
+ship->acc.vy += force.vy / ship->mass;
+ship->acc.vz += force.vz / ship->mass;
+
+ship->vel.vx += ship->acc.vx;
+ship->vel.vy += ship->acc.vy;
+ship->vel.vz += ship->acc.vz;
+
+ship->object->position.vx += ship->vel.vx >> 6;
+ship->object->position.vy += ship->vel.vy >> 6;
+ship->object->position.vz += ship->vel.vz >> 6;
+#+end_src
+
+We start by pretending that our forward vector is always pointing towards +Z.
+
+Next, we compute the thrust force vector  based on the thrust magnitude (that is
+modified using  the joypad). We  divide it  quite a bit  so our ship  doesn't go
+nuts.
+
+Then, we  compute the force applied  onto the ship. This  force is a sum  of all
+forces acting  on the ship, which  for now, is  just the thrust.
+
+We then compute the acceleration through the $F=ma$ formula. And then, we modify
+the velocity according to the acceleration (or: we integrate the acceleration to
+find the velocity).
+
+Final touch is computing the new position.
+
+Now let's go back to ~main.c~ and always force the camera to follow the ship.
+
+#+begin_src c
+// In main.c, function update, after updating the ship
+camera.position.vx = ship.object->position.vx;
+camera.position.vy = ship.object->position.vy - 500;
+camera.position.vz = ship.object->position.vz - 800;
+#+end_src
+
+* Frame Rate on NTSC vs. PAL
+
+On PlayStation, there are three different video formats:
+
+- NTSC (North America, Central America, Japan);
+- PAL (many European countries);
+- SECAM (Eastern Europe and USSR).
+
+These video  modes have an  impact on  game speed when  it is tied  to ~VSync()~
+(like our  game is). We'll focus  on implementing first the  NTSC version, which
+is 16% faster than PAL and assumes an  update of 30 FPS (29.97 FPS since NTSC is
+a little bit less than 60Hz).
+
+NTSC   and   PAL  also   differ   on   the   nature   in  which   they   perform
+/scanning/. Displays use either *progressive scan* or *interlaced scan*.
+
+*Progressive scan* is used by more modern CRT displays, and scan an entire frame
+linearly in one go; all lines of each frame are drawn in sequence.
+
+*Interlaced scan* displays  half the image at a time,  alternating between /odd/
+and /even/ lines.
+
+On streams,  interlaced video  saves bandwidth and  doubles the  perceived frame
+rate.  But  there is a higher  risk of display artifacts,  especially /combing/,
+but the switch back-and-forth happened tipically at 60FPS, so the human eye ends
+up perceiving a full image rather than two half-images.
+
+When we talk  about display modes such  as 240p, 480i, 720p,  1080p, 1080i, etc,
+the "p" and "i" letters stand for /progressive/ or /interlaced/.
+
+* Yaw, Pitch, & Roll
+
+[[https://en.wikipedia.org/wiki/Rotation_matrix][Wikipedia article on Rotation Matrices.]]
+
+Rotating around an axis means that  we are *locking* that axis. Rotations around
+each axis have a name:
+
+| Axis | Rotation Name |
+|------+---------------|
+| X    | Pitch         |
+| Y    | Yaw           |
+| Z    | Roll          |
+
+The /locking/  behaviour is  also very  visible when we  take a  look at  the 3D
+matrices for rotating a 3D vector:
+
+$$\\
+\begin{align}
+R _ {y} (\theta) =
+\begin{bmatrix}
+cos\theta  &   0   &  sin\theta \\
+  0        &   1   &       0    \\
+-sin\theta &   0   & cos\theta
+\end{bmatrix} && \text{yaw}
+\end{align}$$
+
+
+$$\\
+\begin{align}
+R _ {x} (\theta) =
+\begin{bmatrix}
+  1  &       0     &      0      \\
+  0  &   cos\theta &  -sin\theta \\
+  0  &   sin\theta &   cos\theta
+\end{bmatrix} && \text{pitch}
+\end{align}$$
+
+
+$$\\
+\begin{align}
+R _ {z} (\theta) =
+\begin{bmatrix}
+cos\theta & -sin\theta & 0 \\
+sin\theta & cos\theta  & 0 \\
+    0     &     0      & 1
+\end{bmatrix} && \text{roll}
+\end{align}$$
+
+** Combining matrices
+
+The way to combine these three rotations is basically by multiplying them:
+
+$$\\
+\begin{align}
+   \text{yaw}    && \cdot &&   \text{pitch}   && \cdot &&   \text{roll} \\
+R _ {y} (\theta) && \cdot && R _ {x} (\theta) && \cdot && R _ {z} (\theta)
+\end{align}$$
+
+* Populating our Rotation Matrix
+
+So let's write our multiplication as matrices:
+
+$$\\
+\begin{align}
+R _ {y} (y) &&  \cdot &&R _ {x} (x) &&  \cdot &&R _ {z} (z) \\
+\begin{bmatrix}
+cos(y)  &   0   &  sin(y) \\
+  0     &   1   &    0    \\
+-sin(y) &   0   & cos(y)
+\end{bmatrix} && \cdot &&
+\begin{bmatrix}
+  1  &    0     &      0   \\
+  0  &   cos(x) &  -sin(x) \\
+  0  &   sin(x) &   cos(x)
+\end{bmatrix} &&  \cdot &&
+\begin{bmatrix}
+cos(z) & -sin(z) & 0 \\
+sin(z) & cos(z)  & 0 \\
+  0    &   0     & 1
+\end{bmatrix}\end{align}$$
+
+Let's simplify our notation by using $sn$  as $sin(n)$ and $cn$ as $cos(n)$, $n$
+being  one  of  $x$,  $y$  or  $z$   axis  angles.  If  we  perform  the  matrix
+multiplication, this is what we end with:
+
+$$\\
+\left[ \begin{array}{c:c:c}
+cy\cdot{}cz + (sy\cdot{}sx)\cdot{}sz & -sz\cdot{}cy + (sy\cdot{}sx)\cdot{}cz & sy\cdot{}cx\\
+cx\cdot{}sz & cx\cdot{}sz & -sx\\
+-sy\cdot{}cz + (cy\cdot{}sx)\cdot{}sz & -sy\cdot{}(-sz) + (cy\cdot{}sx)\cdot{}cz
+& cy\cdot{}cx\\
+\end{array} \right]$$
+
+This disposition of  terms is no coincidence here, since  *each column describes
+right, up  and forward  vectors respectively*,  which were  the vectors  we were
+looking for all along! Among these, the forward (nose) vector is going to be the
+most important, since  it describes the orientation along which  our ship should
+move.
+
+* Psy-Q Trigonometric Functions
+* Coding the Object's Orientation
+* Drawing XYZ Axis
+* Extrinsic vs. Intrinsic Rotations
+* Accelerating in the Nose's Direction
+* Placing Camera Behind the Ship
+* Yaw Velocity
+* Maximum Yaw Velocity
+* Roll Left & Right
