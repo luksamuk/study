@@ -839,6 +839,40 @@ the ship acceleration.
 WE GOT MOVEMENT!
 
 * Placing Camera Behind the Ship
+
+We should always  position the camera behind the ship,  but considering the nose
+direction of the ship.
+
+#+begin_src c
+// main.c, update function
+VECTOR up = {0, -ONE, 0};
+camera.position.vx = ship.object->position.vx - (ship.forward.vx >> 2) + (up.vx >> 3);
+camera.position.vy = ship.object->position.vy - (ship.forward.vy >> 2) + (up.vy >> 3);
+camera.position.vz = ship.object->position.vz - (ship.forward.vz >> 2) + (up.vz >> 3);
+
+look_at(&camera, &camera.position, &ship.object->position, &up);
+#+end_src
+
+I also refactored  a bit my custom  controls for debug and added  a shortcut for
+repositioning the ship at  the start of the track. While holding  L1 + R1, press
+SELECT to toggle debug, and press START to reset the ship.
+
+#+begin_src c
+if((joypad_check(PAD1_L1) && joypad_check(PAD1_R1))) {
+    if(joypad_check_tap(PAD1_SELECT))
+        debug_toggle();
+
+    if(joypad_check_tap(PAD1_START)) {
+        // Reset ship
+        VECTOR startpos;
+        setVector(&startpos, 32599, -347, -45310);
+        ship_init(&ship, &track, &startpos);
+    }
+}
+#+end_src
+
+[[file:img/movement-and-camera.gif]]
+
 * Yaw Velocity
 * Maximum Yaw Velocity
 * Roll Left & Right
