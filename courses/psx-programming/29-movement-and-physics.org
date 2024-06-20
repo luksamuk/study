@@ -390,11 +390,454 @@ looking for all along! Among these, the forward (nose) vector is going to be the
 most important, since  it describes the orientation along which  our ship should
 move.
 
+- The PlayStation GTE  uses *matrices* to encode rotation.  Modern game engines,
+  on the other hand, often use *quaternions* to encode object orientation.
+
+Here is the code which we'll end up using to encode our vectors:
+
+#+begin_src c
+void
+ship_update(Ship *ship)
+{
+    short sinx = csin(ship->pitch);
+    short cosx = ccos(ship->pitch);
+    short siny = csin(ship->yaw);
+    short cosy = ccos(ship->yaw);
+    short sinz = csin(ship->roll);
+    short cosz = ccos(ship->roll);
+
+    ship->right.vx = ((cosy * cosz) >> 12) + ((((siny * sinx) >> 12) * sinz) >> 12);
+    ship->right.vy = (cosx * sinz) >> 12;
+    ship->right.vz = ((-siny * cosz) >> 12) + ((((cosy * sinx) >> 12) * sinz) >> 12);
+
+    ship->up.vx = ((-sinz * cosy) >> 12) + ((((siny * sinx) >> 12) * cosz) >> 12);
+    ship->up.vy = (cosx * cosz) >> 12;
+    ship->up.vz = ((-siny * -sinz) >> 12) + ((((cosy * sinx) >> 12) * cosz) >> 12);
+
+    ship->forward.vx = (siny * cosx) >> 12;
+    ship->forward.vy = (-sinx);
+    ship->forward.vz = (cosy * cosx) >> 12;
+
+    // (Remove the forward vector definition)
+    // ...
+}
+#+end_src
+
+Notice that we have  a lot of shifts, in specific points  there. This is because
+we need to  be careful about overflows and underflows  on variables, since we're
+dealing with  fixed-point math. We're shifting  by 12 there because  this is our
+scale for a fixed-point.
+
 * Psy-Q Trigonometric Functions
+
+Psy-Q provides two sets of functions for computing sine and cosine:
+
+- ~rsin~  and ~rcos~:  Returns pre-calculated  sines  and cosines  of angles.
+- ~csin~ and ~ccos~:  Slower, less precise than ~rsin~ and  ~rcos~, but takes up
+  less space in the code.
+
+The angle parameters  for these functions must be provided  in radians, in 20.12
+fixed-point format,  where 4096 =  1.0 = 360 degrees.  The angle is  measured in
+rotations, so $1.0 = 2\pi$, in this case.
+
+More details are available in [[https://psx.arthus.net/sdk/Psy-Q/DOCS/Devrefs/Libref.pdf][Psy-Q's reference]].
+
+*NOTE:*  [[https://github.com/grumpycoders/pcsx-redux/issues/1569][As discussed  in this  issue]], the  values of  ~rsin~ and  ~rcos~ lookup
+tables do not match the ones used  in the original Psy-Q library, but this issue
+may already be resolved.  So try it if you want. But if  you happen to see weird
+rotations on the ship on the next section, change it back to the ~c~ variants.
+
 * Coding the Object's Orientation
+
+Now let's  go back to  the controls definition in  ~main.c~ and change  the ship
+orientation instead of its direct angles.
+
+#+begin_src c
+// In update function
+if(joypad_check(PAD1_LEFT)) {
+    ship.yaw -= 50;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    ship.yaw += 50;
+}
+
+if(joypad_check(PAD1_UP)) {
+    ship.pitch -= 10;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    ship.pitch += 10;
+}
+#+end_src
+
+So our ship does not yet respect the  rotation that we are using. So back in our
+~Object~ definition,  we are  going to  replace the  rotation ~SVECTOR~  with an
+entire  rotation ~MATRIX~  (~rotmat~), and  then use  it in  our ~render_object~
+function.
+
+#+begin_src c
+// In object.h
+typedef struct Object {
+    char name[16];
+    short flags;
+    VECTOR origin;
+    short numvertices;
+    SVECTOR *vertices;
+    short numnormals;
+    SVECTOR *normals;
+    short numprimitives;
+    PrimitiveNode *primitives;
+    VECTOR position;
+    VECTOR scale;
+    MATRIX rotmat;
+    struct Object *next;
+} Object;
+#+end_src
+
+Now since we are calculating the individual  columns of our matrix as the right,
+up and forward vectors, let's go ahead  and populate it with these values within
+our ship object:
+
+#+begin_src c
+// In ship.c, ship_update function
+// ...at the end of function...
+ship->object->rotmat.m[0][0] = ship->right.vx;
+ship->object->rotmat.m[1][0] = ship->right.vy;
+ship->object->rotmat.m[2][0] = ship->right.vz;
+
+ship->object->rotmat.m[0][1] = ship->up.vx;
+ship->object->rotmat.m[1][1] = ship->up.vy;
+ship->object->rotmat.m[2][1] = ship->up.vz;
+
+ship->object->rotmat.m[0][2] = ship->forward.vx;
+ship->object->rotmat.m[1][2] = ship->forward.vy;
+ship->object->rotmat.m[2][2] = ship->forward.vz;
+#+end_src
+
+Now on ~render_object~,  we don't have to populate the  rotation matrix by using
+the ~RotMatrix~ function.
+
+#+begin_src c
+// object.c, render_object function
+// ...right after declaring variables...
+// RotMatrix(&object->rotation, &worldmat); // Remove this line
+worldmat = object->rotmat;
+#+end_src
+
+At  the  end  of  ~load_object_prm~,  go  ahead  and  remove  any  reference  to
+~object->rotation~. Instead, populate it with an identity matrix:
+
+#+begin_src c
+// Initialize the object's rotation matrix with identity matrix
+object->rotmat.m[0][0] = ONE; object->rotmat.m[0][1] =   0; object->rotmat.m[0][2] =   0;
+object->rotmat.m[1][0] =   0; object->rotmat.m[1][1] = ONE; object->rotmat.m[1][2] =   0;
+object->rotmat.m[2][0] =   0; object->rotmat.m[2][1] =   0; object->rotmat.m[2][2] = ONE;
+object->rotmat.t[0] = 0;
+object->rotmat.t[1] = 0;
+object->rotmat.t[2] = 0;
+#+end_src
+
+[[file:img/proper-rotation.png]]
+
+Yay! So now we  can properly rotate our ship, but if you  try to move it, you'll
+notice the movement is still a little bit off. We'll handle that soon.
+
 * Drawing XYZ Axis
+
+We could have a function to draw the ship's axes. After calling ~render_object~,
+let's do some wishful thinking here:
+
+#+begin_src c
+/* In main.c, update function */
+
+// Set my custom debug toggle to hold L1 + R1
+// then tap SELECT
+if((joypad_check(PAD1_L1) && joypad_check(PAD1_R1)) &&
+   joypad_check_tap(PAD1_SELECT)) {
+    debug_toggle();
+}
+
+// ...
+
+if(is_debugging()) draw_xyz_axis(&ship, &camera);
+#+end_src
+
+Now on ~ship.c~ (and also add the prototype on ~ship.h~!):
+
+#+begin_src c
+#include "display.h"
+#include "globals.h"
+
+// ...
+
+void
+draw_xyz_axis(Ship *ship, Camera *camera)
+{
+    SVECTOR v0, v1, v2;
+    long otz;
+    POLY_F3 *polya, *polyb, *polyc, *polyd;
+    LINE_F2 linea, lineb, linec;
+
+    VECTOR  vec;
+    SVECTOR rot;
+    MATRIX  worldmat;
+    MATRIX  viewmat;
+
+    rot.vx = 0;
+    rot.vy = 0;
+    rot.vz = 0;
+    RotMatrix(&rot, &worldmat);
+    TransMatrix(&worldmat, &ship->object->position);
+    ScaleMatrix(&worldmat, &ship->object->scale);
+    CompMatrixLV(&camera->lookat, &worldmat, &viewmat);
+    SetRotMatrix(&viewmat);
+    SetTransMatrix(&viewmat);
+
+    polya = (POLY_F3*)get_next_prim();
+    setPolyF3(polya);
+    v0.vx = 0;
+    v0.vy = 0;
+    v0.vz = 0;
+    v1 = v2 = v0;
+    otz  = RotTransPers(&v0, (long*)&polya->x0, NULL, NULL);
+    otz += RotTransPers(&v1, (long*)&polya->x1, NULL, NULL);
+    otz += RotTransPers(&v2, (long*)&polya->x2, NULL, NULL);
+    otz /= 3;
+    setRGB0(polya, 255, 255, 255);
+    addPrim(get_ot_at(get_curr_buffer(), otz), polya);
+    increment_next_prim(sizeof(POLY_F3));
+
+    polyb = (POLY_F3*)get_next_prim();
+    setPolyF3(polyb);
+    v0.vx = (short)(ship->forward.vx >> 3);
+    v0.vy = (short)(ship->forward.vy >> 3);
+    v0.vz = (short)(ship->forward.vz >> 3);
+    v1 = v2 = v0;
+    otz  = RotTransPers(&v0, (long*)&polyb->x0, NULL, NULL);
+    otz += RotTransPers(&v1, (long*)&polyb->x1, NULL, NULL);
+    otz += RotTransPers(&v2, (long*)&polyb->x2, NULL, NULL);
+    otz /= 3;
+    setRGB0(polyb, 0, 0, 0);
+    addPrim(get_ot_at(get_curr_buffer(), otz), polyb);
+    increment_next_prim(sizeof(POLY_F3));
+
+    polyc = (POLY_F3*)get_next_prim();
+    setPolyF3(polyc);
+    v0.vx = (short)(ship->right.vx >> 4);
+    v0.vy = (short)(ship->right.vy >> 4);
+    v0.vz = (short)(ship->right.vz >> 4);
+    v1 = v2 = v0;
+    otz  = RotTransPers(&v0, (long*)&polyc->x0, NULL, NULL);
+    otz += RotTransPers(&v1, (long*)&polyc->x1, NULL, NULL);
+    otz += RotTransPers(&v2, (long*)&polyc->x2, NULL, NULL);
+    otz /= 3;
+    setRGB0(polyc, 0, 0, 0);
+    addPrim(get_ot_at(get_curr_buffer(), otz), polyc);
+    increment_next_prim(sizeof(POLY_F3));
+
+    polyd = (POLY_F3*)get_next_prim();
+    setPolyF3(polyd);
+    v0.vx = (short) -(ship->up.vx >> 4);
+    v0.vy = (short) -(ship->up.vy >> 4);
+    v0.vz = (short) -(ship->up.vz >> 4);
+    v1 = v2 = v0;
+    otz  = RotTransPers(&v0, (long*)&polyd->x0, NULL, NULL);
+    otz += RotTransPers(&v1, (long*)&polyd->x1, NULL, NULL);
+    otz += RotTransPers(&v2, (long*)&polyd->x2, NULL, NULL);
+    otz /= 3;
+    setRGB0(polyd, 0, 0, 0);
+    addPrim(get_ot_at(get_curr_buffer(), otz), polyd);
+    increment_next_prim(sizeof(POLY_F3));
+
+    // Blue line from origin to forward
+    setLineF2(&linea);
+    setXY2(&linea, polya->x0, polya->y0, polyb->x0, polyb->y0);
+    setRGB0(&linea, 55, 150, 255);
+    DrawPrim(&linea);
+
+    // Red line from origin to right
+    setLineF2(&lineb);
+    setXY2(&lineb, polya->x0, polya->y0, polyc->x0, polyc->y0);
+    setRGB0(&lineb, 255, 55, 87);
+    DrawPrim(&lineb);
+
+    // Green line from origin to up
+    setLineF2(&linec);
+    setXY2(&linec, polya->x0, polya->y0, polyd->x0, polyd->y0);
+    setRGB0(&linec, 10, 255, 110);
+    DrawPrim(&linec);
+}
+#+end_src
+
+Oh, and of course,  since I don't need it, let's disable  the code for rendering
+our quad outlines on ~track.c~:
+
+#+begin_src c
+// On render_quad_recursively
+if(level >= depth) {
+    // ...
+    if (otz > 0 && otz < OT_LEN) {
+        // ...
+#if 0
+            if(is_debugging()) {
+                // ...
+            }
+#endif
+            // ...
+    }
+    // ...
+}
+#+end_src
+
+[[file:img/debug-lines.png]]
+
 * Extrinsic vs. Intrinsic Rotations
+
+So when we combined yaw, pitch and  roll, we multiplied those matrices from left
+to right,  while we usually combine  matrices by multiplying them  from right to
+left.
+
+We  also know  that matrix  multiplication is  non-commutative. In  other words,
+$A\cdot{}B\neq{}B\cdot{}A$.
+
+So... WHY?
+
+Well,  this  has  to  do  with what  mathematicians  call  *extrinsic  rotation*
+vs. *intrinsic rotation*.
+
+- In  *extrinsic rotation*,  all rotations  refer to  a fixed/global  coordinate
+  system X, Y and Z.
+- In  *intrinsic rotation*,  a rotation  refers to  the last  rotated coordinate
+  system (starting  with the first  rotation that refers to  the original/global
+  coordinate system).
+
+Intuitively, an  *extrinsic* rotation refers to  the world view of  the ship and
+leverages no previous  rotation, therefore any rotation is still  in the world's
+matrix.  The  *intrinsic*   rotation,  though,  refers  to   the  /ship's  pilot
+view/. This means that any subsequent  rotations will always refer to the ship's
+rotation  since the  last rotation.
+
+So  an intrinsic  rotation performs  subsequent  rotations in  a new  coordinate
+system inherited from  the last rotation, while the  extrinsic rotation performs
+rotations with respect to the original world coordinate system.
+
+In other  words... an  intrinsic rotation  always takes  into account  the /nose
+orientation/ of the plane.
+
+** Some conclusions
+
+For an *intrinsic* rotation: yaw-pitch'-roll'' (y-x'-z''), we have:
+
+1. Rotation about the global z-axis;
+2. Rotation about the /new/ y'-axis;
+3. Rotation about the /new/ x''-axis;
+4. Matrix multiplication order: R1 * R2 * R3.
+
+For an *extrinsic* rotation: roll-pitchj-yaw (z-x-y), we have:
+
+1. Rotation about the global x-axis;
+2. Rotation about the global y-axis;
+3. Rotation about the global z-axis;
+4. Matrix multiplication is: R3 * R2 * R1.
+
 * Accelerating in the Nose's Direction
+
+One of the issues  right now with the ship movement is  that the acceleration is
+always accumulating the force as we perform  each step. What we actually need to
+do is actually set the acceleration with respect to the ship's nose direction.
+
+So we  need to set  the acceleration only considering  the current frame  we are
+right now.
+
+Since the function is better understood  in its entirety, I'm going to copypaste
+it here.
+
+#+begin_src c
+// ship.c
+void
+ship_update(Ship *ship)
+{
+    short sinx = csin(ship->pitch);
+    short cosx = ccos(ship->pitch);
+    short siny = csin(ship->yaw);
+    short cosy = ccos(ship->yaw);
+    short sinz = csin(ship->roll);
+    short cosz = ccos(ship->roll);
+
+    ship->right.vx = ((cosy * cosz) >> 12) + ((((siny * sinx) >> 12) * sinz) >> 12);
+    ship->right.vy = (cosx * sinz) >> 12;
+    ship->right.vz = ((-siny * cosz) >> 12) + ((((cosy * sinx) >> 12) * sinz) >> 12);
+
+    ship->up.vx = ((-sinz * cosy) >> 12) + ((((siny * sinx) >> 12) * cosz) >> 12);
+    ship->up.vy = (cosx * cosz) >> 12;
+    ship->up.vz = ((-siny * -sinz) >> 12) + ((((cosy * sinx) >> 12) * cosz) >> 12);
+
+    ship->forward.vx = (siny * cosx) >> 12;
+    ship->forward.vy = (-sinx);
+    ship->forward.vz = (cosy * cosx) >> 12;
+
+    // Compute the thrust along each axis
+    ship->thrust.vx = (ship->thrustmag * ship->forward.vx) >> 6;
+    ship->thrust.vy = (ship->thrustmag * ship->forward.vy) >> 6;
+    ship->thrust.vz = (ship->thrustmag * ship->forward.vz) >> 6;
+
+    // Compute magnitude of instantaneous velocity
+    ship->speed = SquareRoot0(
+        (ship->vel.vx * ship->vel.vx) +
+        (ship->vel.vy * ship->vel.vy) +
+        (ship->vel.vz * ship->vel.vz));
+
+    // Compute the forward (nose) velocity
+    VECTOR nosevel;
+    nosevel.vx = (ship->speed * ship->forward.vx) >> 12;
+    nosevel.vy = (ship->speed * ship->forward.vy) >> 12;
+    nosevel.vz = (ship->speed * ship->forward.vz) >> 12;
+
+    // Compute the resulting force vector
+    VECTOR force = (VECTOR){0, 0, 0};
+        force.vx += ship->thrust.vx;
+        force.vy += ship->thrust.vy;
+        force.vz += ship->thrust.vz;
+
+    // Set the acceleration in the direction of the new nose/forward axis
+    ship->acc.vx = nosevel.vx - ship->vel.vx;
+    ship->acc.vy = nosevel.vy - ship->vel.vy;
+    ship->acc.vz = nosevel.vz - ship->vel.vz;
+
+    ship->acc.vx += force.vx / ship->mass;
+    ship->acc.vy += force.vy / ship->mass;
+    ship->acc.vz += force.vz / ship->mass;
+
+    ship->vel.vx += ship->acc.vx;
+    ship->vel.vy += ship->acc.vy;
+    ship->vel.vz += ship->acc.vz;
+
+    ship->object->position.vx += ship->vel.vx >> 6;
+    ship->object->position.vy += ship->vel.vy >> 6;
+    ship->object->position.vz += ship->vel.vz >> 6;
+
+    ship->object->rotmat.m[0][0] = ship->right.vx;
+    ship->object->rotmat.m[1][0] = ship->right.vy;
+    ship->object->rotmat.m[2][0] = ship->right.vz;
+
+    ship->object->rotmat.m[0][1] = ship->up.vx;
+    ship->object->rotmat.m[1][1] = ship->up.vy;
+    ship->object->rotmat.m[2][1] = ship->up.vz;
+
+    ship->object->rotmat.m[0][2] = ship->forward.vx;
+    ship->object->rotmat.m[1][2] = ship->forward.vy;
+    ship->object->rotmat.m[2][2] = ship->forward.vz;
+}
+#+end_src
+
+First, we compute the forward (nose) velocity of the ship.  Then we manually set
+the ship acceleration.
+
+[[file:img/movement.gif]]
+
+WE GOT MOVEMENT!
+
 * Placing Camera Behind the Ship
 * Yaw Velocity
 * Maximum Yaw Velocity
