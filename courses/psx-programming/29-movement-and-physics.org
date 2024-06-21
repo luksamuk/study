@@ -874,5 +874,173 @@ if((joypad_check(PAD1_L1) && joypad_check(PAD1_R1))) {
 [[file:img/movement-and-camera.gif]]
 
 * Yaw Velocity
+
+Let's  have an  acceleration for  the yaw  and the  pitch so  that changing  our
+direction doesn't feel jittery when rotating about the Y and X axes.
+
+Change the precision of a few values on the ship's definition:
+
+#+begin_src c
+/* in ship.h */
+typedef struct {
+    // ...
+    long speed;
+    long thrustmag;
+    long thrustmax;
+    // ...
+} Ship;
+#+end_src
+
+In ~ship.c~, change the thrust again so that it is divided by $2 ^ {12}$:
+
+#+begin_src c
+/* in function ship_init */
+ship->thrustmax = 15000;
+
+/* in function ship_update */
+// Compute the thrust along each axis
+ship->thrust.vx = (ship->thrustmag * ship->forward.vx) >> 12;
+ship->thrust.vy = (ship->thrustmag * ship->forward.vy) >> 12;
+ship->thrust.vz = (ship->thrustmag * ship->forward.vz) >> 12;
+#+end_src
+
+In ~main.c~, change the thrust magnitude of the ship:
+
+#+begin_src c
+/* In function update */
+if(joypad_check(PAD1_CROSS)) {
+    ship.thrustmag += 3000;
+} else if(ship.thrustmag > 0) {
+    ship.thrustmag -= 15000;
+}
+#+end_src
+
+** Changing angle velocity
+
+So let's go back to ~main.c~ and think about what we want to do.
+
+We  don't  want  to  change  the  yaw  directly.  We  need  to  change  the  yaw
+acceleration,  which will  change  the  velocity, which  will  change the  angle
+itself.
+
+But for now, let's change the velocity directly.
+
+#+begin_src c
+// In update function
+if(joypad_check(PAD1_LEFT)) {
+    if(ship.velyaw <= 0) {
+        ship.velyaw -= 128;
+    } else {
+        ship.velyaw -= 256;
+    }
+} else if(joypad_check(PAD1_RIGHT)) {
+    if(ship.velyaw >= 0) {
+        ship.velyaw += 128;
+    } else {
+        ship.velyaw += 256;
+    }
+} else {
+    // Decay velocity of the yaw to restore it
+    if(ship.velyaw > 0) ship.velyaw -= 128;
+    else if(ship.velyaw < 0) ship.velyaw += 128;
+}
+#+end_src
+
+Now go to ~ship.c~, let's leverage the  yaw velocity so that it actually changes
+the yaw.
+
+#+begin_src c
+// In ship_update, before updating the rotation matrix:
+ship->yaw   += ship->velyaw >> 6;
+ship->pitch += ship->velpitch;
+ship->roll  += ship->velroll;
+#+end_src
+
 * Maximum Yaw Velocity
+
+Before we take care of the pitch, let's clamp our yaw velocity.
+
+#+begin_src c
+// In main.c, function update
+// ... after the yaw velocity controls ...
+if(ship.velyaw < -2048) ship.velyaw = -2048;
+if(ship.velyaw > 2048) ship.velyaw = 2048;
+#+end_src
+
+** Pitch
+
+We won't really  need to pitch up and  down too much when we  are moving through
+the track, so we can be lazy about it.
+
+#+begin_src c
+if(joypad_check(PAD1_UP)) {
+    ship.pitch -= 6;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    ship.pitch += 6;
+}
+#+end_src
+
 * Roll Left & Right
+
+Let's change the roll angle based on the movement of our ship (left or right).
+
+We need to  change the roll velocity;  it should be bigger depending  on the yaw
+velocity itself.
+
+#+begin_src c
+/* On ship.c, function ship_update */
+/* ...right before adding the velocities to yaw, pitch and roll... */
+
+// Apply a roll movement based on the ship's angular yaw velocity
+ship->velroll = ship->velyaw >> 4;
+
+// Decay roll velocity to restore it to the default roll orientation
+ship->velroll -= ship->velroll >> 1;
+
+// Always restore the roll so the ship canopy points upwards
+ship->roll    -= ship->roll >> 3;
+
+
+//...update ship roll by dividing the speed by two as well...
+ship->roll  += ship->velroll >> 1;
+#+end_src
+
+** And yet I still was not satisfied
+
+Here's some tweaks I did:
+
+#+begin_src c
+/* Changes in ship.c */
+// It was just too fast to turn when holding the thrust button
+ship->thrustmax = 10000;
+
+// I wanted more roll effect.
+ship->velroll = ship->velyaw >> 3;
+
+/* Changes in main.c */
+// Steer less abruptly
+if(joypad_check(PAD1_LEFT)) {
+    if(ship.velyaw <= 0) {
+        ship.velyaw -= 96;
+    } else {
+        ship.velyaw -= 128;
+    }
+} else if(joypad_check(PAD1_RIGHT)) {
+    if(ship.velyaw >= 0) {
+        ship.velyaw += 96;
+    } else {
+        ship.velyaw += 128;
+    }
+} else {
+    if(ship.velyaw > 0) ship.velyaw -= 96;
+    else if(ship.velyaw < 0) ship.velyaw += 96;
+}
+if(ship.velyaw < -1536) ship.velyaw = -1536;
+if(ship.velyaw > 1536) ship.velyaw = 1536;
+#+end_src
+
+[[file:img/steer.gif]]
+
+
