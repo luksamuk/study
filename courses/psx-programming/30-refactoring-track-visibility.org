@@ -1,0 +1,392 @@
+#+title: Refactoring Track Visibility
+
+* Rethinking Section Rendering
+
+One  of the  next goals  is  to have  a sort  of  gravity that  pushes the  ship
+downwards, keeping it at a certain height of the track.
+
+But the  way we are  representing the track and  doing distance checks  for each
+section is not how we're supposed to do things.
+
+You see,  when we  render sections, we  end up rendering  less sections  than we
+need.
+
+[[file:img/more-than-needed.png]]
+
+On the image above, it is clear that  a certain part of the upper track is being
+rendered  out  of  proximity  with  the camera,  but  that  part  is  completely
+irrelevant to us! Gameplay-wise, our ship does not have to worry about this part
+of the  track because it  will make  no difference, it  is not in  the immediate
+vicinity and  it will not  collide with our ship.  So we shouldn't  be rendering
+that.
+
+So we need to refactor the track rendering.
+
+When we  read our  ~.TRS~ track, we  are actually reading  our sections  as that
+circular list, and the sections happen to be *ordered*.
+
+If we can  guarantee that these sections  are *ordered*, like they  are, then we
+don't have  to perform a section  distance check -- we  just need to draw  a few
+tracks ahead at a time.
+
+And if we happen to turn around, then just render sections to this new "ahead".
+
+However... yeah, we won't be able to see bridges above us. ):
+
+The original game solves these problems  with sections that are visible from the
+current section,  such as the  bridge case, with  a different file,  with ~.VEW~
+extension, which  we will discuss  later but we won't  be using it.  These files
+encode  north/south/east/west views  of  the track,  so that  we  don't have  to
+compute these in real time.
+
+** Keeping track of the closest section
+
+Go to ~ship.h~.
+
+Create a pointer  to the section that  is closest to the ship  within the ~Ship~
+struct.
+
+#+begin_src c
+typedef struct {
+    /// ...
+    Section *section;
+} Ship;
+#+end_src
+
+* Initializing Ship's Nearest Section
+
+Let's go ahead and load the nearest section in the initialization of the ship.
+
+First of all, make  sure that the track is being initialized  before the ship. I
+had trouble with this here.
+
+#+begin_src c
+/* In main.c, function setup */
+
+// Load track
+trackstarttexture = get_texture_count();
+load_texture_cmp("\\TRACK02\\LIBRARY.CMP;1", "\\TRACK02\\LIBRARY.TTF;1");
+load_track_vertices(&track, "\\TRACK02\\TRACK.TRV;1");
+load_track_faces(&track, "\\TRACK02\\TRACK.TRF;1", trackstarttexture);
+load_track_sections(&track, "\\TRACK02\\TRACK.TRS;1");
+
+ship_init(&ship, &track, &startpos);
+#+end_src
+
+Best thing  to do here  is loop over  the sections of  our map checking  for the
+section that is closest to our ship. So no secrets on the implementation.
+
+** Exercise: Implementing nearest section algorithm
+
+This was given as an exercise, so here's how I implemented that.
+
+There probably are  better ways to do  this; maybe we could  stop iterating over
+the tracks if the distance between ship  and section are smaller than a specific
+threshold, but  since I didn't  have this information at  hand, I just  though I
+should iterate over all sections, starting at the first one.
+
+Most of what we're  doing here is stuff we were already  doing for rendering our
+track; plus, performance is good here, but not crucial, since this will only run
+once every time we respawn our ship.
+
+#+begin_src c
+/* In ship.c, function ship_init */
+/* ...at end of function... */
+// Calculate nearest section
+Section *currsection = track->sections;
+u_long last_distance = 99999999;
+do {
+    VECTOR d = {
+        clamp_16bits(currsection->center.vx - startpos->vx),
+        clamp_16bits(currsection->center.vy - startpos->vy),
+        clamp_16bits(currsection->center.vz - startpos->vz),
+    };
+    u_long distmag = SquareRoot12((d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz));
+    if(distmag < last_distance) {
+        ship->section = currsection;
+        last_distance = distmag;
+    }
+    currsection = currsection->next;
+} while(currsection != track->sections);
+
+printf("Smallest distance section: %d\n", ship->section->id);
+#+end_src
+
+Remember that ~clamp_16bits~ function? I  moved it from ~track.c~ to ~globals.h~
+/ ~globals.c~.  I wanted to do  that before, but  it seems like Nugget  likes to
+overflow values when doing SquareRoot12.
+
+** Exercise: Updating the nearest section
+
+Still  in ~ship.c~,  but  this  time on  ~ship_update~,  let's  do some  wishful
+thinking and, before updating the ship's  rotation matrix, let's call a function
+to update the ship's nearest section:
+
+#+begin_src c
+update_ship_nearest_section(ship);
+#+end_src
+
+Now let's declare it, since this was given as an exercise.
+
+First things first,  I decided to create a helper  function that would calculate
+the distance -- this time, with no clamping.
+
+#+begin_src c
+u_long
+get_distance(VECTOR *a, VECTOR *b)
+{
+    VECTOR d = {a->vx - b->vx, a->vy - b->vy, a->vz - b->vz, 0 };
+    return SquareRoot12((d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz));
+}
+#+end_src
+
+Then here's how I delcared my nearest section calculation.
+
+1. First check  whether the backwards or the forwards  section (from the current
+   section's standpoint) is  closer to the ship than the  section that is marked
+   current itself.
+2. If yes, set the current section to the backwards or the forwards section, and
+   also mark the direction which we've moved (backwards or forwards).
+3. Perform the same distance check again  in the direction we're headed, e.g. if
+   the new current section is backwards, calculate the distance between the ship
+   and its  previous section; if the  new current section is  forward, calculate
+   the distance  between the ship and  its forward section. This  way we prevent
+   backtracking  and, if  needed, we  keep moving  forward until  we find  a new
+   nearest section.
+
+#+begin_src c
+void
+update_ship_nearest_section(Ship *ship)
+{
+    // Get distance to backwards section
+    u_long otherdist = get_distance(&ship->object->position, &ship->section->prev->center);
+
+    // Get distance to current section
+    u_long curdist = get_distance(&ship->object->position, &ship->section->center);
+
+    int go_back = 0;
+
+    if(otherdist < curdist) {
+        ship->section = ship->section->prev;
+        go_back = 1;
+        goto startloop;
+    }
+
+    // Get distance to forwards section
+    otherdist = get_distance(&ship->object->position, &ship->section->next->center);
+
+    if(otherdist < curdist) {
+        ship->section = ship->section->next;
+        go_back = 0;
+    } else {
+        return;
+    }
+
+startloop:
+    while(1) {
+        // Store distance of previous section
+        curdist = otherdist;
+        // Calculate distance from next section depending on direction
+        otherdist = get_distance(
+            &ship->object->position,
+            go_back ? &ship->section->prev->center : &ship->section->next->center);
+        if(otherdist >= curdist) break;
+        ship->section = go_back ? ship->section->prev : ship->section->next;
+    }
+
+    printf("Nearest section: %d\n", ship->section->id);
+}
+#+end_src
+
+Notice that  this algorithm isn't perfect,  but it should account  for huge gaps
+that could inexplicably happen sometimes.  Compared to how we're calculating the
+distance to every section so far, this is a much better algorithm still.
+
+For  example,  one  interesting  feature  of  this  algorithm  is  that  it  can
+*completely replace* what we implemented before!  Here's what we could do on our
+~ship_init~ function if we add the previous function to ~ship.h~:
+
+#+begin_src c
+ship->section = track->sections;
+update_ship_nearest_section(ship);
+printf("Smallest distance section: %d\n", ship->section->id);
+#+end_src
+
+These three lines will  start the ship's current section at  section 0, but will
+make it go forward until it finds  the first nearest section -- section 12, just
+like before.
+
+* Update Ship's Nearest Section
+
+There are many ways to implement that. See mine above :)
+
+I won't  bother giving the  course's implementation  here because mine  seemed a
+little better.   The course's  implementation is  always checking  four sections
+/ahead/, at most.
+
+** Pre-computing things
+
+Back to the idea that the sections  are stored in order, and that the visibility
+information is stored in a file for that as well.
+
+This is a *very* common pattern in  these kinds of games. Pre-computing stuff is
+very  important,  as it  saves  us  precious computing  time  when  the game  is
+running. So we also have to think about that for our own games as well.
+
+* Rendering Track Ahead
+
+So now,  all we need to  do is render  tracks ahead of  the ship. So we  need to
+refactor the ~render_track~ function.
+
+Or, even better... let's create a ~render_track_ahead~ function.
+
+#+begin_src c
+// In track.c
+#include "ship.h"
+
+// ...
+
+void
+render_track_ahead(Track *track, Section *startsection, Camera *camera)
+{
+    Section *currsection = startsection;
+    for(u_short i = 0; i < 20; i++) {
+        u_short numsubdivs = 0;
+        if(i < 6) numsubdivs = 1;
+        if(i < 2) numsubdivs = 2;
+
+        render_track_section(track, currsection, camera, numsubdivs);
+        currsection = currsection->next;
+    }
+
+    currsection = startsection->prev;
+    for(u_short i = 0; i < 3; i++) {
+        u_short numsubdivs = 0;
+        if(i < 3) numsubdivs = 1;
+        if(i < 2) numsubdivs = 2;
+
+        render_track_section(track, currsection, camera, numsubdivs);
+        currsection = currsection->prev;
+    }
+}
+#+end_src
+
+Notice how  we also calculate  the number of  subdivisions? Well, we'll  need to
+refactor ~render_track_section~  for that.
+
+#+begin_src c
+// In track.c
+void
+render_track_section(Track *track, Section *section, Camera *camera, u_short numsubdivs)
+{
+    // ...
+    render_quad_recursively(
+            face,
+            &v0, &v1, &v2, &v3,
+            face->u0, face->v0,
+            face->u1, face->v1,
+            face->u2, face->v2,
+            face->u3, face->v3,
+            0,
+            numsubdivs);
+}
+#+end_src
+
+Finally, let's call this function.
+
+#+begin_src c
+// In main.c, update function
+// ...
+render_track_ahead(&track, ship.section, &camera);
+// ...
+#+end_src
+
+* Clamping Track Vertices to 16 bits
+
+So the rendering works,  but do you see that we still  have some overflow there?
+And it is related to vertices.
+
+[[file:img/vertex-overflow.png]]
+
+Let's go to ~render_track_section~ in ~track.c~. Where we calculate the vertices
+~v0~, ~v1~, ~v2~ and ~v3~, if those  values are bigger than 16 bits, we're gonna
+get some very ugly overflows.
+
+So let's clamp everything.
+
+#+begin_src c
+// In track.c, function render_track_section
+// ...
+for(u_long i = 0; i < section->numfaces; i++) {
+    Face *face = track->faces + section->facestart + i;
+
+    SVECTOR v0, v1, v2, v3;
+    v0.vx = (short) clamp_16bits(track->vertices[face->indices[1]].vx - camera->position.vx);
+    v0.vy = (short) clamp_16bits(track->vertices[face->indices[1]].vy - camera->position.vy);
+    v0.vz = (short) clamp_16bits(track->vertices[face->indices[1]].vz - camera->position.vz);
+
+    v1.vx = (short) clamp_16bits(track->vertices[face->indices[0]].vx - camera->position.vx);
+    v1.vy = (short) clamp_16bits(track->vertices[face->indices[0]].vy - camera->position.vy);
+    v1.vz = (short) clamp_16bits(track->vertices[face->indices[0]].vz - camera->position.vz);
+
+    v2.vx = (short) clamp_16bits(track->vertices[face->indices[2]].vx - camera->position.vx);
+    v2.vy = (short) clamp_16bits(track->vertices[face->indices[2]].vy - camera->position.vy);
+    v2.vz = (short) clamp_16bits(track->vertices[face->indices[2]].vz - camera->position.vz);
+
+    v3.vx = (short) clamp_16bits(track->vertices[face->indices[3]].vx - camera->position.vx);
+    v3.vy = (short) clamp_16bits(track->vertices[face->indices[3]].vy - camera->position.vy);
+    v3.vz = (short) clamp_16bits(track->vertices[face->indices[3]].vz - camera->position.vz);
+
+    // ...
+}
+#+end_src
+
+** Refactoring pitch
+
+I also refactored my pitch algorithm with a much simpler one:
+
+1. In ~ship.c~, remove everything related to ~velpitch~ on ~ship_update~ (except
+   ~~ship->pitch += ship->velpitch;~).
+2.  Add the  following  code to  ~main.c~, replacing  the  behaviour of  up/down
+   directionals:
+
+#+begin_src c
+// In main.c, functin update
+// ...
+if(joypad_check(PAD1_UP)) {
+    ship.pitch -= (ship.pitch > 0) ? 12 : 6;
+} else if(joypad_check(PAD1_DOWN)) {
+    ship.pitch += (ship.pitch < 0) ? 12 : 6;
+} else {
+    if(ship.pitch > 0)
+        ship.pitch -= 3;
+    else if(ship.pitch < 0)
+        ship.pitch += 3;
+}
+// ...
+#+end_src
+
+Much simpler. Much better.
+
+[[file:img/newrender.gif]]
+
+* Wipeout Track VEW Files
+
+We've  kept things  simple and  we  ended up  with something  that renders  many
+sections ahead  and a few tracks  behind our ship,  but if our ship  turns back,
+it will see a bunch of nothing, like the gif above shows.
+
+It  is possible  to open  the ~TRACK.VEW~  file to  fetch the  list of  "visible
+sections". A ~.VEW~ file encodes five different views per section:
+
+- North view: list of visible sections in front of the ship
+- South view: list of visible sections behind the ship
+- East view: list of visible sections to the right of the ship
+- West view: list of visible sections to the left of the ship
+- All view: list  of all the visible  sections around the ship  (used in special
+  occasions such as replay and demo mode).
+
+I attempted  to write a  proper ImHex  pattern file for  the ~.VEW~ file,  but I
+think this is better left for someone who  is really willing to do this. I might
+revisit this part sometimes, but I don't really want to do it.
+
