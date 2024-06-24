@@ -45,7 +45,7 @@ These are my notes for the PlayStation development course.
 28. [[./28-polygon-subdivision.org][Polygon Subdivision]]
 29. [[./29-movement-and-physics.org][Movement & Physics]]
 30. [[./30-refactoring-track-visibility.org][Refactoring Track Visibility]]
-31. Attracting Ship & Track
+31. [[./31-attracting-ship-and-track.org][Attracting Ship & Track]]
 32. Audio
 33. Running on Real Hardware
 34. Conclusion & Next Steps
