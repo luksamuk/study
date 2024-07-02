@@ -1,0 +1,77 @@
+#+title: Audio System
+#+startup: content
+
+* Audio & SPU
+
+Ken Kutaragi was once involved in  creating sound chips for Nintendo, and helped
+design the Super Nintendo sound chip.
+
+Therefore,  it is  not  surprising  that the  PlayStation  is  a powerful  audio
+machine.
+
+And at the center of the stage, there is the SPU.
+
+The  *Sound  Processing Unit*  (SPU)  is  a  crucial component  responsible  for
+handling  all   audio-related  tasks,   such  as  frequency   modulation,  pitch
+modulation, reverb, loop, playing audio samples, etc.
+
+It  is ultimately  a  device which  takes digital  signals  and transform  these
+signals into output that will be played by the TV speaker.
+
+The  SPU  also  has  a  little  buffer,  512KB  of  DRAM,  our  so-called  sound
+memory. This is not a lot, but we're gonna make good use of it.
+
+** SPU Specs
+
+- *24 channels* of 16-bit *ADPCM* samples;
+  - ADPCM is a way to encode and compress samples.
+- Sampling rate of 44.1KHz (audio CD quality);
+- The SPU chip also provides:
+  - Pitch modulation;
+  - Frequency modulation;
+  - ADSR envelope (attack, decay, sustain, release);
+    - [[https://www.youtube.com/watch?v=aitRs893ado][Here is a very cool and visual video on this subject]].
+  - Looping;
+  - Digital reverb.
+
+** Samples
+
+We can  also use one of  the channels to play  samples too; each channel  can be
+matched  to  a  "voice".  Each  channel  playing  a  sample  would  be  a  voice
+channel. These samples are encoded with ADPCM format.
+
+There are two types of ADPCM samples:
+
+1. XA-ADPCM
+   - Decompressed by the CD-ROM controller.
+   - Is sent directly to the sound mixer.
+   - Does *not* require SPU DRAM memory.
+   - Does *not* support looping.
+   - Only 2 sample rate options.
+2. SPU-ADPCM
+   - Supports looping and reverb.
+   - It needs SPU DRAM memory for storage.
+   - VAG and VAB file formats.
+
+** PCM vs. ADPCM
+
+PCM  stands for  *Pulse Code  Modulation*. When  talking about  raw PCM,  we are
+talking about  /purely uncompressed  audio/; the original  pure audio  signal is
+sampled and stored as-is. The greater  the frequency (amount of samples per time
+unit --  the sample rate),  the higher the  resolution. Most ~.WAV~  formats use
+basically PCM directly like this.
+
+ADPCM stands for  *Adaptive Differential Pulse Code Modulation*.  It encodes and
+/compresses/   16-bit  audio   samples  using   only  *4   bits*  (approximately
+$\frac{1}{4}$ data compression). It also  uses prediction, based on the analysis
+of the  *difference* of previous  values (instead  of recording input  as-is, we
+base on  the difference between  previous and next  sample to estimate  the next
+sample). These  are normally stored  on ~.VAG~  files and used  by PlayStation's
+SPU-ADPCM; therefore they need to be stored on DRAM memory to be played.
+
+* Converting WAV to VAG
+* Playing a VAG Sound Effect
+* Pitch & Sampling Frequency
+* Exercise: Countdown Audio
+* Countdown Sound Effects
+
