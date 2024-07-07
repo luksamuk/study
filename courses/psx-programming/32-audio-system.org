@@ -121,9 +121,12 @@ Create files ~sound.h~ and ~sound.c~.
 #include <sys/types.h>
 #include <libspu.h>
 
-void sound_init(void);
-void transfer_vag_to_spu(char *filename, u_long length);
+void   sound_init(void);
+u_char *load_vag_sound(char *filename, u_long *length);
+void   transfer_vag_to_spu(u_char *data, u_long length, int voicechannel);
 
+void audio_play(int voicechannel);
+void audio_free(u_long address);
 #endif
 #+end_src
 
@@ -138,8 +141,26 @@ sound_init(void)
     // TODO
 }
 
+u_char *
+load_vag_sound(char *filename, u_long *length)
+{
+    // TODO
+}
+
 void
-transfer_vag_to_spu(char *filename, u_long length)
+transfer_vag_to_spu(u_char *data, u_long length, int voicechannel)
+{
+    // TODO
+}
+
+void
+audio_play(int voicechannel)
+{
+    // TODO
+}
+
+void
+audio_free(u_long address)
 {
     // TODO
 }
@@ -164,7 +185,210 @@ I was importing ~libspu.h~ on ~main.c~  and calling ~SpuInit~ on ~setup~ just so
 we could stop the BIOS humming when the game loads. I removed that.
 
 * Playing a VAG Sound Effect
+
+We go back to ~sound.c~ and start by implementing the routines to initialize and
+load a VAG sound from disk.
+
+#+begin_src c
+#include "utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+void
+sound_init(void)
+{
+    SpuInit();
+
+    // TODO: allocate sound memory
+    // TODO: configure common settings of the SPU
+}
+
+u_char *
+load_vag_sound(char *filename, u_long *length)
+{
+    u_long i;
+    u_char *bytes;
+    bytes = (u_char *)file_read(filename, length);
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return NULL;
+    }
+
+    return bytes;
+}
+
+// ...
+#+end_src
+
+Now back  to ~main.c~.  Create a ~sfx~  global pointer and  then load  the sound
+effect:
+
+#+begin_src c
+u_char *sfx;
+
+// In setup function
+sound_init();
+
+// ...
+
+u_long sfxlength;
+
+// ...
+
+sfx = load_vag_sound("\\POWERUP.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength, SPU_0CH);
+#+end_src
+
+** Initializing the SPU
+
+We need to set up the SPU allocator and also setup volume and etc. So we go back
+to ~sound.c~.
+
+#+begin_src c
+// ...
+
+#define SOUND_MALLOC_MAX 10
+
+static SpuCommonAttr spucommonattr;
+static SpuVoiceAttr  spuvoiceattr;
+
+static u_long vagspuaddr;
+static char spumallocrec[SPU_MALLOC_RECSIZ * (SOUND_MALLOC_MAX + 1)];
+
+void
+sound_init(void)
+{
+    SpuInit();
+
+    // Allocate sound memory
+    SpuInitMalloc(SOUND_MALLOC_MAX, spumallocrec);
+
+    // Configure common settings of the SPU
+    spucommonattr.mask = (SPU_COMMON_MVOLL |
+                          SPU_COMMON_MVOLR |
+                          SPU_COMMON_CDVOLL |
+                          SPU_COMMON_CDVOLR |
+                          SPU_COMMON_CDMIX);
+
+    spucommonattr.mvol.left  = 0x3fff; // Master volume (left) - 0x0000 ~ 0x3fff
+    spucommonattr.mvol.right = 0x3fff; // Master volume (right) - 0x0000 ~ 0x3fff
+
+    spucommonattr.cd.volume.left  = 0x7fff; // CD volume (left) - 0x0000 ~ 0x7fff
+    spucommonattr.cd.volume.right = 0x7fff; // CD volume (right) - 0x0000 ~ 0x7fff
+
+    spucommonattr.cd.mix = SPU_ON; // enable CD playback
+
+    SpuSetCommonAttr(&spucommonattr);
+}
+
+// ...
+#+end_src
+
+We don't really need to setup anything related to CD playback right now, we only
+need to set up the master volume.
+
+But  as it  can  be seen  here,  we  basically use  ~spumallocrec~  as a  buffer
+containing  audio  data   that  will  be  sent  and  stored   on  the  SPU,  and
+~SOUND_MALLOC_MAX~ determines the number of maximum sounds we are going to store
+on  the   SPU  --   therefore,  a  maximum   number  of   allocations.  Finally,
+~SpuSetCommonAttr~ commits the changes.
+
+** Transfering data to the SPU
+
+We now implement the function which transfer our ~.VAG~ file to the SPU.
+
+Still in ~sound.c~, do this:
+
+#+begin_src c
+void
+transfer_vag_to_spu(u_char *data, u_long length, int voicechannel)
+{
+    SpuSetTransferMode(SpuTransByDMA);
+    vagspuaddr = SpuMalloc(length);
+    SpuSetTransferStartAddr(vagspuaddr);
+
+    SpuWrite(data, length);
+    SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
+
+    spuvoiceattr.mask = (SPU_VOICE_VOLR |
+                         SPU_VOICE_PITCH |
+                         SPU_VOICE_WDSA |
+                         SPU_VOICE_ADSR_AMODE |
+                         SPU_VOICE_ADSR_SMODE |
+                         SPU_VOICE_ADSR_RMODE |
+                         SPU_VOICE_ADSR_AR |
+                         SPU_VOICE_ADSR_DR |
+                         SPU_VOICE_ADSR_SR |
+                         SPU_VOICE_ADSR_RR |
+                         SPU_VOICE_ADSR_SL);
+
+    spuvoiceattr.voice        = voicechannel;         // Voice channel
+    spuvoiceattr.volume.left  = 0x1fff;               // left volume
+    spuvoiceattr.volume.right = 0x1fff;               // right volume
+    spuvoiceattr.pitch        = 0x1000;               // Pitch
+    spuvoiceattr.addr         = vagspuaddr;           // Waveform data start address
+    spuvoiceattr.a_mode       = SPU_VOICE_LINEARIncN; // Attack curve
+    spuvoiceattr.s_mode       = SPU_VOICE_LINEARIncN; // Sustain curve
+    spuvoiceattr.r_mode       = SPU_VOICE_LINEARIncN; // Release curve curve
+    spuvoiceattr.ar           = 0x00;                 // Attack rate
+    spuvoiceattr.dr           = 0x00;                 // Decay rate
+    spuvoiceattr.sr           = 0x00;                 // Sustain rate
+    spuvoiceattr.rr           = 0x00;                 // Release rate
+    spuvoiceattr.sl           = 0x00;                 // Sustain level
+
+    SpuSetVoiceAttr(&spuvoiceattr);
+}
+#+end_src
+
+First things first, we deal with transferring data to the SPU. So we set the DMA
+to perform the transfer to SPU for us, then we perform an SPU memory allocation,
+retrieving the address  of the allocated space  on the SPU. We then  set the SPU
+destination address to that address we just allocated.
+
+Following, we take  the pointer of our  waveform data and its  length and simply
+write that data to the SPU. The process is asynchronous, so we also need to wait
+until the transfer is complete.
+
+Now we just set some attributes to the voice: the voice channel index (passed by
+parameter), left  and right volume, pitch,  the pointer to the  beginning of our
+waveform   data   on    the   SPU,   and   then    ADSR   envelope   parameters:
+attack/sustain/release  modes (in  this  case, linear  incrementation); rate  of
+attack, decay, sustain and release; and the sustain level.
+
+Finally, we commit these changes to the SPU.
+
+** Playing the audio
+
+Now all we need to do is implement our playback and freeing functions. These are
+very easy and straightforward:
+
+#+begin_src c
+void
+audio_play(int voicechannel)
+{
+    SpuSetKey(SpuOn, voicechannel);
+}
+
+void
+audio_free(u_long address)
+{
+    SpuFree(address);
+}
+#+end_src
+
+
+Now back on ~main.c~, after transfering the VAG file to SPU:
+
+#+begin_src c
+// On setup function
+// ...
+audio_play(SPU_0CH);
+#+end_src
+
+* Bits & Sound
+
 * Pitch & Sampling Frequency
+* VAG Header Information
 * Exercise: Countdown Audio
 * Countdown Sound Effects
 * Background Music

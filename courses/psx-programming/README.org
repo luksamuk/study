@@ -47,8 +47,7 @@ These are my notes for the PlayStation development course.
 30. [[./30-refactoring-track-visibility.org][Refactoring Track Visibility]]
 31. [[./31-attracting-ship-and-track.org][Attracting Ship & Track]]
 32. [[./32-audio-system.org][Audio System]]
-33. Running on Real Hardware
-34. Conclusion & Next Steps
+34. Conclusion
     
 * Extra documents
 
