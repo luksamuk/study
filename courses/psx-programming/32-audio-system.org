@@ -70,8 +70,106 @@ sample). These  are normally stored  on ~.VAG~  files and used  by PlayStation's
 SPU-ADPCM; therefore they need to be stored on DRAM memory to be played.
 
 * Converting WAV to VAG
+
+Copy the provided course sound files to ~ASSETS/SOUND~.
+
+This folder contains pure .WAV sound effects from the original Wipeout.
+
+On the Psy-Q library binaries, there is a tool called ~VAGedit~.
+
+To convert  a ~.WAV~ file  using ~VAGedit~, simply  open the file  on ~VAGedit~,
+then click "Save".
+
+Now add the ~POWERUP.VAG~ file to our project. No need to add it to any subdir:
+
+#+begin_src fundamental
+          File POWERUP.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\POWERUP.VAG
+          EndFile
+#+end_src
+
+** Converting WAV to VAG... for Linux users
+
+Simply use my Dockerfile, hehe.
+
+Here is a  bash script for converting all files  on the ~ASSETS/SOUND~ directory
+to ~.VAG~.
+
+#+begin_src bash
+# First open the root directory using the container...
+docker run -it --rm -v $(pwd):/source -w /source luksamuk/psxtoolchain:latest /bin/bash
+
+# Now run the following loop
+for f in ASSETS/SOUND/*.WAV; do wav2vag "$f" "${f%%.WAV}.VAG"; done
+#+end_src
+
+Now add the ~POWERUP.VAG~ file:
+
+#+begin_src xml
+<file name="POWERUP.VAG" type="data" source="ASSETS/SOUND/POWERUP.VAG" />
+#+end_src
+
+** Creating code files
+
+Create files ~sound.h~ and ~sound.c~.
+
+#+begin_src c
+#ifndef SOUND_H
+#define SOUND_H
+
+#include <sys/types.h>
+#include <libspu.h>
+
+void sound_init(void);
+void transfer_vag_to_spu(char *filename, u_long length);
+
+#endif
+#+end_src
+
+Let's go ahead and implement our functions.
+
+#+begin_src c
+#include "sound.h"
+
+void
+sound_init(void)
+{
+    // TODO
+}
+
+void
+transfer_vag_to_spu(char *filename, u_long length)
+{
+    // TODO
+}
+#+end_src
+
+** Playing a sound
+
+Now let's go to ~main.c~ and plan what we want to do:
+
+#+begin_src c
+#include "sound.h"
+
+// In setup function
+// ...
+// TODO: Load a VAG file from disk
+// TODO: Transfer VAG data to SPU and play it in one of the channels
+#+end_src
+
+** Note
+
+I was importing ~libspu.h~ on ~main.c~  and calling ~SpuInit~ on ~setup~ just so
+we could stop the BIOS humming when the game loads. I removed that.
+
 * Playing a VAG Sound Effect
 * Pitch & Sampling Frequency
 * Exercise: Countdown Audio
 * Countdown Sound Effects
-
+* Background Music
+* Recording an Audio Track
+* Adding Audio Track to ISO
+* Play Audio Track Implementation
+* Play Background Audio Track
+* Adding Scene Objects & Audio
