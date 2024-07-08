@@ -561,6 +561,12 @@ typedef struct {
 } VAGHeader;
 #+end_src
 
+** About VAB files
+
+A VAB  file is basically  a grouping of  many VAG files.  We won't go  into many
+details on this; it  only suffices to say that the VAB is  a collection of VAG's
+into a single file, with a single header.
+
 * Proposed Exercise: Countdown Audio
 
 The  idea  here   is  to  play  ~COUNT3.WAV~,   ~COUNT2.WAV~,  ~COUNT1.WAV~  and
@@ -723,6 +729,23 @@ respawn(void)
 #+end_src
 
 * Background Music
+
+Let's move away from sound effects to use actual background music.
+
+Background music is  very important for immersion while playing  a game. It sets
+the mood and is a vital part of building games.
+
+The 90's  games' most predominant  music genre  was the Jungle  (or Drum'n'Bass)
+genre (go take a look, it is amazing!).
+
+But background music  playback is not as  simple as simply storing  the music on
+the SPU and playing it.
+
+We're gonna be using  a rather different method and use  different tracks on our
+disk. Our first  track is going to remain  a data track, but the  other ones are
+going to  be actual red  book audio  tracks. So in  theory, we could  play these
+tracks by inserting the disk on a CD-DA disk reader as well.
+
 * Recording an Audio Track
 * Adding Audio Track to ISO
 * Play Audio Track Implementation
