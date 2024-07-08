@@ -387,6 +387,97 @@ audio_play(SPU_0CH);
 
 * Bits & Sound
 
+- Our brain decodes signals that arrive from vibrations that are received by our
+  ears.
+- These vibrations travel through waves.
+- We can create sound waves by plucking strings, vibrating vocal cors, or simply
+  moving the diaphragm membrane of a speaker back-and-forth.
+- To  vibrate  such  a diaphragm,  one  common  technique  is  to use  a  magnet
+  stimulated  by  electricity  to  push  and pull  the  membrane  at  a  certain
+  frequency.
+- The back-and-forth movement produces an analog audio wave.
+- Audio waves have special characteristics:
+
+  1. Frequency: how  "fast" the wave vibrates, measured in  number of cycles per
+     unit of time. The faster the wave,  the higher the frequency and the higher
+     the pitch.
+     - Think of freqyency as notes of  the music scale; lower notes are produced
+       by slow-moving waves, and high notes are produces by fast-moving waves.
+  2. Amplitude: how  "tall" a wave is. Determines the  intensity (volume) of the
+     sound produced by the wave.
+
+- Analog audio  signals are  represented by  a perfect  sinusoidal wave  (a sine
+  function which outputs a pure bell tone).
+  - E.g. consider  an A4  note, which  is produced by  a pure  sine wave  with a
+    frequency of 440Hz. It is also the frequency of a telephone's dial tone.
+- These sine waves can be *combined to generate more complex sounds*.
+  - Joseph Fourier proved that *all wave forms  can be expressed as a sum of two
+    or more sine waves.*
+    - And by *all*, I mean *all*. *Any*  complex audio wave, such as a dog bark,
+      a human voice, a piano sound.
+
+** Representing Audio Digitally
+
+- Sampling  is the  process  of transforming  a musical  source  into a  digital
+  format.
+- We take samples of the audio source along the soundwaves at regular intervals.
+- The higher the sample rate (sampling  frequency), the closer the final digital
+  file resemples the original analog audio.
+  - Thus,  a   higher  sample  rate   tends  to  deliver   better-quality  audio
+    reproduction.
+  - The PlayStation commonly uses sampling rates of 44.1kHz or 22050Hz.
+
+** PCM
+
+- The  simplest example  of sampling  is using  the PCM  (pulse-code modulation)
+  method.
+  - In this  method, the amplitude  of the analog  signal is sampled  at uniform
+    intervals.
+  - Uncompressed CD-quality audio and most WAV files use PCM.
+  - On playback,  the fluctuation  of the  original wave  is recreated  based on
+    those samples.
+  - The sampling is therefore a way to rebuild our wave by using discrete Y-axis
+    samples of the wave amplitude.
+
+** ADPCM
+
+- As already  discussed, the  PlayStation uses a  method called  ADPCM (adaptive
+  differential  pulse-code  modulation),  which   is  a  little  different  than
+  traditional PCM.
+  - Instead of  recording absolute amplitudes,  each discrete step  represents a
+    guess at where  the next amplitude will be, like  the difference between the
+    current step and the next one -- a relative value.
+  - This technique is used when we want to compress audio and the sample quality
+    is not of primary importance.
+  - As a result, ADPCM-encoded audio is much *smaller* than PCM-encoded audio.
+    - E.g.  CD-quality   audio  uses   16-bits  per  sampled   amplitude,  while
+      PlayStation ADPCM uses 4-bits per sampled delta. Much smaller!
+
+** SPU Voices
+
+- The PlayStation SPU has 24 hardware voices.
+- These  voices can  reproduce  sample  data, noise,  or  be  used as  frequency
+  modulator on the next voice.
+- Each voice has its own programmable ADSR envelope filter.
+- The main volume can be programmed independently for left and right output.
+
+Two ADPCM  formats are supported; the  decompression used by them  are the same,
+but XA-ADPCM's decompression is done by the CD controller:
+
+*** SPU-ADPCM
+
+- Supports looping and reverb;
+- Requires SPU DRAM memory to be buffered & played;
+- Often used by small sound effects and encoded as VAG or VAB files.
+
+*** XA-ADPCM
+
+- Does not support looping;
+- Only supports two sample rates (22050Hz and 44.1kHz);
+- Does not require SPU DRAM memory;
+- Decompressed by the CD-ROM controller;
+- Sent to the sound mixer directly.
+
 * Pitch & Sampling Frequency
 * VAG Header Information
 * Exercise: Countdown Audio
