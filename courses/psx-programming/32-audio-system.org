@@ -479,9 +479,249 @@ but XA-ADPCM's decompression is done by the CD controller:
 - Sent to the sound mixer directly.
 
 * Pitch & Sampling Frequency
+
+So, first things first, the pitch we  provided to play our audio in ~sound.c~ is
+wrong:
+
+#+begin_src c
+spuvoiceattr.pitch        = 0x1000;
+#+end_src
+
+If we take a  look at the [[file:./LibOver47.pdf][Psy-Q Run-Time Library  Overview]] ([[https://psx.arthus.net/sdk/Psy-Q/DOCS/LibOver47.pdf][external link here]]),
+we can see  (page 257 of the  PDF) that there is  a way for us  to determine the
+pitch from a provided sampling frequency on our VAG file header.
+
+It can be done by the following formula:
+
+#+begin_src c
+pitch = (sampling_frequency << 12) / 441000;
+#+end_src
+
+Here's a pattern for ImHex so we can  grab the header in a VAG file. Notice that
+a VAG file *always stores its header information in big endian order*:
+
+#+begin_src c
+enum VersionInfo : u32 {
+    MacConverter1_3 = 0x00000002,
+    MacConverter1_6 = 0x00000003,
+    PcConverter1_8  = 0x00000000,
+    PcConverter2_0  = 0x00000020,
+};
+
+struct VAG {
+    char id[4];
+    VersionInfo version;
+    padding[4];
+    u32 size;
+    u32 sampling_frequency;
+    padding[12];
+    u8 waveform[size];
+    char filename[16];
+};
+
+be VAG file @ 0x00;
+#+end_src
+
+[[file:img/vagfile_imhex.png]]
+
+In our case, we *know* that our sample uses 22.05kHz as frequency. And according
+to the  library overview, we should  be using ~0x1000~ for  44.1kHz and ~0x0800~
+for 22.05kHz. So we'll just use ~0x0800~  directly and call it a day, instead of
+parsing the header ourselves -- though it would be rather easy here.
+
+#+begin_src c
+// In sound.c, function transfer_vag_to_cpu
+// ...
+spuvoiceattr.pitch        = 0x0800;
+#+end_src
+
 * VAG Header Information
-* Exercise: Countdown Audio
+
+So, as  discussed above, we  could, in principle, just  read our VAG  header and
+calculate the pitch from sampling rate.
+
+It is also very fortunate that the header is always stored in big-endian, so all
+we would have to do is declare our header and cast the data start pointer to it.
+
+I'm going to leave the header definition in C here if I ever need it again; I've
+used this for a Sonic game prototype, so it should be necessary someday.
+
+Remember that  the total  header size  here is 48  bytes, and  it seems  like it
+should never be sent to the SPU; only send waveform data after this header.
+
+#+begin_src c
+typedef struct {
+    char   id[4];
+    u_long version;
+    u_long reserved1;
+    u_long data_size;
+    u_long sampling_frequency;
+    u_char reserved2[12];
+    char   name[16];
+} VAGHeader;
+#+end_src
+
+* Proposed Exercise: Countdown Audio
+
+The  idea  here   is  to  play  ~COUNT3.WAV~,   ~COUNT2.WAV~,  ~COUNT1.WAV~  and
+~COUNTGO.WAV~ in sequence, preferably using the same channel.
+
+Let's start by adding the sound effects to the CD.
+
+#+begin_src fundamental
+          File COUNT3.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNT3.VAG
+          EndFile
+
+          File COUNT2.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNT2.VAG
+          EndFile
+
+          File COUNT1.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNT1.VAG
+          EndFile
+
+          File COUNTGO.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNTGO.VAG
+          EndFile
+#+end_src
+
+#+begin_src xml
+<file name="COUNT3.VAG"  type="data" source="ASSETS/SOUND/COUNT3.VAG" />
+<file name="COUNT2.VAG"  type="data" source="ASSETS/SOUND/COUNT2.VAG" />
+<file name="COUNT1.VAG"  type="data" source="ASSETS/SOUND/COUNT1.VAG" />
+<file name="COUNTGO.VAG" type="data" source="ASSETS/SOUND/COUNTGO.VAG" />
+#+end_src
+
+First of all,  I am not going to  use the same sound channel because  of how the
+SPU loading was programmed. If we stored  our audio on SPU and shared just their
+SPU DRAM address, it would be easy; but  since this is not how the game is being
+programmed so far, I am going to use three channels and that's it.
+
+Back in ~main.c~, at  the end of ~setup~, I'm going to  load these sound effects
+to channels 1, 2, 3 and 4.
+
+Notice also that I am deallocating the  sample data for our previous file, since
+it is not necessary, and doing the same for the rest.
+
+#+begin_src c
+// ...
+free3(sfx);
+
+// Load countdown
+sfx = load_vag_sound("\\COUNT3.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_3CH);
+free3(sfx);
+sfx = load_vag_sound("\\COUNT2.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_2CH);
+free3(sfx);
+sfx = load_vag_sound("\\COUNT1.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_1CH);
+free3(sfx);
+sfx = load_vag_sound("\\COUNTGO.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_4CH);
+free3(sfx);
+#+end_src
+
+So 3, 2, 1, GO are allocated to channels 3, 2, 1, 4, respectively.
+
+Now for the actual countdown, I am going  to start a counter at number 4, and an
+actual countdown that starts at a  given number and decrements every frame. Once
+this  second   counter  reaches   0,  reset  it   again,  decrement   the  first
+counter. Depending  on the new value  assumed by the first  counter before being
+decremented, play  one of  the samples;  if this first  counter reaches  0, stop
+decrementing the second one.
+
+#+begin_src c
+// In main.c
+#define COUNTDOWN_FRAME_STEP 60
+
+char countdown_step  = 4;
+char frame_countdown = 0;
+
+// on update function
+// ...
+// Countdown
+if(countdown_step > 0) {
+    frame_countdown--;
+    if(frame_countdown <= 0) {
+        switch(countdown_step) {
+        case 4: audio_play(SPU_3CH); break;
+        case 3: audio_play(SPU_2CH); break;
+        case 2: audio_play(SPU_1CH); break;
+        case 1: audio_play(SPU_4CH); break;
+        }
+        countdown_step--;
+        frame_countdown = COUNTDOWN_FRAME_STEP;
+    }
+}
+#+end_src
+
+Since  I  programmed a  respawn  function,  I'll also  go  ahead  and reset  the
+countdown when respawning the ship too.
+
+#+begin_src c
+void
+respawn(void)
+{
+    // Reset ship
+    VECTOR startpos;
+    setVector(&startpos, 32599, -347, -45310);
+    ship_init(&ship, &track, &startpos);
+    countdown_step = 4;
+    frame_countdown = COUNTDOWN_FRAME_STEP; // One-second delay after respawn
+}
+#+end_src
+
 * Countdown Sound Effects
+
+See above!
+
+The only thing I  didn't do is a flag for allowing our  ship to stay still until
+the race actually starts. Let's do it.
+
+#+begin_src c
+// In main.c
+int is_racing = 0;
+
+// In update function
+if(countdown_step > 0) {
+    frame_countdown--;
+    if(frame_countdown <= 0) {
+        switch(countdown_step) {
+        case 4: audio_play(SPU_3CH); break;
+        case 3: audio_play(SPU_2CH); break;
+        case 2: audio_play(SPU_1CH); break;
+        case 1:
+            audio_play(SPU_4CH);
+            is_racing = 1;
+            break;
+        }
+        countdown_step--;
+        frame_countdown = COUNTDOWN_FRAME_STEP;
+    }
+}
+
+if(!is_racing) {
+    ship.vel.vx = ship.vel.vy = ship.vel.vz = 0;
+}
+#+end_src
+
+Of course, do not forget our respawn routine:
+
+#+begin_src c
+void
+respawn(void)
+{
+    // ...
+    is_racing = 0;
+}
+#+end_src
+
 * Background Music
 * Recording an Audio Track
 * Adding Audio Track to ISO
