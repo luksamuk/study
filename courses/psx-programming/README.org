@@ -4,13 +4,8 @@ These are my notes for the PlayStation development course.
 
 * Chapters
 
-** Introduction
-
 0. Introduction
 0. History & Early Years
-
-** MIPS, Assembly, and the PlayStation
-
 1. [[./01-hardware.org][Hardware]]
 2. [[./02-mips-assembly.org][MIPS Assembly]]
 3. [[./03-mips-pipeline.org][MIPS Pipeline]]
@@ -33,9 +28,6 @@ These are my notes for the PlayStation development course.
 19. [[file:19-camera-transformation.org][Camera Transformation]]
 20. [[file:20-cd-rom-access.org][CD-ROM Access]]
 21. [[./21-textured-polygons.org][Textured Polygons]]
-
-** Final Project
-
 22. [[./22-decoding-primitive-files.org][Decoding Primitive Files]]
 23. [[./23-decoding-texture-files.org][Decoding Texture Files]]
 24. [[./24-multiple-3d-models.org][Multiple 3D Models]]
@@ -47,7 +39,7 @@ These are my notes for the PlayStation development course.
 30. [[./30-refactoring-track-visibility.org][Refactoring Track Visibility]]
 31. [[./31-attracting-ship-and-track.org][Attracting Ship & Track]]
 32. [[./32-audio-system.org][Audio System]]
-34. Conclusion
+33. Conclusion
     
 * Extra documents
 
