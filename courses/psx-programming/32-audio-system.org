@@ -1,0 +1,1022 @@
+#+title: Audio System
+#+startup: content
+
+* Audio & SPU
+
+Ken Kutaragi was once involved in  creating sound chips for Nintendo, and helped
+design the Super Nintendo sound chip.
+
+Therefore,  it is  not  surprising  that the  PlayStation  is  a powerful  audio
+machine.
+
+And at the center of the stage, there is the SPU.
+
+The  *Sound  Processing Unit*  (SPU)  is  a  crucial component  responsible  for
+handling  all   audio-related  tasks,   such  as  frequency   modulation,  pitch
+modulation, reverb, loop, playing audio samples, etc.
+
+It  is ultimately  a  device which  takes digital  signals  and transform  these
+signals into output that will be played by the TV speaker.
+
+The  SPU  also  has  a  little  buffer,  512KB  of  DRAM,  our  so-called  sound
+memory. This is not a lot, but we're gonna make good use of it.
+
+** SPU Specs
+
+- *24 channels* of 16-bit *ADPCM* samples;
+  - ADPCM is a way to encode and compress samples.
+- Sampling rate of 44.1KHz (audio CD quality);
+- The SPU chip also provides:
+  - Pitch modulation;
+  - Frequency modulation;
+  - ADSR envelope (attack, decay, sustain, release);
+    - [[https://www.youtube.com/watch?v=aitRs893ado][Here is a very cool and visual video on this subject]].
+  - Looping;
+  - Digital reverb.
+
+** Samples
+
+We can  also use one of  the channels to play  samples too; each channel  can be
+matched  to  a  "voice".  Each  channel  playing  a  sample  would  be  a  voice
+channel. These samples are encoded with ADPCM format.
+
+There are two types of ADPCM samples:
+
+1. XA-ADPCM
+   - Decompressed by the CD-ROM controller.
+   - Is sent directly to the sound mixer.
+   - Does *not* require SPU DRAM memory.
+   - Does *not* support looping.
+   - Only 2 sample rate options.
+2. SPU-ADPCM
+   - Supports looping and reverb.
+   - It needs SPU DRAM memory for storage.
+   - VAG and VAB file formats.
+
+** PCM vs. ADPCM
+
+PCM  stands for  *Pulse Code  Modulation*. When  talking about  raw PCM,  we are
+talking about  /purely uncompressed  audio/; the original  pure audio  signal is
+sampled and stored as-is. The greater  the frequency (amount of samples per time
+unit --  the sample rate),  the higher the  resolution. Most ~.WAV~  formats use
+basically PCM directly like this.
+
+ADPCM stands for  *Adaptive Differential Pulse Code Modulation*.  It encodes and
+/compresses/   16-bit  audio   samples  using   only  *4   bits*  (approximately
+$\frac{1}{4}$ data compression). It also  uses prediction, based on the analysis
+of the  *difference* of previous  values (instead  of recording input  as-is, we
+base on  the difference between  previous and next  sample to estimate  the next
+sample). These  are normally stored  on ~.VAG~  files and used  by PlayStation's
+SPU-ADPCM; therefore they need to be stored on DRAM memory to be played.
+
+* Converting WAV to VAG
+
+Copy the provided course sound files to ~ASSETS/SOUND~.
+
+This folder contains pure .WAV sound effects from the original Wipeout.
+
+On the Psy-Q library binaries, there is a tool called ~VAGedit~.
+
+To convert  a ~.WAV~ file  using ~VAGedit~, simply  open the file  on ~VAGedit~,
+then click "Save".
+
+Now add the ~POWERUP.VAG~ file to our project. No need to add it to any subdir:
+
+#+begin_src fundamental
+          File POWERUP.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\POWERUP.VAG
+          EndFile
+#+end_src
+
+** Converting WAV to VAG... for Linux users
+
+Simply use my Dockerfile, hehe.
+
+Here is a  bash script for converting all files  on the ~ASSETS/SOUND~ directory
+to ~.VAG~.
+
+#+begin_src bash :eval never
+# First open the root directory using the container...
+docker run -it --rm -v $(pwd):/source -w /source luksamuk/psxtoolchain:latest /bin/bash
+
+# Now run the following loop
+for f in ASSETS/SOUND/*.WAV; do wav2vag "$f" "${f%%.WAV}.VAG"; done
+#+end_src
+
+Now add the ~POWERUP.VAG~ file:
+
+#+begin_src xml
+<file name="POWERUP.VAG" type="data" source="ASSETS/SOUND/POWERUP.VAG" />
+#+end_src
+
+** Creating code files
+
+Create files ~sound.h~ and ~sound.c~.
+
+#+begin_src c
+#ifndef SOUND_H
+#define SOUND_H
+
+#include <sys/types.h>
+#include <libspu.h>
+
+void   sound_init(void);
+u_char *load_vag_sound(char *filename, u_long *length);
+void   transfer_vag_to_spu(u_char *data, u_long length, int voicechannel);
+
+void audio_play(int voicechannel);
+void audio_free(u_long address);
+#endif
+#+end_src
+
+Let's go ahead and implement our functions.
+
+#+begin_src c
+#include "sound.h"
+
+void
+sound_init(void)
+{
+    // TODO
+}
+
+u_char *
+load_vag_sound(char *filename, u_long *length)
+{
+    // TODO
+}
+
+void
+transfer_vag_to_spu(u_char *data, u_long length, int voicechannel)
+{
+    // TODO
+}
+
+void
+audio_play(int voicechannel)
+{
+    // TODO
+}
+
+void
+audio_free(u_long address)
+{
+    // TODO
+}
+#+end_src
+
+** Playing a sound
+
+Now let's go to ~main.c~ and plan what we want to do:
+
+#+begin_src c
+#include "sound.h"
+
+// In setup function
+// ...
+// TODO: Load a VAG file from disk
+// TODO: Transfer VAG data to SPU and play it in one of the channels
+#+end_src
+
+** Note
+
+I was importing ~libspu.h~ on ~main.c~  and calling ~SpuInit~ on ~setup~ just so
+we could stop the BIOS humming when the game loads. I removed that.
+
+* Playing a VAG Sound Effect
+
+We go back to ~sound.c~ and start by implementing the routines to initialize and
+load a VAG sound from disk.
+
+#+begin_src c
+#include "utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+void
+sound_init(void)
+{
+    SpuInit();
+
+    // TODO: allocate sound memory
+    // TODO: configure common settings of the SPU
+}
+
+u_char *
+load_vag_sound(char *filename, u_long *length)
+{
+    u_long i;
+    u_char *bytes;
+    bytes = (u_char *)file_read(filename, length);
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return NULL;
+    }
+
+    return bytes;
+}
+
+// ...
+#+end_src
+
+Now back  to ~main.c~.  Create a ~sfx~  global pointer and  then load  the sound
+effect:
+
+#+begin_src c
+u_char *sfx;
+
+// In setup function
+sound_init();
+
+// ...
+
+u_long sfxlength;
+
+// ...
+
+sfx = load_vag_sound("\\POWERUP.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength, SPU_0CH);
+#+end_src
+
+** Initializing the SPU
+
+We need to set up the SPU allocator and also setup volume and etc. So we go back
+to ~sound.c~.
+
+#+begin_src c
+// ...
+
+#define SOUND_MALLOC_MAX 10
+
+static SpuCommonAttr spucommonattr;
+static SpuVoiceAttr  spuvoiceattr;
+
+static u_long vagspuaddr;
+static char spumallocrec[SPU_MALLOC_RECSIZ * (SOUND_MALLOC_MAX + 1)];
+
+void
+sound_init(void)
+{
+    SpuInit();
+
+    // Allocate sound memory
+    SpuInitMalloc(SOUND_MALLOC_MAX, spumallocrec);
+
+    // Configure common settings of the SPU
+    spucommonattr.mask = (SPU_COMMON_MVOLL |
+                          SPU_COMMON_MVOLR |
+                          SPU_COMMON_CDVOLL |
+                          SPU_COMMON_CDVOLR |
+                          SPU_COMMON_CDMIX);
+
+    spucommonattr.mvol.left  = 0x3fff; // Master volume (left) - 0x0000 ~ 0x3fff
+    spucommonattr.mvol.right = 0x3fff; // Master volume (right) - 0x0000 ~ 0x3fff
+
+    spucommonattr.cd.volume.left  = 0x7fff; // CD volume (left) - 0x0000 ~ 0x7fff
+    spucommonattr.cd.volume.right = 0x7fff; // CD volume (right) - 0x0000 ~ 0x7fff
+
+    spucommonattr.cd.mix = SPU_ON; // enable CD playback
+
+    SpuSetCommonAttr(&spucommonattr);
+}
+
+// ...
+#+end_src
+
+We don't really need to setup anything related to CD playback right now, we only
+need to set up the master volume.
+
+But  as it  can  be seen  here,  we  basically use  ~spumallocrec~  as a  buffer
+containing  audio  data   that  will  be  sent  and  stored   on  the  SPU,  and
+~SOUND_MALLOC_MAX~ determines the number of maximum sounds we are going to store
+on  the   SPU  --   therefore,  a  maximum   number  of   allocations.  Finally,
+~SpuSetCommonAttr~ commits the changes.
+
+** Transfering data to the SPU
+
+We now implement the function which transfer our ~.VAG~ file to the SPU.
+
+Still in ~sound.c~, do this:
+
+#+begin_src c
+void
+transfer_vag_to_spu(u_char *data, u_long length, int voicechannel)
+{
+    SpuSetTransferMode(SpuTransByDMA);
+    vagspuaddr = SpuMalloc(length);
+    SpuSetTransferStartAddr(vagspuaddr);
+
+    SpuWrite(data, length);
+    SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
+
+    spuvoiceattr.mask = (SPU_VOICE_VOLR |
+                         SPU_VOICE_PITCH |
+                         SPU_VOICE_WDSA |
+                         SPU_VOICE_ADSR_AMODE |
+                         SPU_VOICE_ADSR_SMODE |
+                         SPU_VOICE_ADSR_RMODE |
+                         SPU_VOICE_ADSR_AR |
+                         SPU_VOICE_ADSR_DR |
+                         SPU_VOICE_ADSR_SR |
+                         SPU_VOICE_ADSR_RR |
+                         SPU_VOICE_ADSR_SL);
+
+    spuvoiceattr.voice        = voicechannel;         // Voice channel
+    spuvoiceattr.volume.left  = 0x1fff;               // left volume
+    spuvoiceattr.volume.right = 0x1fff;               // right volume
+    spuvoiceattr.pitch        = 0x1000;               // Pitch
+    spuvoiceattr.addr         = vagspuaddr;           // Waveform data start address
+    spuvoiceattr.a_mode       = SPU_VOICE_LINEARIncN; // Attack curve
+    spuvoiceattr.s_mode       = SPU_VOICE_LINEARIncN; // Sustain curve
+    spuvoiceattr.r_mode       = SPU_VOICE_LINEARIncN; // Release curve curve
+    spuvoiceattr.ar           = 0x00;                 // Attack rate
+    spuvoiceattr.dr           = 0x00;                 // Decay rate
+    spuvoiceattr.sr           = 0x00;                 // Sustain rate
+    spuvoiceattr.rr           = 0x00;                 // Release rate
+    spuvoiceattr.sl           = 0x00;                 // Sustain level
+
+    SpuSetVoiceAttr(&spuvoiceattr);
+}
+#+end_src
+
+First things first, we deal with transferring data to the SPU. So we set the DMA
+to perform the transfer to SPU for us, then we perform an SPU memory allocation,
+retrieving the address  of the allocated space  on the SPU. We then  set the SPU
+destination address to that address we just allocated.
+
+Following, we take  the pointer of our  waveform data and its  length and simply
+write that data to the SPU. The process is asynchronous, so we also need to wait
+until the transfer is complete.
+
+Now we just set some attributes to the voice: the voice channel index (passed by
+parameter), left  and right volume, pitch,  the pointer to the  beginning of our
+waveform   data   on    the   SPU,   and   then    ADSR   envelope   parameters:
+attack/sustain/release  modes (in  this  case, linear  incrementation); rate  of
+attack, decay, sustain and release; and the sustain level.
+
+Finally, we commit these changes to the SPU.
+
+** Playing the audio
+
+Now all we need to do is implement our playback and freeing functions. These are
+very easy and straightforward:
+
+#+begin_src c
+void
+audio_play(int voicechannel)
+{
+    SpuSetKey(SpuOn, voicechannel);
+}
+
+void
+audio_free(u_long address)
+{
+    SpuFree(address);
+}
+#+end_src
+
+
+Now back on ~main.c~, after transfering the VAG file to SPU:
+
+#+begin_src c
+// On setup function
+// ...
+audio_play(SPU_0CH);
+#+end_src
+
+* Bits & Sound
+
+- Our brain decodes signals that arrive from vibrations that are received by our
+  ears.
+- These vibrations travel through waves.
+- We can create sound waves by plucking strings, vibrating vocal cors, or simply
+  moving the diaphragm membrane of a speaker back-and-forth.
+- To  vibrate  such  a diaphragm,  one  common  technique  is  to use  a  magnet
+  stimulated  by  electricity  to  push  and pull  the  membrane  at  a  certain
+  frequency.
+- The back-and-forth movement produces an analog audio wave.
+- Audio waves have special characteristics:
+
+  1. Frequency: how  "fast" the wave vibrates, measured in  number of cycles per
+     unit of time. The faster the wave,  the higher the frequency and the higher
+     the pitch.
+     - Think of freqyency as notes of  the music scale; lower notes are produced
+       by slow-moving waves, and high notes are produces by fast-moving waves.
+  2. Amplitude: how  "tall" a wave is. Determines the  intensity (volume) of the
+     sound produced by the wave.
+
+- Analog audio  signals are  represented by  a perfect  sinusoidal wave  (a sine
+  function which outputs a pure bell tone).
+  - E.g. consider  an A4  note, which  is produced by  a pure  sine wave  with a
+    frequency of 440Hz. It is also the frequency of a telephone's dial tone.
+- These sine waves can be *combined to generate more complex sounds*.
+  - Joseph Fourier proved that *all wave forms  can be expressed as a sum of two
+    or more sine waves.*
+    - And by *all*, I mean *all*. *Any*  complex audio wave, such as a dog bark,
+      a human voice, a piano sound.
+
+** Representing Audio Digitally
+
+- Sampling  is the  process  of transforming  a musical  source  into a  digital
+  format.
+- We take samples of the audio source along the soundwaves at regular intervals.
+- The higher the sample rate (sampling  frequency), the closer the final digital
+  file resemples the original analog audio.
+  - Thus,  a   higher  sample  rate   tends  to  deliver   better-quality  audio
+    reproduction.
+  - The PlayStation commonly uses sampling rates of 44.1kHz or 22050Hz.
+
+** PCM
+
+- The  simplest example  of sampling  is using  the PCM  (pulse-code modulation)
+  method.
+  - In this  method, the amplitude  of the analog  signal is sampled  at uniform
+    intervals.
+  - Uncompressed CD-quality audio and most WAV files use PCM.
+  - On playback,  the fluctuation  of the  original wave  is recreated  based on
+    those samples.
+  - The sampling is therefore a way to rebuild our wave by using discrete Y-axis
+    samples of the wave amplitude.
+
+** ADPCM
+
+- As already  discussed, the  PlayStation uses a  method called  ADPCM (adaptive
+  differential  pulse-code  modulation),  which   is  a  little  different  than
+  traditional PCM.
+  - Instead of  recording absolute amplitudes,  each discrete step  represents a
+    guess at where  the next amplitude will be, like  the difference between the
+    current step and the next one -- a relative value.
+  - This technique is used when we want to compress audio and the sample quality
+    is not of primary importance.
+  - As a result, ADPCM-encoded audio is much *smaller* than PCM-encoded audio.
+    - E.g.  CD-quality   audio  uses   16-bits  per  sampled   amplitude,  while
+      PlayStation ADPCM uses 4-bits per sampled delta. Much smaller!
+
+** SPU Voices
+
+- The PlayStation SPU has 24 hardware voices.
+- These  voices can  reproduce  sample  data, noise,  or  be  used as  frequency
+  modulator on the next voice.
+- Each voice has its own programmable ADSR envelope filter.
+- The main volume can be programmed independently for left and right output.
+
+Two ADPCM  formats are supported; the  decompression used by them  are the same,
+but XA-ADPCM's decompression is done by the CD controller:
+
+*** SPU-ADPCM
+
+- Supports looping and reverb;
+- Requires SPU DRAM memory to be buffered & played;
+- Often used by small sound effects and encoded as VAG or VAB files.
+
+*** XA-ADPCM
+
+- Does not support looping;
+- Only supports two sample rates (22050Hz and 44.1kHz);
+- Does not require SPU DRAM memory;
+- Decompressed by the CD-ROM controller;
+- Sent to the sound mixer directly.
+
+* Pitch & Sampling Frequency
+
+So, first things first, the pitch we  provided to play our audio in ~sound.c~ is
+wrong:
+
+#+begin_src c
+spuvoiceattr.pitch        = 0x1000;
+#+end_src
+
+If we take a  look at the [[file:./LibOver47.pdf][Psy-Q Run-Time Library  Overview]] ([[https://psx.arthus.net/sdk/Psy-Q/DOCS/LibOver47.pdf][external link here]]),
+we can see  (page 257 of the  PDF) that there is  a way for us  to determine the
+pitch from a provided sampling frequency on our VAG file header.
+
+It can be done by the following formula:
+
+#+begin_src c
+pitch = (sampling_frequency << 12) / 441000;
+#+end_src
+
+Here's a pattern for ImHex so we can  grab the header in a VAG file. Notice that
+a VAG file *always stores its header information in big endian order*:
+
+#+begin_src c
+enum VersionInfo : u32 {
+    MacConverter1_3 = 0x00000002,
+    MacConverter1_6 = 0x00000003,
+    PcConverter1_8  = 0x00000000,
+    PcConverter2_0  = 0x00000020,
+};
+
+struct VAG {
+    char id[4];
+    VersionInfo version;
+    padding[4];
+    u32 size;
+    u32 sampling_frequency;
+    padding[12];
+    u8 waveform[size];
+    char filename[16];
+};
+
+be VAG file @ 0x00;
+#+end_src
+
+[[file:img/vagfile_imhex.png]]
+
+In our case, we *know* that our sample uses 22.05kHz as frequency. And according
+to the  library overview, we should  be using ~0x1000~ for  44.1kHz and ~0x0800~
+for 22.05kHz. So we'll just use ~0x0800~  directly and call it a day, instead of
+parsing the header ourselves -- though it would be rather easy here.
+
+#+begin_src c
+// In sound.c, function transfer_vag_to_cpu
+// ...
+spuvoiceattr.pitch        = 0x0800;
+#+end_src
+
+* VAG Header Information
+
+So, as  discussed above, we  could, in principle, just  read our VAG  header and
+calculate the pitch from sampling rate.
+
+It is also very fortunate that the header is always stored in big-endian, so all
+we would have to do is declare our header and cast the data start pointer to it.
+
+I'm going to leave the header definition in C here if I ever need it again; I've
+used this for a Sonic game prototype, so it should be necessary someday.
+
+Remember that  the total  header size  here is 48  bytes, and  it seems  like it
+should never be sent to the SPU; only send waveform data after this header.
+
+#+begin_src c
+typedef struct {
+    char   id[4];
+    u_long version;
+    u_long reserved1;
+    u_long data_size;
+    u_long sampling_frequency;
+    u_char reserved2[12];
+    char   name[16];
+} VAGHeader;
+#+end_src
+
+** About VAB files
+
+A VAB  file is basically  a grouping of  many VAG files.  We won't go  into many
+details on this; it  only suffices to say that the VAB is  a collection of VAG's
+into a single file, with a single header.
+
+* Proposed Exercise: Countdown Audio
+
+The  idea  here   is  to  play  ~COUNT3.WAV~,   ~COUNT2.WAV~,  ~COUNT1.WAV~  and
+~COUNTGO.WAV~ in sequence, preferably using the same channel.
+
+Let's start by adding the sound effects to the CD.
+
+#+begin_src fundamental
+          File COUNT3.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNT3.VAG
+          EndFile
+
+          File COUNT2.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNT2.VAG
+          EndFile
+
+          File COUNT1.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNT1.VAG
+          EndFile
+
+          File COUNTGO.VAG
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\SOUND\COUNTGO.VAG
+          EndFile
+#+end_src
+
+#+begin_src xml
+<file name="COUNT3.VAG"  type="data" source="ASSETS/SOUND/COUNT3.VAG" />
+<file name="COUNT2.VAG"  type="data" source="ASSETS/SOUND/COUNT2.VAG" />
+<file name="COUNT1.VAG"  type="data" source="ASSETS/SOUND/COUNT1.VAG" />
+<file name="COUNTGO.VAG" type="data" source="ASSETS/SOUND/COUNTGO.VAG" />
+#+end_src
+
+First of all,  I am not going to  use the same sound channel because  of how the
+SPU loading was programmed. If we stored  our audio on SPU and shared just their
+SPU DRAM address, it would be easy; but  since this is not how the game is being
+programmed so far, I am going to use three channels and that's it.
+
+Back in ~main.c~, at  the end of ~setup~, I'm going to  load these sound effects
+to channels 1, 2, 3 and 4.
+
+Notice also that I am deallocating the  sample data for our previous file, since
+it is not necessary, and doing the same for the rest.
+
+#+begin_src c
+// ...
+free3(sfx);
+
+// Load countdown
+sfx = load_vag_sound("\\COUNT3.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_3CH);
+free3(sfx);
+sfx = load_vag_sound("\\COUNT2.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_2CH);
+free3(sfx);
+sfx = load_vag_sound("\\COUNT1.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_1CH);
+free3(sfx);
+sfx = load_vag_sound("\\COUNTGO.VAG;1", &sfxlength);
+transfer_vag_to_spu(sfx + 48, sfxlength - 48, SPU_4CH);
+free3(sfx);
+#+end_src
+
+So 3, 2, 1, GO are allocated to channels 3, 2, 1, 4, respectively.
+
+Now for the actual countdown, I am going  to start a counter at number 4, and an
+actual countdown that starts at a  given number and decrements every frame. Once
+this  second   counter  reaches   0,  reset  it   again,  decrement   the  first
+counter. Depending  on the new value  assumed by the first  counter before being
+decremented, play  one of  the samples;  if this first  counter reaches  0, stop
+decrementing the second one.
+
+#+begin_src c
+// In main.c
+#define COUNTDOWN_FRAME_STEP 60
+
+char countdown_step  = 4;
+char frame_countdown = 0;
+
+// on update function
+// ...
+// Countdown
+if(countdown_step > 0) {
+    frame_countdown--;
+    if(frame_countdown <= 0) {
+        switch(countdown_step) {
+        case 4: audio_play(SPU_3CH); break;
+        case 3: audio_play(SPU_2CH); break;
+        case 2: audio_play(SPU_1CH); break;
+        case 1: audio_play(SPU_4CH); break;
+        }
+        countdown_step--;
+        frame_countdown = COUNTDOWN_FRAME_STEP;
+    }
+}
+#+end_src
+
+Since  I  programmed a  respawn  function,  I'll also  go  ahead  and reset  the
+countdown when respawning the ship too.
+
+#+begin_src c
+void
+respawn(void)
+{
+    // Reset ship
+    VECTOR startpos;
+    setVector(&startpos, 32599, -347, -45310);
+    ship_init(&ship, &track, &startpos);
+    countdown_step = 4;
+    frame_countdown = COUNTDOWN_FRAME_STEP; // One-second delay after respawn
+}
+#+end_src
+
+* Countdown Sound Effects
+
+See above!
+
+The only thing I  didn't do is a flag for allowing our  ship to stay still until
+the race actually starts. Let's do it.
+
+#+begin_src c
+// In main.c
+int is_racing = 0;
+
+// In update function
+if(countdown_step > 0) {
+    frame_countdown--;
+    if(frame_countdown <= 0) {
+        switch(countdown_step) {
+        case 4: audio_play(SPU_3CH); break;
+        case 3: audio_play(SPU_2CH); break;
+        case 2: audio_play(SPU_1CH); break;
+        case 1:
+            audio_play(SPU_4CH);
+            is_racing = 1;
+            break;
+        }
+        countdown_step--;
+        frame_countdown = COUNTDOWN_FRAME_STEP;
+    }
+}
+
+if(!is_racing) {
+    ship.vel.vx = ship.vel.vy = ship.vel.vz = 0;
+}
+#+end_src
+
+Of course, do not forget our respawn routine:
+
+#+begin_src c
+void
+respawn(void)
+{
+    // ...
+    is_racing = 0;
+}
+#+end_src
+
+* Background Music
+
+Let's move away from sound effects to use actual background music.
+
+Background music is  very important for immersion while playing  a game. It sets
+the mood and is a vital part of building games.
+
+The 90's  games' most predominant  music genre  was the Jungle  (or Drum'n'Bass)
+genre (go take a look, it is amazing!).
+
+But background music  playback is not as  simple as simply storing  the music on
+the SPU and playing it.
+
+We're gonna be using  a rather different method and use  different tracks on our
+disk. Our first  track is going to remain  a data track, but the  other ones are
+going to  be actual red  book audio  tracks. So in  theory, we could  play these
+tracks by inserting the disk on a CD-DA disk reader as well.
+
+* Recording an Audio Track
+
+In this  video, the instructor basically  talked about the composing  process of
+the song  we're going to use  for our game.  It is Drum'n'Bass styled  song that
+reminds of 90's action game music atmosphere.
+
+~jungle.wav~ goes inside ~ASSETS\MUSIC\~.
+
+* Adding Audio Track to ISO
+
+To build our ISO, we will not have to use ~mkpsxiso~ and a XML file from now on.
+
+So if you've been using ~BUILDCD.EXE~... put it aside. Hehe.
+
+Here's how we are supposed to build our  XML file -- I am going to transcribe it
+here in full, since this might be the last time we're tweaking this file.
+
+#+begin_src xml
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="GAME.iso" cue_sheet="GAME.cue" no_xa="0">
+  <track type="data">
+    <identifiers
+	system        = "PLAYSTATION"
+	application   = "PLAYSTATION"
+	volume        = "MYDISC"
+	volume_set    = "GAME"
+	publisher     = "ME"
+	data_preparer = "MKPSXISO"
+	copyright     = "COPYLEFT" />
+    <license file="LCNSFILE/LICENSEA.DAT" />
+    <directory_tree>
+      <file name="SYSTEM.CNF"  type="data" source="SYSTEM.TXT" />
+      <file name="MAIN.EXE"    type="data" source="wipefaux.ps-exe" />
+      <file name="ALLSH.PRM"   type="data" source="ASSETS/COMMON/ALLSH.PRM" />
+      <file name="ALLSH.CMP"   type="data" source="ASSETS/COMMON/ALLSH.CMP" />
+      <file name="RESCU.PRM"   type="data" source="ASSETS/COMMON/RESCU.PRM" />
+      <file name="RESCU.CMP"   type="data" source="ASSETS/COMMON/RESCU.CMP" />
+      <file name="POWERUP.VAG" type="data" source="ASSETS/SOUND/POWERUP.VAG" />
+      <file name="COUNT3.VAG"  type="data" source="ASSETS/SOUND/COUNT3.VAG" />
+      <file name="COUNT2.VAG"  type="data" source="ASSETS/SOUND/COUNT2.VAG" />
+      <file name="COUNT1.VAG"  type="data" source="ASSETS/SOUND/COUNT1.VAG" />
+      <file name="COUNTGO.VAG" type="data" source="ASSETS/SOUND/COUNTGO.VAG" />
+      <dir name="TRACK02">
+        <file name="SCENE.CMP"   type="data" source="ASSETS/TRACK02/SCENE.CMP" />
+        <file name="SCENE.PRM"   type="data" source="ASSETS/TRACK02/SCENE.PRM" />
+        <file name="TRACK.TRV"   type="data" source="ASSETS/TRACK02/TRACK.TRV" />
+        <file name="TRACK.TRF"   type="data" source="ASSETS/TRACK02/TRACK.TRF" />
+        <file name="TRACK.TRS"   type="data" source="ASSETS/TRACK02/TRACK.TRS" />
+        <file name="LIBRARY.CMP" type="data" source="ASSETS/TRACK02/LIBRARY.CMP" />
+        <file name="LIBRARY.TTF" type="data" source="ASSETS/TRACK02/LIBRARY.TTF" />
+      </dir>
+      <dummy sectors="1024"/>
+      <file name="audio1.da" trackid="02" type="da" />
+    </directory_tree>
+  </track>
+  <track type="audio" trackid="02" source="ASSETS/MUSIC/jungle.wav" />
+</iso_project>
+#+end_src
+
+Here's the differences so far:
+
+- *Dummy sector:*  This dummy  sector is  added at  the end  of the  file system
+  portion of  the image to avoid  the possibility of "drive  runaway", which can
+  damage a drive  mechanism. It is an invisible file  specified in sector units,
+  and ensures a  clean directory structure when  the file system is  viewed on a
+  file browser. 1024 sectors correspond to 2MB.
+- *First  track, ~audio1.da~  file:* According  to ~mkpsxiso~  [[https://github.com/Lameguy64/mkpsxiso/blob/master/examples/example.xml][example]], this  is
+  necessary so that our  track remains visible as a CD-DA track.  This is not in
+  the original course, I did this so I  could also listen to the game's music as
+  red book CD audio. :P
+- *Track at the  end:* Actual audio file. Notice the  ~trackid~ tag that differs
+  from course file; this  is so that it could be referred  to on the ~audio1.da~
+  file right  above. Plus,  *make sure*  that the  track is  in red  book format
+  (44.1kHz, 16-bit, stereo).
+
+As always, to build our ISO and CUE:
+
+#+begin_src bash :eval never
+mkpsxiso -y CDLAYOUT.XML
+#+end_src
+
+* Play Audio Track Implementation
+
+Let's go to ~sound.h~ and ~sound.c~. Add the following function (don't forget to
+add the prototype to the header file):
+
+#+begin_src c
+#include <libetc.h>
+#include <libcd.h>
+
+// ...
+
+static CdlLOC loc[100];
+static int numtoc;
+
+// ...
+
+void
+play_audio_track(u_short tracknum)
+{
+    u_int i;
+    u_char param[4];
+    u_char result[8];
+
+    // Set transfer mode to DMA
+    SpuSetTransferMode(SpuTransByDMA);
+
+    // Get CD table of contents
+    while((numtoc = CdGetToc(loc)) == 0) {
+        printf("No TOC found! Please use a CD-DA disc...\n");
+    }
+
+    printf("NUMTOC = %d\n", numtoc);
+
+    // Prevent out-of-bounds position
+    for(i = 1; i < numtoc; i++) {
+        CdIntToPos(CdPosToInt(&loc[i]) - 74, &loc[i]);
+        printf("TOC[%d] --> Track=%d --> Minute=%d --> Second=%d\n",
+               i, loc[i].track, loc[i].minute, loc[i].second);
+    }
+
+    // Set CD parameters: Repeat mode ON + CD-DA ON
+    // (see LibOver47.pdf, p. 188)
+    param[0] = CdlModeRept | CdlModeDA;
+    CdControlB(CdlSetmode, param, 0);
+
+    VSync(3); // Wait three vsyncs
+
+    // Play track in TOC array
+    CdControlB(CdlPlay, (u_char *)&loc[tracknum], 0);
+}
+#+end_src
+
+In this case, we're setting the transfer mode to DMA, and then we have to take a
+look at the table  of contents of our CD. This is how  we're going to find where
+our tracks  are on  the CD,  so we  can actually  set the  position to  play our
+tracks. If we don't find anything, we're going for a spinlock here.
+
+After that, we're  going to iterate at  every table of contents  entry. For each
+entry (starting at 1, since track 0 is  our data track), and we subtract 74 from
+the  location so  we can  properly align  sectors here  -- don't  ask much.  The
+~CdIntToPos~ and ~CdPosToInt~ is to/from  position and integer conversions so we
+can properly manipulate these values.
+
+We then  set the  CD controller  mode to  repeating the  song and  playing CD-DA
+audio tracks.
+
+Afterwards, wait for  three vsyncs (this is a customary  amount). and then order
+the CD controller to actually play the audio of a track on the desired location.
+
+Remember that we already  enabled and set the volume for the  CD mixed back when
+we defined ~sound_init~, so we're good to go on just playing our music.
+
+Now in ~main.c~, after loading all the SFX tracks, play the audio:
+
+#+begin_src c
+/* main.c, end of setup function */
+// Play background music (red book audio CD track)
+play_audio_track(2);
+#+end_src
+
+Enjoy.
+
+* Play Background Audio Track
+
+Do not forget:  In order for the audio  to work correctly, one needs  to setup a
+sample rate of 44100 Hz and and encoding of a signed 16-bit PCM.
+
+You can do that on Audacity when exporting  the audio as WAV, but here's how you
+can also do that through ~ffmpeg~:
+
+#+begin_src bash :eval never
+ffmpeg -i oldmusic.wav -c:a pcm_s16le -ar 44100 music.wav
+#+end_src
+
+Oh, and  a small note:  I also  managed to make  this work by  converting things
+these audio to FLAC. Still lossless, but much smaller.
+
+The last thing we need to do is play the song at the end of the countdown.
+
+I managed  to add one extra  track, and then  make the game alternate  tracks on
+reset. Here's how to do these things.
+
+First,  on  ~sound.c~  and  ~sound.h~,  add  a  function  to  stop  CD  rotation
+altogether -- Don't forget to add the prototype to the header!
+
+#+begin_src c
+void
+stop_audio_track()
+{
+    CdControlF(CdlStop, 0);
+}
+#+end_src
+
+Now back on ~main.c~.
+
+Declare a variable to help us alternate  the track, and then alternate it on the
+reset function.
+
+#+begin_src c
+// ...
+
+char current_audio_track = 0;
+
+// ...
+
+void
+respawn(void)
+{
+    // ...
+    stop_audio_track();
+    current_audio_track = !current_audio_track;
+}
+#+end_src
+
+Now, *remove* the track playback from the end  of ~setup~, and at the end of the
+countdown function, just play the audio starting at 2:
+
+#+begin_src c
+// In function update
+// ...
+
+// Countdown
+if(countdown_step > 0) {
+    // ...
+    if(frame_countdown <= 0) {
+        switch(countdown_step) {
+            // ...
+        case 1:
+            audio_play(SPU_4CH);
+            is_racing = 1;
+            // Play background music (red book audio CD track)
+            play_audio_track(2 + current_audio_track);
+            break;
+        }
+        // ...
+    }
+}
+#+end_src
+
+:)
+
+* Adding Scene Objects & Audio
+
+The last thing we need to do is render our scene objects.
+
+Let's uncomment everything.
+
+But uh, it is heavily unoptimized... and  my computer, in the end, plays it like
+garbage. That's sad. But at least it looks cool.
+
+#+begin_src c
+/* On main.c, setup function */
+
+// ...
+sceneobjs = load_object_list_prm("\\TRACK02\\SCENE.PRM;1", scenestarttexture, &numsceneobjs);
+// ...
+
+/* update function */
+render_scene_objects(sceneobjs, &camera);
+#+end_src
+
+** Note on joining .CUE and .ISO files
+
+Check out ~chdman~  (for Windows) and ~tochd~ (for Linux).  These are originally
+formats for MAME emulators, but they work  pretty well for other CD formats, and
+many emulators accept  the .CHD format nowadays (especially  EmulatorJS, which I
+am using to host my stuff).
+
+#+begin_src bash :eval never
+# On the .cue file directory...
+tochd -q .
+#+end_src
+

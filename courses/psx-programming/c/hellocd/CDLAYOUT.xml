@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="GAME.ISO" cue_sheet="GAME.CUE" no_xa="0">
+  <track type="data">
+    <identifiers
+	system        = "PLAYSTATION"
+	application   = "PLAYSTATION"
+	volume        = "MYDISC"
+	volume_set    = "GAME"
+	publisher     = "ME"
+	data_preparer = "MKPSXISO"
+	copyright     = "COPYLEFT" />
+    <license file="LCNSFILE/LICENSEE.DAT" />
+    <directory_tree>
+      <file name="SYSTEM.CNF" type="data" source="SYSTEM.TXT" />
+      <file name="MAIN.EXE" type="data" source="hellocd.ps-exe" />
+      <file name="MODEL.BIN" type="data" source="assets/model.bin" />
+    </directory_tree>
+  </track>
+</iso_project>

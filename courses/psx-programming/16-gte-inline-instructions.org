@@ -1,0 +1,223 @@
+#+title: GTE Inline Instructions
+#+startup: content
+
+* GTE Register Set
+
+- [[file:Sony-Slides-GTE.pdf][GTE & Advanced Graphics]] (slide)
+
+** Data registers
+
+The GTE has 32 general/data registers:
+
+- Registers  to store  data of  three 3D  vectors: ~VX0~,  ~VY0~, ~VZ0~;  ~VX1~,
+  ~VY1~, ~VZ1~; ~VX2~, ~VY2~, ~VZ2~.
+- Registers to store colors: ~R~, ~G~, ~B~, ~CD~.
+- Registers to store intermediate values: ~IR0~, ~IR1~, ~IR2~, ~IR3~.
+- Registers  to store  screen coordinates:  ~SX0~, ~SY0~;  ~SX1~, ~SY1~;  ~SX2~,
+  ~SY2~.
+- Register to store ordering table Z order: ~OTZ~.
+- Registers to store output values: ~MAC0~, ~MAC1~, ~MAC2~, ~MAC3~...
+
+** Control registers
+
+The GTE also has 32 control registers  (setup registers that tell the GTE how to
+behave):
+
+- World transform registers:
+  - Rotation 3x3 matrix registers: ~R11~, ~R12~, ~R13~; ~R21~, ~R22~, ~R23~; ~R31~, ~R32~, ~R33~.
+  - Translation 3D vector registers: ~TRX~, ~TRY~, ~TRZ~.
+- Lighting registers:
+  - Lighting direction 3x3 matrix registers:  ~L11~, ~L12~, ~L13~; ~L21~, ~L22~,
+    ~L23~; ~L31~, ~L32~, ~L33~.
+  - Lighting  color 3x3  matrix registers:  ~LR1~, ~LR2~,  ~LR3~; ~LG1~,  ~LG2~,
+    ~LG3~; ~LB1~, ~LB2~, ~LB3~.
+  - Background color vector: ~RBK~, ~GBK~, ~BBK~.
+- Average Z registers: ~ZSF3~, ~ZSF4~.
+- ...
+
+** Instruction set
+
+Since the GTE is a coprocessor inside the CPU block, it is *not* memory mapped.
+
+So  the   GTE  has   a  special   instruction  set,   that  differs   from  MIPS
+instructions. These instructions are especially for CP2 (GTE).
+
+Here is an example implementation of ~RotTransPers3~.
+
+#+begin_src c
+// Function prototype, for analysis purposes:
+long RotTransPers3(
+    SVECTOR *v0,
+    SVECTOR *v1,
+    SVECTOR *v2,
+    long *sxy0,
+    long *sxy1,
+    long *sxy2,
+    long *p,
+    long *flag);
+#+end_src
+
+Remember also the [[https://en.wikipedia.org/wiki/MIPS_architecture#Calling_conventions][MIPS O32 calling convention]].
+
+#+begin_src asm
+RotTransPers3:
+	;; input local vectors
+	lwc2	C2_VXY0, ($a0)
+	lwc2	C2_VZ0, 4($a0)
+	lwc2	C2_VXY1, ($a1)
+	lwc2	C2_VZ1, 4($a1)
+	lwc2	C2_VXY2, ($a2)
+	lwc2	C2_VZ2, 4($a2)
+	nop
+	;; rotate, translate, perspective
+	RTPT
+	lw	$t0, 16($sp)
+	lw	$t1, 20($sp)
+	lw	$t2, 24($sp)
+	lw	$t3, 28($sp)
+	;; output screen coordinates
+	swc2	C2_SXY0, ($a3)
+	swc2	C2_SXY1, ($t0)
+	swc2	C2_SXY2, ($t1)
+	swc2	C2_IR0, ($t2)
+	cfc2	$v1, C2_FLAG0
+	mfc2	$v0, C2_SZ2
+	sw	$v1, ($t3)
+	j	$ra
+	sra	$v0, $v0, 2
+#+end_src
+
+Here we have an extended instruction set that does things for the coprocessor 2:
+
+- ~lwc2~: load  word  into  coprocessor 2
+- ~swc2~: store word  from coprocessor 2
+- ~RTPT~: rotate, translate, perspective, for three vertices
+- ~cfc2~: move word from GTE control register into CPU register
+- ~mfc2~: move word from GTE data register into CPU register
+
+* Inline GTE Instructions
+
+- [[file:Sony-PlayStation-GTEInlineReference.pdf][GTE Inline Programming Reference]]
+
+So, since we're using  Nugget on VSCode projects, let's take a  look at the file
+[[file:c/hellogte/third_party/nugget/psyq/include/inline_n.h][~hellogte/third_party/nugget/psyq/include/inline_n.h~]].
+
+These files are GTE macro definitions for Nugget.
+
+This file is a bunch of inline assembly code to interact with the GTE.
+
+- ~gte_ldv0(r0)~: Load contents of parameter ~r0~ into GTE vector 0;
+- ~gte_ldv1(r0)~: Load contents of parameter ~r0~ into GTE vector 1;
+
+- ~gte_ldv2(r0)~: Load contents of parameter ~r0~ into GTE vector 2;
+- ...
+
+** Using inline instructions
+
+On our  Hello GTE, if you're  using the classic toolchain,  get ~inline_n.h~ and
+include it.
+
+#+begin_src c
+#include "inline_n.h"
+// or, if you're using Nugget:
+#include <inline_n.h>
+#+end_src
+
+Now  go   to  our  floor  drawing   part  in  ~void  Update()~.   Let's  replace
+~RotAverageNclip3~ with inline calls to the GTE.
+
+Let's start by loading the three vectors into the GTE registers.
+
+#+begin_src c
+gte_ldv0(&floor_vertices[floor_faces[i + 0]]);
+gte_ldv1(&floor_vertices[floor_faces[i + 1]]);
+gte_ldv2(&floor_vertices[floor_faces[i + 2]]);
+#+end_src
+
+Now we just need to compute  the rotation, translation and perspective, and also
+perform normal clipping and store the normal clipping value:
+
+#+begin_src c
+gte_rtpt();
+gte_nclip();
+gte_stopz(&nclip);
+#+end_src
+
+Now let's change  the nclip test a  little, and store the  GTE calculated screen
+coordinates:
+
+#+begin_src c
+if(nclip >= 0) {
+    gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+    gte_avsz3();
+    gte_stotz(&otz);
+
+    if((otz > 0) && (otz < OT_LENGTH)) {
+        addPrim(ot[currbuff][otz], poly);
+        nextprim += sizeof(POLY_G3);
+    }
+}
+#+end_src
+
+* RTPT vs. RTPS
+
+Now let's see how we can do this for quads.
+
+Let's replace  the call to ~RotAverageNclip4~  for our quad drawing  with inline
+calls to the GTE.
+
+We start by loading and processing the first three vertices, because the GTE can
+only perform calculations up to three vertices at a time!
+
+#+begin_src c
+gte_ldv0(&vertices[quad_faces[i + 0]]);
+gte_ldv1(&vertices[quad_faces[i + 1]]);
+gte_ldv2(&vertices[quad_faces[i + 2]]);
+gte_rtpt();
+#+end_src
+
+Now here's a catch: we're only going  to store the vertices for the first screen
+coordinate.
+
+#+begin_src c
+gte_stsxy0(&qpoly->x0);
+#+end_src
+
+Now we're going to load the fourth quad vertex at the same place we did with the
+first one.
+
+#+begin_src c
+gte_ldv0(&vertices[quad_faces[i + 3]]);
+#+end_src
+
+Finally,  we  perform  rotation,  translation   and  perspective  *of  a  single
+vertex*.  Then, store  the  other  screen coordinates.  Notice  the order  we're
+performing the store..
+
+#+begin_src c
+gte_rtps();
+gte_stsxy3(&qpoly->x1, &qpoly->x2, &qpoly->x3);
+#+end_src
+
+Now just average the ~otz~ for four vertices and get the ~nclip~.
+
+#+begin_src c
+gte_avsz4();
+gte_stotz(&otz);
+#+end_src
+
+** About the quad nclip
+
+We can perform  the normal clipping test  for our first triangle  and that's it!
+This is because we're  testing for the normal of the entire  face. So the normal
+of a single triangle should also be the normal of the entire quad.
+
+Right after the call to ~gte_rtpt()~, do the following:
+
+#+begin_src c
+gte_nclip();
+gte_stopz(&nclip);
+
+// We don't need to do anything else if already clipped
+if(nclip <= 0) continue;
+#+end_src

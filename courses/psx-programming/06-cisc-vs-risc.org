@@ -1,0 +1,118 @@
+#+title: CISC vs RISC
+#+startup: contents
+
+* Examples of CISC & RISC Machines
+
+Some CISC consoles:
+
+| Console                | CPU            | Clock   | Word      |
+|------------------------+----------------+---------+-----------|
+| Atari VCS (Atari 2600) | 6502           | 1.19MHz | 8-bit     |
+| NES                    | Custom 6502    | 1.79MHz | 8-bit     |
+| Sega Genesis           | Motorola 68000 | 7.6MHz  | 16/32-bit |
+
+
+- In the  80's, there  was a change  in philosophy on  how these  processors are
+  designed.
+- We started seeing the rise of several RISC-based machines (and architecture).
+
+| Company                | Example                      | Architecture             |
+|------------------------+------------------------------+--------------------------|
+| Acorn Computers        | Acorn Archimedes             | ARM (Acorn RISC Machine) |
+| Sun Microsystems       | Sun Enterprise 6500 (64-bit) | SPARC                    |
+| Apple + IBM + Motorola | Apple Power Mac G5           | PowerPC                  |
+| Silicon Graphics       | SiliconGraphics Octane2      | MIPS                     |
+
+- Other examples of consoles using MIPS instruction set are the Sony PlayStation
+  (obviously) and, few years forward, the Nintendo 64.
+
+* CISC vs RISC Instructions
+
+** CISC
+
+*** 6502
+
+- Commodore 64
+- BBC Micro
+- Acorn Electron
+- NES
+- Atari VCS (Atari 2600)
+
+#+begin_src asm
+	...
+	LDA	#5	; load reg A with immediate value 5
+	STA	$2000	; store value in reg A in mem address 0x2000
+	INC	$2000
+	LDA	$2000
+#+end_src
+
+- Some people debate whether it is RISC or CISC.
+  - Gustavo  Pezzi  calls   it  a  CISC  processor:  For   the  6502  processor,
+    instructions sometimes  take more than  one clock cycle
+      - ~LDA~ takes two clock cycles
+      - ~STA~ takes four clock cycles
+      - ~INC~ takes  six clock cycles. It  is also non-trivial, mixing  load and
+        store!
+      - So a processor being CISC is not about how simple the processor actually
+        is; it is about how many  complex operations a single instruction of the
+        machine  performs,  more   specifically  how  they  mix   load  &  store
+        operations.
+
+*** Motorola 68000
+
+#+begin_src asm
+	move.w	#$0010,d0
+	mulu.w	#$0003,d0
+	neg.w	d0
+	ext.l	do
+	asr.l	#$01,d0
+	ror.w	#$01,d0
+	ext.l	d0
+	divu.w	#$0002,d0
+#+end_src
+
+- It is  obviously a CISC  architecture; instructions do  lots of things  at the
+  same time.
+- There are  multiple types  of addressing modes  and instructions  that perform
+  many smaller tasks taking multiple clock cycles.
+
+** RISC
+
+*** MIPS
+
+#+begin_src asm
+	la	t3, var		; load address from variable into t3
+	lw	t0, 0(t3)	; load one word into t3 from address offset by t3
+	addu	t0, t2, t0	; t0 = t2 + t0
+	sw	t0, 0(t3)	; store a word from t0 into address offset by t3
+#+end_src
+
+- Each instruction does one, simple, small thing. Instructions are very atomic.
+- All instructions have a fixed size in bytes (in this case, 32-bits long).
+
+** Summary of RISC characteristics
+
+- Few and simple addressing modes
+- Instructions of fixed-size
+- No mix between load & store
+- Aiming at 1 _cycle per instruction_  (CPI), which is especially useful if your
+  processor has a pipeline, like MIPS.
+
+** Why the shift in paradigm
+
+- CISC processor  assembly was great  back in  the 6502/68000 era  because these
+  assembly lines  were being typed  by actual human beings,  so ease of  use was
+  important as well
+- In the  RISC (MIPS)  era, the  ones typing and  optimizing assembly  code were
+  mainly compilers
+- Compilers  are smart,  can generate  optimized  code and  can perform  several
+  passes to perform these optimizations
+
+** Advantages of RISC
+
+- Simpler instructions make it easier to design and manufacture chips.
+- RISC offsets the need to process  more instructions by increasing the speed of
+  each instruction, especially when using a pipeline.
+- Faster  and  lighter  execution  results   in  more  efficiency  (less  energy
+  consumption) -- very important for smaller devices such as routers and phones,
+  and that's why they're using ARM chips nowadays.

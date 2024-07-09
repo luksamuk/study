@@ -1,0 +1,81 @@
+#+title: PS1 Programming with MIPS Assembly & C - Course Notes
+
+These are my notes for the PlayStation development course.
+
+* Chapters
+
+0. Introduction
+0. History & Early Years
+1. [[./01-hardware.org][Hardware]]
+2. [[./02-mips-assembly.org][MIPS Assembly]]
+3. [[./03-mips-pipeline.org][MIPS Pipeline]]
+4. [[04-warmup-exercises.org][Warm-up Exercises]]
+5. [[./05-subroutines-negative-numbers.org][Subroutines and Negative Numbers]]
+6. [[./06-cisc-vs-risc.org][CISC vs. RISC]]
+7. [[07-graphics-system.org][Graphics System]]
+   - [[./hello-gpu.org][Hello GPU]]
+8. [[./08-rendering-polygons.org][Rendering Polygons]]
+9. [[./09-memory-alignment.org][Memory Alignment]]
+10. [[./10-copying-data-to-vram.org][Copying Data to VRAM]]
+11. [[./11-moving-from-asm-to-c.org][Moving from Assembly to C]]
+12. [[./12-psy-q-data-types.org][Psy-Q Data Types]]
+13. [[./13-introduction-to-3d-graphics.org][Introduction to 3D Graphics]]
+14. [[./14-the-gte-coprocessor.org][The GTE Coprocessor]]
+15. [[./15-fixed-point-math.org][Fixed-Point Math]]
+16. [[./16-gte-inline-instructions.org][GTE Inline Instructions]]
+17. [[./17-controller-input.org][Controller Input]]
+18. [[file:18-linking-multiple-files.org][Linking Multiple Files]]
+19. [[file:19-camera-transformation.org][Camera Transformation]]
+20. [[file:20-cd-rom-access.org][CD-ROM Access]]
+21. [[./21-textured-polygons.org][Textured Polygons]]
+22. [[./22-decoding-primitive-files.org][Decoding Primitive Files]]
+23. [[./23-decoding-texture-files.org][Decoding Texture Files]]
+24. [[./24-multiple-3d-models.org][Multiple 3D Models]]
+25. [[./25-loading-landscape-objects.org][Loading Landscape Objects]]
+26. [[./26-loading-track-faces.org][Loading Track Faces]]
+27. [[./27-loading-track-texture.org][Loading Track Texture]]
+28. [[./28-polygon-subdivision.org][Polygon Subdivision]]
+29. [[./29-movement-and-physics.org][Movement & Physics]]
+30. [[./30-refactoring-track-visibility.org][Refactoring Track Visibility]]
+31. [[./31-attracting-ship-and-track.org][Attracting Ship & Track]]
+32. [[./32-audio-system.org][Audio System]]
+33. Conclusion
+    
+* Extra documents
+
+- [[file:MIPSCheatSheet.pdf][MIPS Assembly Cheat Sheet]]
+- [[file:MIPS-Instruction-Set-Reference.pdf][MIPS Instruction Set Reference]]
+- [[file:Sony-PlayStation-Hardware.pdf][Sony PlayStation Developer Reference]]
+- [[https://psx.arthus.net/sdk/Psy-Q/DOCS/Devrefs/Filefrmt.pdf][Sony File Format Reference]]
+- [[file:psx-spx.txt][no$psx PSXSPX PlayStation Specifications]] (txt format)
+  - [[https://problemkaputt.de/psx-spx.htm][web link]]
+  - [[https://psx-spx.consoledev.net/graphicsprocessingunitgpu/][wiki-style web link]] (easier to navigate)
+- [[file:Sony-Slides-GTE.pdf][GTE & Advanced Graphics]] (slide)
+- [[file:Sony-PlayStation-GTEInlineReference.pdf][GTE Inline Programming Reference]]
+- [[file:LibRef47.pdf][Psy-Q Run-Time Library Reference]] ([[https://psx.arthus.net/sdk/Psy-Q/DOCS/LibRef47.pdf][external]])
+- [[file:./LibOver47.pdf][Psy-Q Run-Time Library Overview]] ([[https://psx.arthus.net/sdk/Psy-Q/DOCS/LibOver47.pdf][external]])
+- [[https://archive.org/details/psyq-sdk][Psy-Q SDK on Archive.org]]
+- [[https://github.com/luksamuk/psxtoolchain][Docker image with modern PSX toolchain]] (mine!)
+  
+* Compiling ASM exercises
+
+Notice that  compilation requires  the [[file:bin2exe.py][bin2exe.py]] script,  which builds  the PSX
+file header.
+
+#+begin_src bash
+cd exercises
+make <name>.psexe
+#+end_src
+
+Replace  ~<name>~ with  the name  of  one of  the exercise  assembly files.  For
+example,  if you  want to  build  the file  ~exercises/src/fillmemw.s~, use  the
+command ~make fillmemw.psexe~.
+
+Building ASM exercises also create ~.bin~  artifacts. Use ~make clean~ to remove
+them, and use ~make purge~ to remove all final ~.psexe~ files.
+
+* Compiling C exercises
+
+See the notes on  Chapter 11 on how to set up your  environment. In my case, I'm
+simply using VSCode tools on Arch Linux.
+

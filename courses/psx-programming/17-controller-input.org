@@ -1,0 +1,618 @@
+#+title: Controller Input
+#+startup: content
+
+* Reading Joypad State
+
+Most platforms so far had memory-mapped bits which could be retrieved via direct
+access, e.g. the NES had a byte with gamepad states.
+
+This is not the case with the PS1.
+
+- The  PS1  has its  controllers  and  memory  cards  interfaced via  a  _serial
+  bus_. Both  communicate using  a simple  packet-based protocol,  listening for
+  request packets sent by the console and replying with appropriate responses.
+- Each packet consists of an *address*, a *command*, and *parameters*.
+- The controller  bus is shared  with memory  cards, an addressing  mechanism is
+  used to ensure packets are processed by a single device at a time.
+- The first byte of each request packet  is thus the "address" of the peripheral
+  that shall respond to it.
+
+#+begin_src c
+#define ADDR_CONTROLLER  0x01
+#define ADDR_MEMORY_CARD 0x81
+#+end_src
+
+- The address is followed by a command byte and required parameters.
+  - There are many config commands available,  but the only one we're interested
+    right now  is ~CMD_POLL_CONTROLLER~.  Needless to  say, you  do not  need to
+    memorize any of this!
+
+** Some command examples
+
+#+begin_example
+CMD_INIT_PRESSURE
+CMD_POLL_CONTROLLER
+CMD_CONFIG_MODE
+CMD_SET_ANALOG
+CMD_GET_ANALOG
+CMD_GET_MOTOR_INFO
+CMD_GET_MOTOR_LIST
+CMD_GET_MOTOR_STATE
+CMD_GET_MODE
+CMD_REQUEST_CONFIG
+CMD_RESPONSE_CONFIG
+CMD_CARD_READ
+CMD_CARD_IDENTIFY
+CMD_CARD_WRITE
+#+end_example
+
+** Some gamepad input button constants
+
+#+begin_src asm
+	PAD_L2		equ 0x0001 	; L2 (bit 0)
+	PAD_R2		equ 0x0002	; R2 (bit 1)
+	PAD_L1		equ 0x0004	; L1 (bit 2)
+	PAD_R1		equ 0x0008	; R1 (bit 3)
+	PAD_T		equ 0x0010 	; triangle (bit 4)
+	PAD_C		equ 0x0020	; circle (bit 5)
+	PAD_X		equ 0x0040	; X (bit 6)
+	PAD_S		equ 0x0080	; square (bit 7)
+	PAD_SELECT	equ 0x0100	; select (bit 8)
+	PAD_L3		equ 0x0200 	; L3 (bit 9, analog mode only)
+	PAD_R3		equ 0x0400	; R3 (bit 10, analog mode only)
+	PAD_START	equ 0x0800	; Start (bit 11)
+	PAD_UP		equ 0x1000	; Up (bit 12)
+	PAD_RIGHT	equ 0x2000	; Right (bit 13)
+	PAD_DOWN	equ 0x4000	; Down (bit 14)
+	PAD_LEFT	equ 0x8000	; Left (bit 15)
+#+end_src
+
+Notice that the way  these things are organized means that  we can have multiple
+buttons being pressed at the same time.
+
+** How do we read the joypad input state?
+
+We have a few options:
+
+1. Do everything  manually;  controlling individual  interrupts, resetting  the
+  serial  interface,  sending and  receiving  packets,  send  a signal  to  the
+  interrupt controller whenever the DSR input is pulsed, etc.
+   - As programmers,  we can _choose_  to control everything  ourselves, writing
+     and  coding all  the  instructions to  send and  receive  packets from  the
+     PlayStation serial interface.
+2. Use *BIOS* routines, which simplify things (reads joypad state on VSync).
+   - Or... we can take advantage of the PlayStation BIOS.
+3.  Use the  joypad  macros and  functions from  Psy-Q  ~libetc.h~ (which  we're
+   inclined to do).
+
+We'll be using ~libetc.h~ out of convenience.
+
+** Reading the input state
+
+Let's work  on ~hellogte~.  Declare a  variable to hold  the joypad  state. This
+would be a 32-bit unsigned number.
+
+#+begin_src c
+u_long padstate;
+#+end_src
+
+We're already including ~libetc.h~, so on ~setup~, let's initialize the gamepad.
+
+#+begin_src c
+void
+setup(void)
+{
+    // ...
+    PadInit(0);
+    // ...
+}
+#+end_src
+
+This function initializes the  controller, and it is also doing  a lot of things
+under the hood.
+
+Now let's read the input state.
+
+#+begin_src c
+// Ordering table clearing here...
+
+padstate = PadRead(0);
+
+if(padstate & _PAD(0, PADLleft)) {
+    quadrot.vy += 20;
+}
+
+if(padstate & _PAD(0, PADLright)) {
+    quadrot.vy -= 20;
+}
+
+// ...
+// At the end of the function, remove all rotations as well
+#+end_src
+
+~PadRead~ polls the controller state, and we store it on ~padstate~.
+
+** A note on libetc
+
+Even though it is easy and nice to use, it does not cover all edge cases and all
+controller types, so it is less than ideal, but it'll do for now.
+
+* Joypad Constant Names
+
+Here  is  a  list  comparing  the joypad  buttons  with  their  enumerations  on
+~libetc.h~.
+
+| Button        | Enumeration value |
+|---------------+-------------------|
+| Digital Up    | ~PADLup~          |
+| Digital Down  | ~PADLdown~        |
+| Digital Left  | ~PADLleft~        |
+| Digital Right | ~PADLright~       |
+| Triangle      | ~PADRup~          |
+| Cross         | ~PADRdown~        |
+| Square        | ~PADRleft~        |
+| Circle        | ~PADRright~       |
+| L1            | ~PADL1~           |
+| L2            | ~PADL2~           |
+| R1            | ~PADR1~           |
+| R2            | ~PADR2~           |
+| Select        | ~PADselect~       |
+| Start         | ~PADstart~        |
+
+* Joypad Input with BIOS Functions
+:PROPERTIES:
+:header-args:asm: :tangle exercises/src/joypad.s
+:END:
+
+Let's see how we can query some joypad input using assembly directly.
+
+Notice that WE ARE NOT DOING THINGS MANUALLY in this assembly code. We are going
+to delegate the boring controller bits to the PlayStation BIOS.
+
+** Initialization
+
+First things first, let's initialize our assembly code with known directives.
+
+#+begin_src asm
+	.psx
+	.create "joypad.bin", 0x80010000
+	.org 0x80010000
+#+end_src
+
+A few constants...
+
+#+begin_src asm
+	IO_BASE_ADDR	equ 0x1f80
+	GP0		equ 0x1810
+	GP1		equ 0x1814
+#+end_src
+
+** Joypad preamble
+
+Let's also declare joypad constants we already discussed before.
+
+#+begin_src asm
+	PAD_L2		equ 0x0001 	; L2 (bit 0)
+	PAD_R2		equ 0x0002	; R2 (bit 1)
+	PAD_L1		equ 0x0004	; L1 (bit 2)
+	PAD_R1		equ 0x0008	; R1 (bit 3)
+	PAD_T		equ 0x0010 	; triangle (bit 4)
+	PAD_C		equ 0x0020	; circle (bit 5)
+	PAD_X		equ 0x0040	; X (bit 6)
+	PAD_S		equ 0x0080	; square (bit 7)
+	PAD_SELECT	equ 0x0100	; select (bit 8)
+	PAD_L3		equ 0x0200 	; L3 (bit 9, analog mode only)
+	PAD_R3		equ 0x0400	; R3 (bit 10, analog mode only)
+	PAD_START	equ 0x0800	; Start (bit 11)
+	PAD_UP		equ 0x1000	; Up (bit 12)
+	PAD_RIGHT	equ 0x2000	; Right (bit 13)
+	PAD_DOWN	equ 0x4000	; Down (bit 14)
+	PAD_LEFT	equ 0x8000	; Left (bit 15)
+#+end_src
+
+Let's declare some joypad buffer and data bits.
+
+#+begin_src asm
+PadBuffer:	.word 0		; Pad buffer (automatically stored every frame)
+PadData:	.word 0		; Pad data (read from vsync routine)
+#+end_src
+
+We'll also add X and Y variables to hold the position of our rectangle.
+
+#+begin_src asm
+XPos:	.word 0
+YPos:	.word 0
+#+end_src
+
+** Entry point and joypad initialization from BIOS
+
+This part initializes  the gamepad using a BIOS routine.  Notice how we're using
+~jalr~ instead  of ~jal~ because  we're jumping to  a routine address  stored in
+~$t2~.
+
+#+begin_src asm
+Main:
+	li	$t1, 0x15
+	li	$a0, 0x20000001	; Argument 1
+	li	$t2, 0xB0	; Address of BIOS routine we're trying to invoke
+	la	$a1, PadBuffer	; Argument 2: Pad buffer addr to autoupdate each frame
+	jalr	$t2		; Jump to BIOS routine
+	nop
+#+end_src
+
+Ok, so now, let's do stuff we already know: setup the drawing buffer manually by
+sending commands to GP1/GP0, and also setting our base address.
+
+The following is shamelessly copypasted from other examples.
+
+#+begin_src asm
+	lui	$a0, IO_BASE_ADDR
+	li	$t1, 0x00000000	; 00 = reset gpu
+	sw	$t1, GP1($a0)	; write packet to GP1
+	li	$t1, 0x03000000	; 03 = Display enable
+	sw	$t1, GP1($a0)
+	li	$t1, 0x08000001 ; 08 = display mode (320x240, 15-bit, NTSC)
+	sw	$t1, GP1($a0)
+	li	$t1, 0x06c60260	; 06 = H display range (3168..608)
+	sw	$t1, GP1($a0)
+	li	$t1, 0x07042018	; 07 = V display range (264..24)
+	sw	$t1, GP1($a0)
+
+	li	$t1, 0xe1000400	; E1 = Draw Mode Settings
+	sw	$t1, GP0($a0)	; write packet to GP0
+	li	$t1, 0xe3000000	; E3 = drawing area topleft
+	sw	$t1, GP0($a0)
+	li	$t1, 0xe403bd3f	; E4 = drawing area bottomright
+	sw	$t1, GP0($a0)
+	li	$t1, 0xe5000000	; E5 = drawing offset
+	sw	$t1, GP0($a0)
+#+end_src
+
+** Frame-per-frame logic
+
+#+begin_src asm
+Refresh:
+
+WaitVSync:
+        la      $a1, PadBuffer  ; Load Pad Buffer Address
+Wait:                           ; Wait for vsync and store XOR pad data
+        lw      $t0, 0($a1)     ; Load pad buffer
+        nop                     ; Delay slot
+        beqz    $t0, Wait       ; if (PadBuffer == 0), we wait
+        nor     $t0, $r0        ; NOR compliment pad data bits (delay slot)
+        sw      $r0, 0($a1)     ; Store zero to pad buffer
+        la      $a1, PadData    ; Load pad data address
+        sw      $t0, 0($a1)     ; Store pad data
+#+end_src
+
+~Refresh~ is going to be our label to  jump to every time we need to restart our
+frame logic.
+
+This block  also waits for vsync  and stores XOR  pad data to our  variable. The
+moment that ~PadBuffer~ stores  a non-zero value, we'll know we  got a vsync and
+proceed.
+
+Then, NOR the  pad bits we read with  zero (inverting 0's and 1's,  on the delay
+slot); then load the address of pad data, and store the actual data.
+
+** Checking button presses
+
+The following  logic checks  whether each  button is  down, and  if it  is, some
+action is performed; if not, just proceed to the next step.
+
+*** Up
+
+Simply load  ~PadData~ into ~$t0~ and  check if the Up  button bit is set  to 1 by
+and'ing ~PadData~ and ~PAD_UP~.
+
+Looks a lot like what we did in C.
+
+#+begin_src asm
+PressUp:
+	la	$a1, PadData	; Load input data address
+	lw	$t0, 0($a1)	; Load input data word
+	nop
+	andi	$t0, PAD_UP	; $t0 = input status
+	beqz	$t0, PressDown	; If not pressed, bypass and test next button
+	nop
+#+end_src
+
+Some logic when the button up is pressed: decrement YPos.
+
+#+begin_src asm
+	la	$t2, YPos
+	lw	$t3, 0($t2)
+	nop
+	addiu	$t3, $t3, -1	; YPos--
+	sw	$t3, 0($t2)
+#+end_src
+
+*** Down
+
+Same thing, this time for the down button.
+
+#+begin_src asm
+PressDown:
+	la	$a1, PadData
+	lw	$t0, 0($a1)
+	nop
+	andi	$t0, PAD_DOWN
+	beqz	$t0, PressRight
+	nop
+#+end_src
+
+Increment XPos if pressed:
+
+#+begin_src asm
+	la	$t2, YPos
+	lw	$t3, 0($t2)
+	nop
+	addiu	$t3, $t3, 1	; YPos++
+	sw	$t3, 0($t2)
+#+end_src
+
+*** Right and Left
+
+Same thing, but this time on the X axis. First we do the right button...
+
+#+begin_src asm
+PressRight:
+	la	$a1, PadData
+	lw	$t0, 0($a1)
+	nop
+	andi	$t0, PAD_RIGHT
+	beqz	$t0, PressLeft
+	nop
+
+	la	$t2, XPos
+	lw	$t3, 0($t2)
+	nop
+	addiu	$t3, $t3, 1	; XPos++
+	sw	$t3, 0($t2)
+#+end_src
+
+...and then the left button.
+
+#+begin_src asm
+PressLeft:
+	la	$a1, PadData
+	lw	$t0, 0($a1)
+	nop
+	andi	$t0, PAD_LEFT
+	beqz	$t0, EndInputCheck
+	nop
+
+	la	$t2, XPos
+	lw	$t3, 0($t2)
+	nop
+	addiu	$t3, $t3, -1	; XPos--
+	sw	$t3, 0($t2)
+#+end_src
+
+*** End input check
+
+Just a label at the end.
+
+#+begin_src asm
+EndInputCheck:
+#+end_src
+
+** Drawing routines
+
+Let's add  a few  things now. First  we'll partially copy  our old  clear screen
+routine:
+
+#+begin_src asm
+ClearScreen:
+	li	$t1, 0x02023000	; 02 = Fill rectangle in VRAM (random dark green color)
+	sw	$t1, GP0($a0)
+	li	$t1, 0x00000000	; top-left corner {0, 0}
+	sw	$t1, GP0($a0)
+	li	$t1, 0x00ef013f	; width and height {239, 319} 0xHHHHWWWW
+	sw	$t1, GP0($a0)
+#+end_src
+
+Now draw a small rectangle at (XPos, YPos).
+
+#+begin_src asm
+DrawRect:
+        li      $t1, 0x0200ff00 ; flat rectangle with color
+        sw      $t1, GP0($a0)
+
+        la      $t2, YPos
+        lw      $t3, 0($t2)
+        nop
+        sll     $t3, $t3, 16    ; YPos << 16
+        la      $t2, XPos
+        lw      $t4, 0($t2)
+        nop
+        andi    $t4, $t4, 0xffff ; clear MSB in XPos
+        or      $t5, $t3, $t4
+        sw      $t5, GP0($a0)    ; Write coordinates to GP0 (YYYYXXXX)
+
+        li      $t1, 0x00200020 ; Fill area 0xHHHHWWWW (32x32)
+        sw      $t1, GP0($a0)
+#+end_src
+
+** Finish update
+
+Now  all we  need to  do  is jump  back to  our  ~Refresh~ label  and close  the
+application.
+
+#+begin_src asm
+	j Refresh
+	nop
+
+	.close
+#+end_src
+
+* The PlayStation BIOS
+
+BIOS is the Basic Input/Output System.
+
+It is  basically a set  of low-level programs that  control the hardware  of the
+PlayStation, providing  essential functions for  the console. It  is responsible
+for initializing and  managing system components such as  CPU, memory, graphics,
+and input/output devices.
+
+These routines  are stored in a  ROM chip in the  PlayStation motherboard (512KB
+ROM right above the CPU).
+
+The PS1 BIOS is known as *SCPH-1001*.
+
+Its main purpose  is to boot games  from CDROM, displaying the  Sony intro, then
+doing copy protection, region checks, and  will refuse to boot unlicensed games,
+illegal copies, or games from other regions.
+
+Key points:
+
+- Boot process: first  software to be executed, performs  checks and initializes
+  hardware to load and run games.
+- Copyright  protection:  Prevents  unauthorized  game copies  and  does  region
+  locking.
+- Bootmenu:  Shows up  when starting  the PlayStation  without a  CD-ROM, allows
+  playing audio CDs and to erase or copy game saves on memory cards.
+- Legal status: The  BIOS is proprietary and owned by  Sony, so its distribution
+  without authroziation is illegal.
+- Emulation: Obtaining BIOS for PlayStation emulators can be a legal gray area.
+- BIOS files: The PS1 BIOS  is usually named ~SCPH1001.BIN~. PCSX-Redux contains
+  its  own [[https://pcsx-redux.consoledev.net/openbios/][free  MIPS BIOS  implementation]],  an open-source  alternative to  the
+  retail PS1  BIOS, with the  purpose of being  educational and promote  ease of
+  distribution.
+
+* Joypad Header & Implementation
+
+We're  gonna  break  joypad  stuff  into  its own  file,  and  then  also  start
+refactoring stuff.
+
+We're also going to break display logic into separate files.
+
+We'll also create a header with global definitions for our convenience.
+
+I  also created  a ~hellojoypad~  project for  convenience too.  It straight  up
+copies the full contents of ~hellogte~.
+
+** Joypad library
+
+Create files ~joypad.h~ and ~joypad.c~.
+
+*** ~joypad.h~
+
+#+begin_src c
+#ifndef JOYPAD_H
+#define JOYPAD_H
+
+#include <libetc.h>
+
+#define PAD1_SELECT    _PAD(0, PADselect)
+#define PAD1_START     _PAD(0, PADstart)
+#define PAD1_UP        _PAD(0, PADLup)
+#define PAD1_RIGHT     _PAD(0, PADLright)
+#define PAD1_DOWN      _PAD(0, PADLdown)
+#define PAD1_LEFT      _PAD(0, PADLleft)
+#define PAD1_TRIANGLE  _PAD(0, PADRup)
+#define PAD1_CIRCLE    _PAD(0, PADRright)
+#define PAD1_CROSS     _PAD(0, PADRdown)
+#define PAD1_SQUARE    _PAD(0, PADRleft)
+#define PAD1_L2        _PAD(0, PADL2)
+#define PAD1_R2        _PAD(0, PADR2)
+#define PAD1_L1        _PAD(0, PADL1)
+#define PAD1_R1        _PAD(0, PADR1)
+
+#define PAD2_SELECT    _PAD(1, PADselect)
+#define PAD2_START     _PAD(1, PADstart)
+#define PAD2_UP        _PAD(1, PADLup)
+#define PAD2_RIGHT     _PAD(1, PADLright)
+#define PAD2_DOWN      _PAD(1, PADLdown)
+#define PAD2_LEFT      _PAD(1, PADLleft)
+#define PAD2_TRIANGLE  _PAD(1, PADRup)
+#define PAD2_CIRCLE    _PAD(1, PADRright)
+#define PAD2_CROSS     _PAD(1, PADRdown)
+#define PAD2_SQUARE    _PAD(1, PADRleft)
+#define PAD2_L2        _PAD(1, PADL2)
+#define PAD2_R2        _PAD(1, PADR2)
+#define PAD2_L1        _PAD(1, PADL1)
+#define PAD2_R1        _PAD(1, PADR1)
+
+void joypad_init(void);
+void joypad_reset(void);
+void joypad_update(void);
+
+int  joypad_check(int);
+
+#endif
+#+end_src
+
+*** ~main.c~
+
+On ~main.c~, make  sure you remove the gamepad initialization  from ~setup~, and
+the pressing tests on ~update~ as well. Remove the global variable ~padstate~ as
+well. Also, include ~"joypad.h"~.
+
+*** ~joypad.c~
+
+Include ~"joypad.h"~.
+
+#+begin_src c
+#include "joypad.h"
+
+static u_long padstate;
+
+void
+joypad_init(void)
+{
+    PadInit(0);
+}
+
+void
+joypad_reset(void)
+{
+    padstate = 0;
+}
+
+void
+joypad_update(void)
+{
+    u_long pad;
+    pad = PadRead(0);
+    padstate = pad;
+}
+
+int
+joypad_check(int p)
+{
+    return padstate & p;
+}
+#+end_src
+
+*** ~main.c~ again
+
+On ~setup~: Call ~joypad_init~.
+
+On ~update~, do the following:
+
+#+begin_src c
+joypad_update();
+
+if(joypad_check(PAD1_LEFT)) {
+    rotation.vy += 24;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    rotation.vy -= 24;
+}
+
+if(joypad_check(PAD1_UP)) {
+    rotation.vx -= 24;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    rotation.vx += 24;
+}
+#+end_src
+
+*** Makefile
+
+Make  sure   you  add  ~joypad.c~   to  the   Makefile,  it  should   be  pretty
+straightforward, regardless of what config you're using.
+

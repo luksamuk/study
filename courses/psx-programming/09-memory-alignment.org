@@ -1,0 +1,342 @@
+#+title: Memory Alignment
+#+startup: content
+
+* Variables
+
+Suppose the following C program, where we declare and use global variables.
+
+#+begin_src c
+long numlives;     // 32 bits
+int score;         // 32 bits
+
+int
+main()
+{
+    long a;        // 32 bits
+    a = numlives;
+
+    return 0;
+}
+#+end_src
+
+~numlives~ and ~score~ are what we  call *external* variables, while ~a~ is what
+we  call  an  *auto*  variable.  But  they're  basically  *global*  and  *local*
+variables.
+
+Usually, _local variables_ are prioritized,  and we're gonna attempt to allocate
+them using registers, if we can.
+
+For _global variables_,  we have to declare them, reserving  space in memory for
+them; usually,  we do that  by using assembly  directives that reserve  space in
+memory before our program even executes.
+
+Here is an example translating the previous code to Assembly.
+
+#+begin_src asm
+	.org 0x80010000
+
+numlives:  .word 0		; long numlives
+score:     .word 0		; int score
+
+Main:
+	la	$t0, numlives
+	lw	$t1, 0($t0)	; a = numlives
+#+end_src
+
+In this case,  ~numlives~ and ~score~ are still _labels_,  and the directives in
+front  of   them  are  specifications   for  the  reserved  space   *within  the
+application* -- more specifically, starting at the address in ~.org~.
+
+Since ~numlives~  and ~score~  are labels,  it is  necessary to  have ~numlives~
+loaded into  ~$t0~ (which makes  ~$t0~ store the  address to the  variable), and
+then load  a word from memory  from the pointer  in ~$t0~, storing the  value in
+~$t1~. This also means that the variable ~a~ was "replaced" by ~$t1~.
+
+There are also directives for other kinds of values, such as BYTE, WORD, HALF...
+
+| C type      | MIPS directive | Size              |
+|-------------+----------------+-------------------|
+| ~char~      | ~.byte~        | 1 byte / 8 bits   |
+| ~short~     | ~.hword~       | 2 bytes / 16 bits |
+| ~int~       | ~.word~        | 4 bytes / 32 bits |
+| ~long~      | ~.word~        | 4 bytes / 32 bits |
+| ~long long~ | ~.dword~       | 8 bytes / 64 bits |
+
+Notice that the reserved space does not differentiate from signed/unsigned. This
+is entirely related to code semantics.
+
+* Variable Alignment
+
+Variable  alignment states  that the  initial address  of a  variable must  be a
+multiple of its size.
+
+
+| Size     | Alignment     |
+|----------+---------------|
+| ~.byte~  | Multiple of 1 |
+| ~.hword~ | Multiple of 2 |
+| ~.word~  | Multiple of 4 |
+| ~.dword~ | Multiple of 8 |
+
+Suppose the following labels with declarations of variables.
+
+#+begin_src asm
+a:	.byte	0x00
+b:	.hword	0xaabb
+c:	.byte	0xa0
+d:	.byte	0x01
+e:	.word	0x12345678
+f:	.dword	0x1234567812345678
+#+end_src
+
+Here's a table of how these variables  would look in memory. Remember that we're
+in a little endian system:
+
+| Label | Value | Address |
+|-------+-------+---------|
+| ~a~   | ~00~  |    0x00 |
+|       |       |    0x01 |
+| ~b~   | ~bb~  |    0x02 |
+|       | ~aa~  |    0x03 |
+| ~c~   | ~a0~  |    0x04 |
+| ~d~   | ~01~  |    0x05 |
+|       |       |    0x06 |
+|       |       |    0x07 |
+| ~e~   | ~78~  |    0x08 |
+|       | ~56~  |    0x09 |
+|       | ~34~  |    0x0a |
+|       | ~12~  |    0x0b |
+|       |       |    0x0c |
+|       |       |    0x0d |
+|       |       |    0x0e |
+|       |       |    0x0f |
+| ~f~   | ~78~  |    0x10 |
+|       | ~56~  |    0x11 |
+|       | ~34~  |    0x12 |
+|       | ~12~  |    0x13 |
+|       | ~78~  |    0x14 |
+|       | ~56~  |    0x15 |
+|       | ~34~  |    0x16 |
+|       | ~12~  |    0x17 |
+|       |       |    0x18 |
+|       |       |    0x19 |
+|       |       |    0x1a |
+|       |       |    0x1b |
+|       |       |    0x1c |
+
+
+By  default, global  (external variables  are located  in addresses  multiple of
+their size.
+
+The directives ~.hword~ and ~.word~ produce the correct alignment in memory. For
+the PSX, we shouldn't be using the ~.dword~ directive.
+
+* Vector Alignment
+
+** Array of initialized values
+
+Consider the following C  code where we declare a global  array of six elements,
+each with a size of two bytes.
+
+#+begin_src c
+short arr[6] = { 5, 4, 4, 9, 0, 1 };
+#+end_src
+
+In MIPS assembly, this can be declared  as an external variable in the following
+way:
+
+#+begin_src asm
+		.org 0x80010000
+arr:	.hword 5, 4, 4, 9, 0, 1
+
+Main:
+	...
+	.close
+#+end_src
+
+** Array of uninitialized values
+
+We could also declare an array without initialized values:
+
+#+begin_src c
+byte arr[256];
+#+end_src
+
+In this case, we need to use a directive to reserve the space, in bytes.
+
+#+begin_src asm
+		.org 0x80010000
+arr:	.space 256
+
+Main:
+	...
+	.close
+#+end_src
+
+- The ~.space~  directive reserves _n_ bytes  of memory and initializes  them to
+  _zero_.
+
+*** Example with shorts
+
+#+begin_src c
+short arr[256];
+#+end_src
+
+For  this case,  since every  value is  a ~short~,  we need  to ensure  that the
+allocated space correspond to the sizes of variables:
+
+#+begin_src asm
+	.org 0x80010000
+arr:	.space 256 * 2
+
+Main:
+	...
+	.close
+#+end_src
+
+*** Example with integers
+
+#+begin_src c
+int arr[256];
+#+end_src
+
+Ditto:
+
+#+begin_src asm
+		.org 0x80010000
+arr:	.space 256 * 4
+Main:
+	...
+	.close
+#+end_src
+
+** About alignment
+
+We need to be  careful with ~.space~, because this directive  *does not know how
+to align variables*.  It is just reserving  bytes, but it has  no information on
+the size of the data we're processing.
+
+So when using  the ~.space~ directive, we  need to manually ask it  to align the
+variables for us.
+
+Suppose the following example:
+
+#+begin_src c
+char chr;
+int arr[256];
+#+end_src
+
+It becomes  pretty clear  that between  the end  of ~chr~  and the  beginning of
+~arr~, we  have a one-byte gap,  so we can't  just start ~arr~ there;  the array
+will become unaligned.
+
+Luckly, we can use a directive to  just tell the assembler the kind of alignment
+we're expecting at the beginning of the array:
+
+#+begin_src asm
+		.org 0x80010000
+
+chr:	.byte 0
+		.align 2
+arr:	.space 256 * 4
+
+Main:
+	...
+	.close
+#+end_src
+
+- The ~.align~  directive takes  an _n_  value and  places the  next data  at an
+  address that is multiple of 2^n.
+
+*NOTICE THIS:* Since we're  talking about an array of *integers*,  we need it to
+ have a 4-byte-sized alignment. Since 2^2  = 4, *the ~.align~ directive argument
+ must be 2*.
+
+*** Alignment between a byte and a half array
+
+#+begin_src c
+char chr;
+short arr[256];
+#+end_src
+
+Since we're now talking about an array of ~short~, we need to use a 2-byte-sized
+alignment.
+
+Just like  the last example, since  2^1 = 2,  so the argument to  ~.align~ *must
+be* 1.
+
+#+begin_src asm
+          .org 0x80010000
+
+chr:      .byte 0
+          .align 1
+arr:      .space 256 * 2
+
+Main:
+	...
+	.close
+#+end_src
+
+** When explicit alignment is not needed
+
+#+begin_src c
+char chr;
+int arr0[500];
+int arr1[5] = { 1, 2, 3, 4, 5 };
+#+end_src
+
+In  the following  case, see  that  we perform  an alignment  between ~chr~  and
+~arr0~, but we don't perform an alignment between ~arr0~ and ~arr1~.
+
+#+begin_src asm
+        .org 0x80010000
+
+chr:    .byte 0
+        .align 2
+arr0:   .space 500 * 4
+arr1:   .word 1, 2, 3, 4, 5
+
+Main:
+        ...
+        .close
+#+end_src
+
+The  alignment between  two  arrays is  not needed  because  directives such  as
+~.word~ already align  by default! Since they explicitly talk  about the size of
+each array  element, there is  no need to tell  the assembler how  the alignment
+should be performed.
+
+** Accessing a random element
+
+#+begin_src c
+int arr[256];
+
+int
+main()
+{
+    int v;
+    v = arr[5];
+    return 0;
+}
+#+end_src
+
+Let's go ahead and translate this code to MIPS assembly:
+
+#+begin_src asm
+        .org 0x80010000
+	
+        .align 2                ; align to multiple of 2² = 4
+arr:    .space 256 * 4
+
+Main:
+        la      $t0, arr
+        lw      $t1, 20($t0)    ; t1 = arr + (5 * 4)
+
+        .close
+#+end_src
+
+So in the end, to  access a random array element, we need to  do what we know as
+pointer arithmetic. We take the element position on the array into account, then
+multiply  it by  the element  size. This  will give  us the  byte offset  of the
+element on the array.
+

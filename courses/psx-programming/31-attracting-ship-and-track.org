@@ -1,0 +1,299 @@
+#+title: Attracting Ship & Track
+#+startup: content latexpreview
+
+* Loading Track Section Normals
+
+Right now  we are free  to go anywhere  we want, but  that's not really  what we
+should be doing.
+
+We want our ship to be constrained by our track, hovering above it.
+
+Some of the faces of a section  have information telling whether it is a *base*,
+which  will come  in  handy pretty  soon.  And  also, every  face  has a  normal
+($\hat{n}$) unit vector that is precalculated (thank God!).
+
+After deciding the distance we want our  ship to assume from the base tracks, we
+are going to have  two forces: an up force ($\vec{F _  {\text{up}}}$) and a down
+force $\vec{F _  {\text{down}}}$. So if we're  going too high, we  apply a force
+down, and  if we're getting  to close to  the track, we  apply a force  up, with
+respect to the base faces.
+
+So what we actually want is to take  all the normals of faces that are marked as
+bases, and then calculate the entire section's normal.
+
+#+begin_src c
+// In track.h
+typedef struct Section {
+    short  id;
+    short  flags;
+
+    struct Section *prev;
+    struct Section *next;
+
+    VECTOR center;
+    SVECTOR normal; // New field
+
+    short  numfaces;
+    short  facestart;
+} Section;
+#+end_src
+
+Now  in  ~track.c~,  function   ~load_track_sections~,  after  loading  all  the
+information about a certain section, let's calculate its normal.
+
+#+begin_src c
+void
+load_track_sections(Track *track, char *filename)
+{
+    // ...
+    for(long i = 0; i < track->numsections; i++) {
+        // ...
+        // Load track section normal vector based on section faces.
+        // Only load for TRACK_BASE.
+        for(long j = 0; j < track->sections[i].numfaces; j++) {
+            Face *face = track->faces + track->sections[i].facestart + j;
+            if(face->flags & FACE_TRACK_BASE) {
+                // Assume that the section normal is the same as all faces' normals
+                track->sections[i].normal = face->normal;
+                break;
+            }
+        }
+    }
+    // ...
+}
+#+end_src
+
+* Drawing Section Normals
+
+It would be nice to draw a little line  on our sections just so we can see these
+normals.
+
+In  ~track.c~,  go  to  ~render_track_section~.  We'll  render  the  line  after
+rendering the track faces.
+
+#+begin_src c
+void
+render_track_section(Track *track, Section *section, Camera *camera, u_short numsubdivs)
+{
+    // ...
+    for(u_long i = 0; i < section->numfaces; i++) {
+        // ...
+    }
+
+    if(is_debugging()) render_section_normal(section, camera);
+}
+#+end_src
+
+Above this function, declare the ~render_section_normal~ function:
+
+#+begin_src c
+void
+render_section_normal(Section *section, Camera *camera)
+{
+    SVECTOR v0;
+    LINE_F2 line;
+    SetLineF2(&line);
+
+    v0.vx = (short) clamp_16bits(section->center.vx - camera->position.vx);
+    v0.vy = (short) clamp_16bits(section->center.vy - camera->position.vy);
+    v0.vz = (short) clamp_16bits(section->center.vz - camera->position.vz);
+    RotTransPers(&v0, (long*)&line.x0, NULL, NULL);
+
+    v0.vx = (short) clamp_16bits((section->center.vx - camera->position.vx) + (section->normal.vx >> 3));
+    v0.vy = (short) clamp_16bits((section->center.vy - camera->position.vy) + (section->normal.vy >> 3));
+    v0.vz = (short) clamp_16bits((section->center.vz - camera->position.vz) + (section->normal.vz >> 3));
+    RotTransPers(&v0, (long*)&line.x1, NULL, NULL);
+
+    setRGB0(&line, 255, 0, 255);
+    DrawPrim(&line);
+}
+#+end_src
+
+*DISCLAIMER:* Yes,  I tweaked it, because  it was adding that  polygon primitive
+that was  completely unecessary. Which in  turn was messing up  with memory. And
+also, you don't need any extra polygon for this besides the line. You don't even
+need to get an ~otz~!
+
+* Loading the Section Base Vertex
+
+We need  to find a  specific point in  our section as  reference so that  we can
+apply forces and calculate the height that the ship should be from the ground.
+
+But the  center of the  section won't do;  it is not  always tied to  the actual
+center, plus sometimes (in tunnels for example), the section center may actually
+be higher than the actual base faces.
+
+We'll  look  into the  base  faces  and  take one  of  its  vertices as  a  base
+point. With that reference, we can find the height.
+
+#+begin_src c
+// In track.h
+typedef struct Section {
+    short  id;
+    short  flags;
+
+    struct Section *prev;
+    struct Section *next;
+
+    VECTOR  center;
+    SVECTOR normal;
+    VECTOR  basevertex; // New field
+
+    short  numfaces;
+    short  facestart;
+} Section;
+#+end_src
+
+Now back again to ~track.c~, in ~load_track_section~:
+
+#+begin_src c
+void
+load_track_sections(Track *track, char *filename)
+{
+    // ...
+    for(long i = 0; i < track->numsections; i++) {
+        // ...
+        // Load track section normal vector based on section faces.
+        // Only load for TRACK_BASE.
+        for(long j = 0; j < track->sections[i].numfaces; j++) {
+            Face *face = track->faces + track->sections[i].facestart + j;
+            if(face->flags & FACE_TRACK_BASE) {
+                // ...
+                track->sections[i].basevertex.vx =
+                    track->vertices[face->indices[0]].vx;
+                track->sections[i].basevertex.vy =
+                    track->vertices[face->indices[0]].vy;
+                track->sections[i].basevertex.vz =
+                    track->vertices[face->indices[0]].vz;
+                break;
+            }
+        }
+    }
+    // ...
+}
+#+end_src
+
+Remember that  a normal is  always the same among  these base faces,  since they
+have the *same direction* and the  *same magnitude*. So let's imagine our normal
+$\hat{n}$ coming right  out of that vertex, that could  in principle be anywhere
+on any base face.
+
+If we perform some vector subtraction, we  can acquire the vector that goes from
+our base  vertex to  the ship's  center.
+
+* Projected Ship Height
+
+To calculate the current ship's height, we could in principle project the ship's
+position onto $\hat{n}$, effectively extending $\hat{n}$ to the ship's height.
+
+A projection  can be done by  using the *dot  product* between this base  x ship
+difference and $\hat{n}$.
+
+A dot  product is commutative  ($a \cdot b  \eq b \cdot a$),  and is the  way to
+project a vector onto another. Beware that this operation results in a *scalar*.
+
+Let there be the 3D vectors $\hat{a}$  and $\vec{b}$, where $a$ is a unit vector
+(for the  sake of  example only; this  is irrelevant to  the formula).   The dot
+product of $\hat{a}$ and $\vec{b}$ is given by the formula
+
+$$a \cdot b = a _ {x} b _ {x} + a _ {y} b _ {y} + a _ {z} b _ {z}$$
+
+...which  yields a  scalar  value for  "how long"  $\vec{b}$  is projected  onto
+$\hat{a}$.
+
+Notice that a  positive value means that $\vec{b}$'s end  is *above* $\hat{a}$'s
+origin; zero means that they overlap;  and a negative value basically points the
+distance downwards.
+
+So let's  properly model our height  $h$; suppose that our  difference vector is
+given as $\vec{v}$ and our normal is given as $\hat{n}$. Then:
+
+$$h = \hat{n} \cdot \vec{v} = {n} _ {x} v _ {x} + {n} _ {y} v _ {y} + {n} _ {z} v _ {z}$$
+
+Now we  can perform proper  calculations: if we're  going way above  our desired
+height, then we should increase the force  down to keep the ship at the normal's
+level. If we are going way too low  on the height, then increase the force up so
+the ship pops up again.
+
+We can also now model the formulas for the up and down forces:
+
+$$f _ {\text{down}} = -\hat{n} \cdot K _ {\text{pull}}$$
+
+$$f _ {\text{up}} = \frac{\hat{n} \cdot K _ {\text{push}}}{\text{h}}$$
+
+Where $K _ {\text{pull}}$  is a constant value which is a  magnitude of how much
+we'll pull down on  the ship, and $K _ {\text{push}}$ is  also a constant value,
+but of how much we'll push up on  the ship (notice that it depends on the ship's
+current height).
+
+In other words... the higher we are, the  less we need to push up. So the amount
+of pushing-up is inversely proportional to the height.
+
+* Coding the Projected Ship Height
+
+Go to ~ship.c~, and let's edit the ~ship_update~ function.
+
+Let's start by computing the height.
+
+#+begin_src c
+/* ...before the force definitions... */
+
+// Compute dot product to find the height of the ship and the track base
+VECTOR base2ship = {
+    ship->object->position.vx - ship->section->basevertex.vx,
+    ship->object->position.vy - ship->section->basevertex.vy,
+    ship->object->position.vz - ship->section->basevertex.vz,
+};
+
+long height =
+    ((ship->section->normal.vx * base2ship.vx) >> 12) +
+    ((ship->section->normal.vy * base2ship.vy) >> 12) +
+    ((ship->section->normal.vz * base2ship.vz) >> 12);
+#+end_src
+
+* Track Attraction & Repulsion Forces
+
+Now let's calculate our attraction and repulsion forces.
+
+#+begin_src c
+/* In ship.c, function ship_update */
+/* ...before adding our ship's thrust to the force vector... */
+
+// Compute and add the attraction force (down / in the inverse normal direction)
+force.vx += -ship->section->normal.vx * TRACK_PULL;
+force.vy += -ship->section->normal.vy * TRACK_PULL;
+force.vz += -ship->section->normal.vz * TRACK_PULL;
+
+// Compute and add the repulsion force (up / in the normal direction)
+force.vx += (ship->section->normal.vx * TRACK_PUSH) / height;
+force.vy += (ship->section->normal.vy * TRACK_PUSH) / height;
+force.vz += (ship->section->normal.vz * TRACK_PUSH) / height;
+#+end_src
+
+In ~globals.h~, declare the following constants:
+
+#+begin_src c
+#define TRACK_PULL   100
+#define TRACK_PUSH 30000
+#+end_src
+
+Notice how  ~TRACK_PUSH~ is  really big so  that we can  counter the  pull force
+properly.
+
+* Preventing Negative Height Values
+
+If  our height  gets really  negative, there  is a  chance that  the force  will
+explode and just  take us forward with  blazing speed. So let's  ensure that the
+height is never negative.
+
+#+begin_src c
+// In ship.c, function ship_update
+// ...after calculating height...
+if(height < 50) height = 50;
+#+end_src
+
+Here's the final result for everything here.
+
+[[file:img/hover.gif]]
+
+

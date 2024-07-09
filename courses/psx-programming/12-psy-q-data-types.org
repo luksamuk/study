@@ -1,0 +1,713 @@
+#+title: Psy-Q Data Types
+#+startup: content
+
+* Double-Buffer Screen
+
+- Create a new folder  for the project ~hellogpu~. You can  either set up things
+  manually on  a WinXP/95 or create  a new project  on VSCode based on  the Cube
+  example (but remove everything from it).
+
+Here's the ~main.c~ project skeleton:
+
+#+begin_src c
+#include <stdlib.h>
+#include <libgte.h>
+#include <libetc.h>
+#include <libgpu.h>
+
+#define VIDEO_MODE 0
+#define SCREEN_RES_X 320
+#define SCREEN_RES_Y 240
+#define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
+#define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
+
+void
+screen_init(void)
+{
+}
+
+void
+display_frame(void)
+{
+}
+
+void
+setup(void)
+{
+}
+
+void
+update(void)
+{
+}
+
+void
+render(void)
+{
+}
+
+int
+main(void)
+{
+    setup();
+
+    while(1) {
+        update();
+        render();
+    }
+
+    return 0;
+}
+#+end_src
+
+Some comments on the included headers:
+
+- ~stdlib.h~: You know what this is.
+- ~libgte.h~:  Relates  to  3D   transformations,  matrices,  vectors,  geometry
+  transformation, and related types.
+
+** Resetting the screen
+
+On the  ~screen_init~ function, reset  the GPU.  There is nothing  special here,
+we've already seen what this actually is on an assembly level.
+
+#+begin_src c
+void
+screen_init(void)
+{
+    // Reset GPU
+    ResetGraph(0);
+}
+#+end_src
+
+** Setting up double buffer
+
+Next, we  need to  define a  structure and  a couple  of global  variables right
+before our functions:
+
+#+begin_src c
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+DoubleBuff screen;
+short currbuff;
+#+end_src
+
+These variables are related to the concept of double buffering. I'm not gonna go
+into  much  depth here,  I'm  just  gonna say  that  it  prevents that  horrible
+flickering  and prevents  you  from seeing  tearing and  draw  artifacts on  the
+screen.
+
+So we always  have two framebuffers: a  back buffer, and a front  buffer. Or, in
+PlayStation terms, a draw buffer (~draw~) and a display buffer (~disp~).
+
+Imagining the  VRAM as  a big  buffer of  1024x512, we're  going to  reserve the
+leftmost part of the VRAM for the draw buffer and for the display buffer.
+
+The type  ~DoubleBuff~ represents our  screen, and  it has two  environments for
+drawing, and two  environments for displaying. Notice that this  is because both
+framebuffers  are  used  for  drawing  and for  displaying  at  certain  points.
+
+The variable ~currbuff~  is going to be  the variable we use  to alternate these
+buffers, so we can  flip the currently displayed buffer index by  using it (0 or
+1, that can be alternated by simple negation).
+
+Now we're going to  increment ~screen_init~ with some extra code  to set up more
+things:
+
+#+begin_src c
+...
+
+// Set display and draw areas of buffers
+SetDefDispEnv(&screen.disp[0], 0, 0, 320, 240);
+SetDefDrawEnv(&screen.draw[0], 0, 240, 320, 240);
+SetDefDispEnv(&screen.disp[1], 0, 240, 320, 240);
+SetDefDrawEnv(&screen.draw[1], 0, 0, 320, 240);
+
+// Set draw buffers as background buffers
+screen.draw[0].isbg = 1;
+screen.draw[1].isbg = 1;
+
+// Set background clear color
+setRGB0(&screen.draw[0], 63, 0, 127);
+setRGB0(&screen.draw[1], 63, 0, 127);
+
+// Set current initial buffer
+currbuf = 0;
+PutDispEnv(&screen.disp[currbuff]);
+PutDrawEnv(&screen.draw[currbuff]);
+#+end_src
+
+First, we setup the offset and size  of the framebuffers.  Notice that the first
+environment  has the  first  framebuffer as  a display  buffer,  and the  second
+framebuffer as  a draw buffer.  The second environment alternates  this, setting
+the first framebuffer as a draw buffer,  and the second framebuffer as a display
+buffer. Always alternating, as expected from double buffering behaviour.
+
+Then we set both draw buffers as back buffers.
+
+Finally, we use ~setRGB0~ to setup  the background color for our buffers. Notice
+that this is basically  the GP0 command to draw a flat  colored rectangle on the
+VRAM!
+
+Finally, we set the first buffer to be 0, and offload the rendering to the VRAM.
+
+** Displaying a frame
+
+Now let's define our ~display_frame~ function:
+
+#+begin_src c
+void
+display_frame(void)
+{
+    DrawSync(0);
+    VSync(0);
+
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // TODO: Sort objects in ordering table
+
+    // Swap buffers
+    currbuff = !currbuff;
+}
+#+end_src
+
+First  things  first,  we  set  up  the  VSync  and  the  DrawSync,  to  prevent
+tearing. Then we put the display and  draw environments, just like we did at the
+end of screen initialization.
+
+Finally, at the end, we swap buffers after displaying with a simple negation.
+
+The part marked ~TODO~ is where we're soon going to add triangles, tiles, quads,
+etc. This is precisely the part where we're going to sort these objects using an
+ordering table, where we push objects to be rendered by the GPU.
+
+** Finishing the basic setup
+
+For the ~setup~, we don't have anything else to do but call ~screen_init~.
+
+For now, there is nothing we need to do in ~update~.
+
+For ~render~, all we need to do is call ~display_frame~.
+
+#+begin_src c
+void
+setup(void)
+{
+    screen_init();
+}
+
+void
+update(void)
+{
+}
+
+void
+render(void)
+{
+    display_frame();
+}
+#+end_src
+
+** Configuring GTE and enabling display
+
+There is  one more thing to  do in ~screen_init~,  though: Right at the  end, we
+need some GTE initialization routines and enable the display.
+
+#+begin_src c
+...
+
+// Initialize and setup the GTE geometry offsets
+InitGeom();
+SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+SetGeomScreen(SCREEN_CENTER_X);
+
+// Enable display
+SetDispMask(1);
+#+end_src
+
+The enable display bit we've already seen  working on assembly level, so no need
+to go in depth here.
+
+The other routines are related to enabling  GTE. We first initialize it, then we
+use a helper function  to offset things to the center of the  screen to make our
+life easier, and the third function is related to the depth (Z component) of the
+screen, or how we're going to move things near/far.
+
+** Finishing touches
+
+Our functions  ~SetDefDispEnv~ and  ~SetDefDrawEnv~ are using  hardcoded values,
+let's not do that. *Change these values to the SCREEN definitions*.
+
+#+begin_src c
+SetDefDispEnv(&screen.disp[0], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+SetDefDrawEnv(&screen.draw[1], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+#+end_src
+
+** Final code
+
+Here's what the code looks like now:
+
+#+begin_src c
+#include <stdlib.h>
+#include <libgte.h>
+#include <libetc.h>
+#include <libgpu.h>
+
+#define VIDEO_MODE 0
+#define SCREEN_RES_X 320
+#define SCREEN_RES_Y 240
+#define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
+#define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
+
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+DoubleBuff screen;
+short currbuff;
+
+void
+screen_init(void)
+{
+    // Reset GPU
+    ResetGraph(0);
+
+    // Set display and draw areas of buffers
+    SetDefDispEnv(&screen.disp[0], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[1], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+
+    // Set draw buffers as background buffers
+    screen.draw[0].isbg = 1;
+    screen.draw[1].isbg = 1;
+
+    // Set background clear color
+    setRGB0(&screen.draw[0], 63, 0, 127);
+    setRGB0(&screen.draw[1], 63, 0, 127);
+
+    // Set current initial buffer
+    currbuff = 0;
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // Initialize and setup the GTE geometry offsets
+    InitGeom();
+    SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+    SetGeomScreen(SCREEN_CENTER_X);
+
+    // Enable display
+    SetDispMask(1);
+}
+
+void
+display_frame(void)
+{
+    DrawSync(0);
+    VSync(0);
+
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // TODO: Sort objects in ordering table
+
+    // Swap buffers
+    currbuff = !currbuff;
+}
+
+void
+setup(void)
+{
+    screen_init();
+}
+
+void
+update(void)
+{
+}
+
+void
+render(void)
+{
+    display_frame();
+}
+
+int
+main(void)
+{
+    setup();
+
+    while(1) {
+        update();
+        render();
+    }
+
+    return 0;
+}
+#+end_src
+
+* Psy-Q Integer Data Types
+
+These types are defined in ~sys/types.h~.
+
+| Type      | Size               |
+|-----------+--------------------|
+| ~char~    | 8 bits (signed)    |
+| ~short~   | 16 bits (signed)   |
+| ~int~     | 32 bits (signed)   |
+| ~long~    | 32 bits (signed)   |
+| ~u_char~  | 8 bits (unsigned)  |
+| ~u_short~ | 16 bits (unsigned) |
+| ~u_int~   | 32 bits (unsigned) |
+| ~u_long~  | 32 bits (unsigned) |
+
+* Psy-Q Primitive Types
+
+These types are defined in ~libgpu.h~.
+
+| Type       | Description             |
+|------------+-------------------------|
+| ~TILE~     | 2D tile                 |
+| ~POLY_F3~  | Flat-shaded triangle    |
+| ~POLY_G3~  | Gouraud-shaded triangle |
+| ~POLY_F4~  | Flat-shaded quad        |
+| ~POLY_G4~  | Gouraud-shaded quad     |
+| ...        |                         |
+
+* Ordering Table & Primitive Buffer
+
+Suppose we declared a  few pointers to some of these  primitives, and that we're
+gonna populate them later:
+
+#+begin_src c
+TILE    *tile;
+POLY_F3 *triA;
+POLY_G3 *triB;
+POLY_F4 *quadA;
+POLY_G4 *quadB;
+#+end_src
+
+We're gonna have to declare an ordering table, a primitive buffer, and a pointer
+to the  next primitive.  This way,  we can  determine the  drawing order  of the
+primitives; primitives  are always ordered from  back to front, since  drawing a
+primitive supersedes the drawing of another.
+
+#+begin_src c
+#define OT_LENGTH 8
+
+// Ordering table
+u_long ot[2][OT_LENGTH];
+
+// Primitive buffer
+char primbuff[2][2048];
+char *nextprim;
+#+end_src
+
+In this case for the ordering table,  we're declaring two arrays. Each array has
+eight possible  elements in  size. And  each element is  a _pointer_  (hence the
+~u_long~  type as  a proper  representative of  that). So  we actually  have two
+different ordering tables.
+
+We have  two ordering tables  (one for each framebuffer),  and we can  draw them
+front-to-back or back-to-front.
+
+The *primitive  buffer* is  a buffer  where we'll  be properly  *ALLOCATING* our
+primitives. See the following implementation of an update function:
+
+#+begin_src c
+void
+update()
+{
+    // Reset next primitive pointer
+    nextprim = primbuff[currbuff];
+
+    // Clear ordering table for this buffer (reverse)
+    ClearOTagR(ot[currbuff], OT_LENGTH);
+
+    tile = (TILE*)nextprim;      // cast pointer to primitive pointer
+    setTile(tile);               // initialize tile
+    setXY0(tile, 82, 32);        // Set primitive position (x, y)
+    setWH(tile, 64, 64);         // Set primitive size
+    setRGB0(tile, 0, 255, 0);    // Set primitive color
+    addPrim(ot[currbuff], tile); // Add and sort primitive to the OT
+    nextprim += sizeof(TILE);    // Advance primitive pointer
+}
+#+end_src
+
+On the example above, it is very clear that ~primbuff~ ends up being used as the
+proper free space to render primitives. We  don't do ~malloc~ like we would with
+any  other  environment;  we end  up  having  to  be  very careful  with  memory
+consumption.
+
+Now we can just go ahead and draw our ordering table, in a very simple manner:
+
+#+begin_src c
+void
+draw()
+{
+    DrawOTag(ot[currbuff] + OT_LENGTH - 1);
+    // ...
+}
+#+end_src
+
+* Sorting Primitives into the OT
+
+Let's go ahead and add a few things.
+
+#+begin_src c
+// Definitions...
+#define OT_LENGTH 16
+
+// Primitive buffer...
+u_long ot[2][OT_LENGTH];
+char primbuff[2][2048];
+char *nextprim;
+
+// Pointers to primitives
+POLY_F3 *triangle;
+TILE    *tile;
+#+end_src
+
+We'll end up having now a slightly bigger ordering table.
+
+We'll  go   ahead  and  control/reset   the  ordering  table  on   the  ~update~
+function. Plus, let's add some primitives.
+
+#+begin_src c
+void
+update()
+{
+    ClearOTagR(ot[currbuff], OT_LENGTH);
+
+    tile = (TILE*)nextprim;
+    setTile(tile);
+    setXY0(tile, 82, 32);
+    setWH(tile, 64, 64);
+    setRGB0(tile, 0, 255, 0);
+    addPrim(ot[currbuff], tile);
+    nextprim += sizeof(TILE);
+
+    triangle = (POLY_F3*)nextprim;
+    setPolyF3(triangle);
+    setXY3(triangle, 64, 100, 200, 150, 50, 220);
+    setRGB0(triangle, 255, 0, 255);
+    addPrim(ot[currbuff], triangle);
+    nextprim += sizeof(POLY_F3);
+}
+#+end_src
+
+When we add primitives  to the ordering table, we are  SORTING them. "SORTING" a
+primitive is the same thing as adding it to the ordering table.
+
+We're  also  using  handy  functions   such  as  ~setWH~,  ~setRGB0~,  ~setXY0~,
+~setXY3~...  but  there  is  nothing  stopping  us  from  manually  setting  the
+components  of  each  struct  manually (also,  they're  not  functions,  they're
+macros. :P )
+
+We  cannot forget  to always  reset our  ~nextprim~ pointer.  So in  the end  of
+~display_frame~,  make it  so that  it  always points  to the  beginning of  the
+current primitive buffer:
+
+#+begin_src c
+void
+display_frame()
+{
+    // ...
+    currbuff = !currbuff;
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    nextprim = primbuff[currbuff];
+}
+#+end_src
+
+Now, adding  things to the  ordering table doesn't tell  the GPU that  there are
+things  that need  to be  drawn, so  still in  ~display_frame~, before  flipping
+~currbuff~, use  the function  that sorts  these objects  in the  ordering table
+(remember that "sorting" here means "drawing in the given order"):
+
+#+begin_src c
+void
+display_frame()
+{
+    // ...
+    DrawOTag(ot[currbuff] + OT_LENGTH - 1);
+
+    currbuff = !currbuff;
+    // ...
+}
+#+end_src
+
+Remember   that,  since   we're   clearing  the   ordering   table  in   reverse
+(~ClearOTagR~), when  we draw it, we  draw from the beginning  (~DrawOTag~), and
+pass a pointer to the end.
+
+Let's also go ahead on ~setup~ and, after initializing the screen, let's set the
+~nextprim~ pointer to the start of the current primitive buffer as well.
+
+#+begin_src c
+void
+setup(void)
+{
+    screen_init();
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    nextprim = primbuff[currbuff];
+}
+#+end_src
+
+Here's the result...
+
+[[file:img/primbuff0.png]]
+
+The idea of using primitives, created  within a primitive buffer, adding them to
+the ordering table, and  using it to sort them is gonna be  a pivot point of PSX
+development, and we won't stop doing it anymore.
+
+** Exercise: Add a Gouraud-shaded quad
+
+We're going  to declare a  Gouraud-shaded quad that  uses a pointer  declared as
+~quadg4~.
+
+Well that's easy enough. We know what  we need for a Gouraud-shaded quad, and we
+can also look at its definition on ~POLY_G4~ struct. So:
+
+#+begin_src c
+// Among primitive pointer declarations...
+POLY_G4 *quadg4;
+
+...
+
+// Within "update"
+quadg4 = (POLY_G4*)nextprim;
+setPolyG4(quadg4);
+setXY4(quadg4, 240, 60, 240, 180, 80, 60, 80, 180); // inverted N
+setRGB0(quadg4, 255, 0, 0);
+setRGB1(quadg4, 0, 255, 0);
+setRGB2(quadg4, 0, 0, 255);
+setRGB3(quadg4, 255, 255, 255);
+addPrim(ot[currbuff], quadg4);
+nextprim += sizeof(POLY_G4);
+#+end_src
+
+All we  need to  do is  remember that,  when we're  declaring the  vertices with
+~setXY4~,  our  quad   vertex  order  simulates  an   "inverted  N":  top-right,
+bottom-right, top-left, bottom-left. The ~setRGBX~ functions describe colors for
+the vertices given the order they were described.
+
+
+* Sorting a Gouraud Quad into the OT
+
+Small note before anything: Define a  ~SCREEN_Z~ constant, then fix a little our
+GTE initialization that we will need later:
+
+#+begin_src c
+#define SCREEN_Z 400
+
+// ...
+
+void
+screen_init()
+{
+    // ...
+    
+    // Initialize and setup the GTE geometry offsets
+    InitGeom();
+    SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+    SetGeomScreen(SCREEN_Z);
+
+    // ...
+}
+#+end_src
+
+As  for  the  Gouraud-shaded  quad   itself...  see  the  exercise  on  previous
+section. :)
+
+* A review of pointers
+
+Been there,  done that. Few years  dealing with pointers and  pointer arithmetic
+here, practically on a daily basis. I'll just go touch grass.
+
+* The Arrow Operator
+
+Ditto.
+
+* More about ordering tables
+
+Here is  an example  of an  ordering table with  six elements,  like the  one we
+declared:
+
+#+begin_src c
+#define OT_LENGTH 6
+u_long ot[OT_LENGTH];
+#+end_src
+
+#+begin_example
+[ ot[0] ] <- [ ot[1] ] <- [ ot[2] ] <- [ ot[3] ] <- [ ot[4] ] <- [ ot[5] ] <- start
+ 0xffffff
+#+end_example
+
+- Internally, the ordering table is an array of pointer elements that point from
+  one element to the next.
+- The ordering table ends with the value  ~0xffffff~ (lower 24 bits of the tag),
+  which is used as a terminator for the ordering table processor.
+- The order of these elements look  _reversed_ because of how we're manipulating
+  it, since we created this OT by using the ~ClearOTagR~ function (this function
+  is faster than ~ClearOTag~ because it is DMA-accelerated).
+- Therefore this is  a _reverse_ ordering table, starting with  the last element
+  and ending with  the first one. This  is common usage because  we usually draw
+  polygons from  back to  front based  on depth  values --  this is  called "the
+  painter's algorithm"; things that are further away are painted first.
+- Polygons can  be added  to the OT  using the macro  ~addPrim~ or  the function
+  ~AddPrim~, both from ~libgpu.h~.
+- All the pointers  in the ordering table point to  _primitive packets_ that are
+  32-bit aligned.
+
+Consider the struct for a flat-shaded triangle:
+
+#+begin_src c
+typedef struct {
+    u_long tag;
+    u_char r0, b0, g0, code;
+    short x0, y0;
+    short x1, y1;
+    short x2, y2;
+} POLY_F3;
+#+end_src
+
+The memory lines roughly correspond to:
+
+1. ~tag~: used by OT, contains  a pointer to the  next element (3 bytes)  and a
+   length (1 byte);
+2. ~x0~ (2 bytes) and ~y0~ (2 bytes);
+3. ~x1~ (2 bytes) and ~y1~ (2 bytes);
+4. ~x2~ (2 bytes) and ~y2~ (2 bytes).
+
+- The first  24 bits of the  ~tag~ field are  the _address pointer_ to  the next
+  element, and  the last 8 bits  are its _length_.
+  - So we  don't use the full  32 bits to  store the next element  address, even
+    though our pointers in  MIPS are 32-bits long; we use 24  bits, and these 24
+    bits will suffice.
+  - Different primitives have different size in  memory, and that is why we have
+    the length bits of the tag: a flat-shaded triangle only needs three vertices
+    and a single three-component color.  A textured triangle, though, would need
+    UV  coordinates  per   vertex,  therefore  having  three   vertices  of  two
+    coordinates, plus two UV coordinates for each vertex as well.
+
+Finally: Since the ordering  table is a list of pointers,  each pointer can also
+represent an entire sublist,  as long as the last element  of the sublist points
+to the  next ordering  table element!  So we  don't necessarily  have to  push a
+single primitive to the ordering table at  a time; we can push an entire sublist
+of primitives to the ordering table.
+
+This sorting can either  be done manually or with the GTE's  help, since the GTE
+knows how to compute the average depth value of a 3D polygon, and this value can
+thus be used as the index of the primitive on the ordering table.
+
+

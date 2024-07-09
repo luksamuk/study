@@ -1,0 +1,244 @@
+#+title: Introduction to 3D Graphics
+#+startup: content
+
+* A Review of 3D Projection
+
+- The PlayStation GPU is a 2D rasterization engine.
+- We  need to  give  our games  the ideas  of  3D perspective,  transformations,
+  etc. So we need a way to perform 3D math.
+  - This whole  processing pipeline is  renderer-agnostic, so it applies  to any
+    renderer.
+- We're not going to derive all the mathematics, but the high-level concepts are
+  going to be covered.
+
+When looking  at a 3D figure,  our brain interprets  it this way because  it has
+polygons connected; the  mesh has lighting applied to it.  We interpret that and
+mentally decode it as having a depth component.
+
+However, the  image we're actually seeing  is nothing but a  2D projection, even
+though, visually, we don't think of the mesh as just a 2D figure. If you isolate
+a single triangle of  a mesh, the GPU visibly only interprets  it as 2D vertices
+on the screen. So all we have to do is rasterize that triangle.
+
+So whenever  we're talking about  3D, we're talking about  all the math  that is
+executed before we send draw data to the GPU. We could use the CPU to do all the
+math we require, but  it is not fast enough; this is why  we're going to use the
+GTE coprocessor, that is dedicated to that purpose.
+
+Some primitives we'll talk about:
+
+- Vertices: Structures containing three components: X, Y, and Z (the later being
+  depth).
+- Polygon faces: Structures formed by joining vertices.
+- Projection: How the world  is projected on the 2D screen.  There are two kinds
+  of projections:
+  - Perspective projection: A  kind of projection that works with  FOV (field of
+    view), with an angled camera. The further an object is, the smaller it gets.
+  - Orthographic projection: A kind of  projection that discards the Z component
+    (depth), so things being far/near the  near plane of projection still appear
+    the same size.
+
+** Perspective projection
+
+Imagine a 3D matrix of vertices on  space in regular spaces, like a salt crystal
+structure, where each vertex has (X, Y,  Z) components. Imagine also that we are
+looking at it from the front and we are using a perspective projection.
+
+When we're using a perspective projection:
+
+- The vertices that have  a Z component that is closer to  the _near_ plane have
+  to occupy "more space" on the screen, thus filling an expanded space.
+- The vertices that have a Z component that is closer to the _far_ plane have to
+  be "squeezed" together, thus occupying less space and being closer together.
+
+This is  the way to visualize  the math that  is being produced here.  We either
+increase or decrease how close vertices  are together whenever we are projecting
+these vertices, with respect to the depth value.
+
+This concept is called *perspective divide*, and  the final X and Y positions on
+screen can be calculated by using the formulas
+
+$$x_{\text{screen}} = \frac{x_{\text{world}}}{z}$$
+
+$$y_{\text{screen}} = \frac{y_{\text{world}}}{z}$$
+
+This means that, the deeper the vertex  is on the scene (greater $z$ value), the
+more the world coordinate gets divided and, therefore, decreases with respect to
+the origin.
+
+This  is one  of  the operations  that  the GTE  is able  to  do with  excellent
+performance. Notice also that,  since we only need X and  Y coordinates to print
+stuff onto the  screen, these are our  results; we apply the  "semantics" of $z$
+to the actual world coordinates so that we can obtain these "renderable" values.
+
+After we process  the vertices, we're gonna connect these  vertices together and
+we're gonna have faces that are either quads or triangles. This is the step that
+produces a wireframe object.
+
+Next, we're gonna start  rasterizing things, and so we paint  each pixel on each
+face, thus performing rasterization.
+
+* Vertices & Face Indices
+
+Regardless of how  complex a 3D object  is, it is always  assembled by polygons,
+and these polygons have vertices and faces.
+
+Generally, when  we're defining the vertices  for any mesh, we  normally put the
+world center in its  exact center and make the vertices relative  to it. This is
+the object origin, or its _pivot point_.
+
+The _pivot point_ is the point around which the objects vertices are transformed
+(translation, rotation, scaling...).
+
+** Vertices
+
+Suppose we're  defining a  cube with  its pivot  point at  the center.  We could
+define its  vertices, relative to  the pivot point, like  this (add them  to the
+~hellogpu~ project):
+
+#+begin_src c
+SVECTOR vertices[] {
+    { -128, -128, -128 },
+    {  128, -128, -128 },
+    {  128, -128,  128 },
+    { -128, -128,  128 },
+    { -128,  128, -128 },
+    {  128,  128, -128 },
+    {  128,  128,  128 },
+    { -128,  128,  128 }
+};
+#+end_src
+
+** Types
+
+The ~SVECTOR~ is a ~short~ vector -- its  X, Y, Z components are numbers of type
+~short~. This is  more useful than ~VECTOR~  when we know that  the vertices are
+not too big and therefore can occupy  less space in memory. There are also types
+such  as ~CVECTOR~  (a color  vector,  each component  is  8 bits  long), and  a
+~DVECTOR~, which is a 2D ~short~ vector, that has no Z component.
+
+The ~MATRIX~  type is  composed of a  3x3 matrix of  ~short~ components,  plus a
+final translation array of three ~long~ values that gets added to the matrix.
+
+** Faces
+
+Vertices are  not enough  to define  our 3D object,  so we  also need  to define
+faces:
+
+#+begin_src c
+short faces[] = {
+    0, 3, 2, // top
+    0, 2, 1,
+    4, 0, 1, // front
+    4, 1, 5,
+    7, 4, 5, // bottom
+    7, 5, 6,
+    5, 1, 2, // right
+    5, 2, 6,
+    2, 3, 7, // back
+    2, 7, 6,
+    0, 4, 7, // left
+    0, 7, 3
+};
+#+end_src
+
+These are arrays of ~short~ values that define our face indices. Notice how each
+line describes  the index of  three given vector  on the ~vertices~  array, thus
+also describing a triangle face.
+
+Notice that ~vertices~ and ~faces~ relate to OpenGL's vertex buffers and element
+buffers, directly. In OpenGL,  you create a VBO and bind the  vertex data to it,
+uploading the vertex data to the VRAM. Furthermore you'd create an EBO and would
+also upload the face (element) data to the VRAM as well. The rest is a matter of
+setting up offsets and calling ~glDrawElements~. We don't upload vertex and face
+data to the VRAM  here, and it remains just on the main  RAM, so we're basically
+doing part of that manually, since the GPU in PlayStation is 2D and we also need
+to perform calculations on the GTE "manually".
+
+The faces  above are  defined using _clockwise  orientation_. This  is important
+because the order we use for these faces change the way we see their *front* and
+their *back*. So for any face, the order for triangle faces is roughly...
+
+- bottom left, top left, top right;
+- bottom left, top right, bottom right.
+
+...thus defining a  quad by building a triangle and  then repeating two vertices
+of the previous triangle, plus the  missing vertex. Plus, the clockwise order of
+elements basically point our desired front for  the face to outside of the cube,
+if we keep defining it this way -- more specifically, taking the two first faces
+in the ~faces~ variable, _their normal is pointing up_.
+
+** Drawing
+
+Let's tweak  the size of  our ordering table  to a number  that will be  able to
+store these primitives.
+
+#+begin_src c
+#define OT_LENGTH 512
+#+end_src
+
+Let's also define a few more things with respect to our cube.
+
+#+begin_src c
+#define NUM_VERTICES  8
+#define NUM_FACES    12
+#+end_src
+
+* The Geometry Transformation Engine
+
+- GTE is a vector and matrix high-speed geometric processor.
+  - It   knows   how    to   encode   vectors   and    matrices   and   performs
+    multiplications/calculations with them, directly on hardware.
+- The GTE has its own multiplier, accumulator, and divider.
+- It  is implemented  as *coprocessor  2*  (~cp2~) under  the MIPS  architecture
+  specification.
+
+** CPU Block
+
+This was presented as a diagram, but I'll try to describe it textually:
+
+- The CPU block is  connected to the bus, and the bus also  connects the RAM and
+  the GPU (which is directly connected to the VRAM).
+- The CPU block is divided into a  few structures: the CPU, the GTE, the Scratch
+  Pad (1KB), the I-CACHE (4 KB), and a BIU.
+  - The Scratch Pad is just a fast RAM that we can use if needed.
+  - The  I-CACHE  is  the  _instruction  cache_,  so  it  is  a  cache  for  CPU
+    instructions; instructions such as ~li~ and ~sll~ can be cached, for example.
+- The BIU is the part that directly interfaces with the bus.
+- The I-CACHE  interfaces directly  with the BIU,  and also  interfaces directly
+  with CPU and GTE -- but not with the Scratch Pad.
+- The Scratch Pad interfaces  with BIU, CPU and GTE through  a bus that connects
+  them all.
+
+** GTE Features
+
+- Fast vector/matrix calculations (multiplication, cross-product, etc);
+- Fast   coordinate    transformations   (affine    transformations:   rotation,
+  translation, scale, etc);
+- Fast perspective projections;
+- Fast lighting calculations.
+
+** 3D Transformations
+
+We can perform a  simple pipeline for 3D transformations. There  is an order for
+calculations that we should perform so that we can actually transform things for
+drawing them as we expect.
+
+* Basic 3D Transformations
+
+- When we start, the vertices are  in _model space_ (local coordinate system, as
+  they are defined in Blender, 3ds  Max, Maya...). This is the coordinate system
+  while we're thinking in terms of  model origin (or pivot point); remember that
+  all model vertices are relative to it.
+- Then, we transform the vertices into  _world space_ (multiply by world matrix;
+  translate, scale, rotate into the world).
+- Then, we convert the vertices into  _view space_ / _camera space_ (multiply by
+  view  matrix; transform  the whole  world  where the  new coordinate  system's
+  origin is the camera's eye).
+- Then, the scene is now in view  space and can be projected into _screen space_
+  (projection; perspective divide).
+
+After our vertices  are projected onto screen  space, all we need to  do is send
+the data to the GPU so it gets rasterized.
+
+Notice how close it gets to the idea of *Model-View-Projection*.

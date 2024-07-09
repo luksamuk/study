@@ -1,0 +1,546 @@
+#+title: Loading Track Texture
+#+startup: content
+
+* Loading Track Texture Tiles
+
+So the sections are structured as linked lists, and each section is comprised of
+faces.
+
+Textures and  UV-coordinate information  are per-face. And  some of  these faces
+have a flag to flip the texture in X axis.
+
+The textures are stored  in a .CMP file, but they are stored  in a different way
+than the  object textures; they are  stored as tiles,  and we have a  file which
+describes the tile indices for us.
+
+So each face is going to have a tile index, and the also UV coordinates that map
+them well onto the face.
+
+Our _compressed_ textures are going to  be on ~LIBRARY.CMP~ file, while the tile
+information lives in file ~LIBRARY.TTF~.
+
+The .TTF  file also  describes tiles  that are hi-res  tiles, mid-res  tiles and
+lo-res tiles, but for the sake of  simplicity, we are going to load lo-res tiles
+for now.
+
+Let's start by adding these files to our CD.
+
+#+begin_src fundamental
+            File LIBRARY.CMP
+              XaFileAttributes Form1 Data
+              Source [GameDir]\ASSETS\TRACK02\LIBRARY.CMP
+            EndFile
+
+            File LIBRARY.TTF
+              XaFileAttributes Form1 Data
+              Source [GameDir]\ASSETS\TRACK02\LIBRARY.TTF
+            EndFile
+#+end_src
+
+#+begin_src xml
+<dir name="TRACK02">
+  ...
+  <file name="LIBRARY.CMP" type="data" source="ASSETS/TRACK02/LIBRARY.CMP" />
+  <file name="LIBRARY.TTF" type="data" source="ASSETS/TRACK02/LIBRARY.TTF" />
+</dir>
+#+end_src
+
+Right before loading vertices, faces and sections for our tracks, let's load the
+textures and tile information for the track.
+
+Let's do some wishful thinking.
+
+#+begin_src c
+// In main.c, setup function
+u_short trackstarttexture;
+// ...
+trackstarttexture = get_texture_count();
+load_texture_cmp("\\TRACK02\\LIBRARY.CMP;1", "\\TRACK02\\LIBRARY.TTF;1");
+#+end_src
+
+As  you can  see here,  we are  going to  have to  tweak the  ~load_texture_cmp~
+function  so  that, when  we  inform  a .TTF  file  as  second parameter,  it'll
+understand that we are talking about a  tiled texture, and so the upload to VRAM
+is going to work a little different (everything else is pretty much the same).
+
+** Binary layout of files
+
+The ~.CMP~ file has already been handled before, but the ~.TTF~ is news for us.
+
+A ~.TTF~ file is divided into structs of  42 bytes, and the number of structs on
+the file is therefore the file size divided by 42.
+
+Each tile contains data on hi-res tiles (32 bytes / 16 shorts), mid-res tiles (8
+bytes /  4 shorts),  and lo-res tiles  (2 bytes  / 1 short).  All shorts  in big
+endian order.
+
+Here's the file layout pattern for ImHex.
+
+#+begin_src c
+#include <std/mem.pat>
+
+struct Tile {
+    be u16 hires[16];
+    be u16 midres[4];
+    be u16 lores;
+};
+
+Tile tiles[while(!std::mem::eof())] @ 0x0;
+#+end_src
+
+[[file:img/ttf-file-imhex.png]]
+
+** Tweaking the texture load function
+
+We  need to  replace  the function  signature  (don't forget  to  replace it  in
+~texture.h~  as well).  Furthermore, we'll  deal with  the fact  that we  may be
+handling a  tiled texture according to  whether the second parameter  is null or
+not.
+
+First  let's tackle  ~texture.h~, we'll  need to  declare a  constant, the  tile
+struct, and  also adjust our function  prototype. The struct will  only hold the
+tile index for the lo-res tile.
+
+#+begin_src c
+#define BYTES_PER_TILE     42
+
+// ...
+
+typedef struct {
+    u_short tileindex;
+} Tile;
+
+// ...
+
+void    load_texture_cmp(char *filenamecmp, char *filenamettf);
+#+end_src
+
+Now for ~texture.c~.
+
+I'm going to use a GOTO here because screw Dijkstra and his "considered harmful"
+article. I do what I must because I can.
+
+#+begin_src c
+void
+load_texture_cmp(char *filenamecmp, char *filenamettf)
+{
+    // ...
+    
+    bytes = (u_char *)file_read(filenamecmp, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filenamecmp);
+        return;
+    }
+
+    // ...
+
+    / Upload to VRAM (non-tile-based)
+    if(filenamettf == NULL) {
+        printf("Uploading all textures to VRAM...\n");
+        for(i = 0; i < numtextures; i++) {
+            Texture *texture = upload_texture_to_vram(timoffsets[i]);
+            if(texture != NULL) texturestore[texturecount++] = texture;
+            if(texturecount >= MAX_TEXTURES)
+                printf("Warning: Texture global store is full!\n");
+        }
+        goto endloadtexture;
+    }
+
+    // Load tile information
+    bytes = (u_char *)file_read(filenamettf, &length);
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filenamettf);
+        return;
+    }
+    b = 0;
+
+    u_short numtiles = length / BYTES_PER_TILE;
+    Tile *tiles = malloc3(numtiles * sizeof(TILE));
+
+    for(i = 0; i < numtiles; i++) {
+        b += 16 * 2; // bypass hi-res tiles
+        b += 4 * 2;  // bypass mid-res tiles
+        tiles[i].tileindex = get_short_be(bytes, &b);
+    
+        // Upload single tile to VRAM.
+        // Tile index on TIMs is based on tile index just read.
+        Texture *texture = upload_texture_to_vram(timoffsets[tiles[i].tileindex]);
+        if(texture != NULL) texturestore[texturecount++] = texture;
+        if(texturecount >= MAX_TEXTURES)
+            printf("Warning: Texture global store is full!\n");
+    }
+
+    free3(bytes);
+    free3(tiles);
+endloadtexture:
+    free3(timsbaseaddr);
+}
+#+end_src
+
+So basically,  we're retrieving the indices  of each lo-res tile  needed, and we
+upload  them  to VRAM.  Notice  that  the tileset  is  given  by the  sequential
+~LAYOUT.CMP~ file; so a tile number 0  is actually the first tile we loaded from
+~LAYOUT.CMP~ (whose pointer is in ~timoffsets[0]~ in this case), and so on.
+
+[[file:img/loadtiles.png]]
+
+The track tiles  SHOULD have been close  to the upper framebuffer,  but they are
+not! What is going on here???
+
+Well...  ~upload_texture_to_vram~  expects  us  to have  information  with  VRAM
+position predefined.  The thing is... these  tiles don't come with  these values
+predefined.
+
+So to position them correctly in VRAM, we're going to have to do it manually.
+
+* Manually Position Textures in VRAM
+
+So based on our previous screenshot,  let's see our VRAM without the PlayStation
+logo garbage:
+
+[[file:img/loadtiles-clean.png]]
+
+Perharps it would be  a great idea to have the upper left  available part to our
+tiles, and underneath it, on that blank  space to the left of the ship textures,
+we could store CLUT information there.
+
+Let's start with our  top left corner for tiles at 320x0, and  then go down, and
+if we happen to surpass the lower limit (of 256), let's wrap around and start at
+the top, this time on the next column.
+
+For CLUT info, let's start at 320x256 and go to the right. Should take less
+space than  the tiles. And if  we happen to  fill the horizontal space  util its
+limit, let's wrap around and go down this time.
+
+We'll also store this tile and CLUT positioning into global variables. And also,
+we know *FOR SURE* that all tiles use  4-bit CLUT, so we only have to handle the
+~CLUT_4BIT~ case.
+
+** Fixing texture upload
+
+First, on  ~texture.c~, let's  declare a  few static  variables to  control tile
+texture and CLUT position:
+
+#+begin_src c
+static u_short textx = 320;
+static u_short texty = 0;
+static u_short clutx = 320;
+static u_short cluty = 256;
+#+end_src
+
+Let's  go to  ~upload_texture_to_vram~. In  the ~CLUT_4BIT~  case, we'll  handle
+textures that do not have VRAM location information.
+
+#+begin_src c
+Texture *
+upload_texture_to_vram(u_long ptr)
+{
+    Texture *texture = NULL;
+    Tim *tim = (Tim *) ptr;
+    RECT rect;
+
+    switch(CLUTTYPE(tim)) {
+    case CLUT_4BIT: {
+        TimClut4 *tc4 = (TimClut4 *)tim;
+        texture = (Texture *)malloc3(sizeof(Texture));
+        texture->type = CLUT4;
+
+        // Check whether we don't have textureX and
+        // textureY information, so we position it
+        // and its CLUT manually
+        if(!tc4->textureX && !tc4->textureY) {
+            tc4->textureX = textx;
+            tc4->textureY = texty;
+            tc4->clutX    = clutx;
+            tc4->clutY    = cluty;
+            tc4->clutW    = 16;
+            tc4->clutH    = 1; // Tile CLUT is always 16x1
+
+            // Increment globals
+            clutx += 16;
+            if(clutx >= 384) {
+                clutx = 320;
+                cluty += 1;
+            }
+
+            texty += 32;
+            if(texty >= 256) {
+                textx += 8;
+                texty = 0;
+            }
+        }
+        
+        texture->textureX = tc4->textureX;
+        texture->textureY = tc4->textureY;
+        texture->textureW = tc4->textureW;
+        texture->textureH = tc4->textureH;
+        texture->clutX    = tc4->clutX;
+        texture->clutY    = tc4->clutY;
+        texture->clutW    = tc4->clutW;
+        texture->clutH    = tc4->clutH;
+
+        // ...
+#+end_src
+
+[[file:img/loadtiles-finished.png]]
+
+Ok, NOW we can see those textures and CLUTs where they are supposed to be.
+
+Now that the tile textures are correctly  being uploaded to VRAM, all we need to
+do is set the UV coordinates for each track face.
+
+* Loading Track Face UV Coords
+
+Let's go back to ~track.c~ and tweak the function ~render_track_section~.
+
+#+begin_src c
+void
+render_track_section(Track *track, Section *section, Camera *camera)
+{
+    // ...
+    
+    POLY_FT4 *poly;
+
+    // ...
+
+    for(u_long i = 0; i < section->numfaces; i++) {
+        // ...
+
+        poly = (POLY_FT4*) get_next_prim();
+        SetPolyFT4(poly);
+        setRGB0(poly, face->color.r, face->color.g, face->color.b);
+        
+        // ...
+
+        if (otz > 0 && otz < OT_LEN) {
+            // ...
+            
+            increment_next_prim(sizeof(POLY_FT4));
+            
+            // ...
+        }
+        
+        // ...
+    }
+#+end_src
+
+First  of  all,  we  changed  ~POLY_F4~  to  ~POLY_FT4~,  since  all  faces  are
+textured. We  also removed all the  different coloring and used  the proper face
+color information, set with ~setRGB0~.
+
+We'll also  have to make a  smaller change as  well. In ~main.c~, we  stored the
+index  of  the  track  start  texture,  so   we  have  to  pass  that  value  to
+~load_track_faces~:
+
+#+begin_src c
+// In main.c, function setup
+trackstarttexture = get_texture_count();
+// ...
+load_track_faces(&track, "\\TRACK02\\TRACK.TRF;1", trackstarttexture);
+#+end_src
+
+Now back in ~track.c~ (and ~track.h~), tweak the ~load_track_faces~ function:
+
+#+begin_src c
+#include "texture.h"
+
+// ...
+
+void
+load_track_faces(Track *track, char *filename, u_short texturestart)
+{
+    // ...
+    for(long i = 0; i < track->numfaces; i++) {
+        // ...at the end of the loop...
+        track->faces[i].texture += texturestart;
+        Texture *texture = get_from_texture_store(track->faces[i].texture);
+        track->faces[i].tpage = texture->tpage;
+        track->faces[i].clut  = texture->clut;
+
+        track->faces[i].u0 = texture->u0;
+        track->faces[i].v0 = texture->v0;
+        track->faces[i].u1 = texture->u1;
+        track->faces[i].v1 = texture->v1;
+        track->faces[i].u2 = texture->u2;
+        track->faces[i].v2 = texture->v2;
+        track->faces[i].u3 = texture->u3;
+        track->faces[i].v3 = texture->v3;
+    }
+    // ...
+}
+#+end_src
+
+Now let's make one final adjustment to ~render_track_section~:
+
+#+begin_src c
+void
+render_track_section(Track *track, Section *section, Camera *camera)
+{
+    // ...
+    for(u_long i = 0; i < section->numfaces; i++) {
+        // ...
+        setRGB0(poly, face->color.r, face->color.g, face->color.b);
+        poly->tpage = face->tpage;
+        poly->clut  = face->clut;
+        setUV4(poly, face->u0, face->v0, face->u1, face->v1, face->u2, face->v2, face->u3, face->v3);
+#+end_src
+
+[[file:img/texturized-tracks.png]]
+
+So... it looks fine for the effort, but there are at least three artifacts there
+that we need to fix.
+
+1. We need to fix texture distortion. Affine texture mapping is killing us here;
+   it just looks horrible.
+2. We need to  fix the Z-near clipping; the GTE  is currently culling everything
+   that gets too big, too close to the camera.
+3. We also need  to do texture flipping! Some of these  textures are supposed to
+   be flipped on the X axis.
+
+** Exercise: Flipping face textures
+
+Luckly, I've done  that before on a  side project, though I did  it at rendering
+time.
+
+We can  tweak ~load_track_faces~ and perform  our X-axis flipping by  looking at
+the face flags, and then saving the UV coordinates at proper values.
+
+#+begin_src c
+void
+load_track_faces(Track *track, char *filename, u_short texturestart)
+{
+    // ...
+    for(long i = 0; i < track->numfaces; i++) {
+        // ...
+
+        if(track->faces[i].flags & FACE_FLIP_TEXTURE) {
+            track->faces[i].u0 = texture->u1;
+            track->faces[i].v0 = texture->v1;
+            track->faces[i].u1 = texture->u0;
+            track->faces[i].v1 = texture->v0;
+            track->faces[i].u2 = texture->u3;
+            track->faces[i].v2 = texture->v3;
+            track->faces[i].u3 = texture->u2;
+            track->faces[i].v3 = texture->v2;
+            continue;
+        }
+
+        track->faces[i].u0 = texture->u0;
+        track->faces[i].v0 = texture->v0;
+        track->faces[i].u1 = texture->u1;
+        track->faces[i].v1 = texture->v1;
+        track->faces[i].u2 = texture->u2;
+        track->faces[i].v2 = texture->v2;
+        track->faces[i].u3 = texture->u3;
+        track->faces[i].v3 = texture->v3;
+    }
+    // ...
+}
+#+end_src
+
+I was kind  of a smartass here. Since  the track faces are the  last thing we're
+populating, I  test and populate  the flipped UVs and  then proceed to  the next
+loop iteration. If  not, the loop will  populate the UVs like  before and finish
+the current iteration normally.
+
+All we  need to do  is flip  the UVs horizontally.  Remember that the  quads are
+described in  zigzag (so a  Z shape  if the normal  is facing our  camera). Just
+swap UV's 0 and 1, and then swap UV's 2 and 3.
+
+I also did a few quality-of-life changes to camera and camera movement as well:
+
+#+begin_src c
+// main.c
+
+// On setup function:
+setVector(&camera.position, ship->position.vx, ship->position.vy - 600, ship->position.vz - 1200);
+
+// On update function:
+if(joypad_check(PAD1_LEFT)) {
+    camera.position.vx -= 20;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    camera.position.vx += 20;
+}
+#+end_src
+
+
+I  also ended  up adding  a debug  toggle so  we can  draw our  lines only  when
+convenient:
+
+#+begin_src c
+/* globals.h */
+void   debug_toggle(void);
+u_char is_debugging(void);
+
+/* globals.c */
+static u_char debug = 0;
+
+// ...
+
+void
+debug_toggle(void)
+{
+    debug = !debug;
+}
+
+u_char
+is_debugging(void)
+{
+    return debug;
+}
+
+/* track.c, function render_track_section */
+for(u_long i = 0; i < section->numfaces; i++) {
+    // ...
+    if (otz > 0 && otz < OT_LEN) {
+        // ...
+        if(is_debugging()) {
+            line0 = (LINE_F2*)get_next_prim();
+            setLineF2(line0);
+            setXY2(line0, poly->x0, poly->y0, poly->x1, poly->y1);
+            setRGB0(line0, 255, 255, 0);
+            addPrim(get_ot_at(get_curr_buffer(), 0), line0);
+            increment_next_prim(sizeof(LINE_F2));
+
+            line1 = (LINE_F2*)get_next_prim();
+            setLineF2(line1);
+            setXY2(line1, poly->x1, poly->y1, poly->x3, poly->y3);
+            setRGB0(line1, 255, 255, 0);
+            addPrim(get_ot_at(get_curr_buffer(), 0), line1);
+            increment_next_prim(sizeof(LINE_F2));
+
+            line2 = (LINE_F2*)get_next_prim();
+            setLineF2(line2);
+            setXY2(line2, poly->x3, poly->y3, poly->x2, poly->y2);
+            setRGB0(line2, 255, 255, 0);
+            addPrim(get_ot_at(get_curr_buffer(), 0), line2);
+            increment_next_prim(sizeof(LINE_F2));
+
+            line3 = (LINE_F2*)get_next_prim();
+            setLineF2(line3);
+            setXY2(line3, poly->x2, poly->y2, poly->x0, poly->y0);
+            setRGB0(line3, 255, 255, 0);
+            addPrim(get_ot_at(get_curr_buffer(), 0), line3);
+            increment_next_prim(sizeof(LINE_F2));
+        }
+        // ...
+    }
+    // ...
+}
+
+/* main.c, function update */
+if(joypad_check_tap(PAD1_TRIANGLE)) {
+    debug_toggle();
+}
+#+end_src
+
+
+[[file:img/flipped-textures.png]]
+
+* Flip Face Texture
+
+See above. :)
+

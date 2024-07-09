@@ -1,0 +1,214 @@
+#+title: Subroutines & Negative Numbers
+#+startup: content
+
+* Factorial Subroutine
+
+We're going to turn Factorial (from ~factorial.s~) into a subroutine.
+
+We do that by considering the following:
+
+1. Calling a function: use the ~jal~  instruction (jump with link) This jumps to
+   the ~Factorial~ label, but sets the register ~$ra~ as a returning register;
+2. Arguments are set in the ~$ax~  registers, so we'll be using ~$a0~ to receive
+   the number.
+3. At the end  of the function, use ~jr~ (jump to register)  to jump back to the
+   address saved  in the ~$ra~ register.  As explained before, this  address was
+   saved when we used the ~jal~ instruction.
+4. As  common practice,  we add  an infinite  loop on  our main  function, after
+   ~Factorial~ returns.
+
+#+begin_src asm :tangle exercises/src/factorialsub.s
+	.psx
+	.create "factorialsub.bin", 0x80010000
+	.org 0x80010000
+Main:
+	li	$a0, 0x6
+	jal	Factorial
+	nop
+
+Halt:	j Halt
+	nop
+
+;;; Subroutine to compute the factorial of a number.
+;;; Argument: num ($a0)
+Factorial:
+	li	$t3, 0x1	; temp
+	li	$t4, 0x1	; sum
+	li	$t1, 0x1	; i
+L1:	bgt	$t1, $a0, EndL1
+	nop
+	move	$t4, $zero
+	move	$t2, $zero	; j
+	nop
+L2:	bge	$t2, $t1, EndL2
+	nop
+	addu	$t4, $t3
+	addiu	$t2, 0x1
+	j	L2
+	nop
+EndL2:
+	move	$t3, $t4
+	addiu	$t1, 0x1
+	j	L1
+	nop
+EndL1:
+	move	$v0, $t4	; $v0 receives the final result (sum)
+	jr	$ra		; return from the subroutine
+	nop
+
+End:
+	.close
+#+end_src
+
+* Negative Numbers & Two's Complement
+
+Some instructions  in MIPS assembly  are suffixed with  an ~u~. This  means that
+they perform operations with _unsigned_ numbers.
+
+This is because, for each number, we can interpret it also as _signed_ numbers.
+
+If we take a look at the following number represented in binary format...
+
+#+begin_example
+01101101
+#+end_example
+
+...it  is neither  negative nor  positive  at a  first  glance; it  is simply  a
+byte. How we choose to interpret it,  however, defines whether it is negative or
+positive.
+
+Whenever we  have a binary  number, we  can take its  base (2) and  multiply the
+decimal value  of each  individual bit to  a power of  two, that  increases from
+least significant bit to most significant bit. Like so:
+
+| 2^7 | 2^6 | 2^5 | 2^4 | 2^3 | 2^2 | 2^1 | 2^0 | Value                       |
+|-----+-----+-----+-----+-----+-----+-----+-----+-----------------------------|
+|   0 |   1 |   1 |   0 |   1 |   1 |   0 |   1 | 2^6 + 2^5 + 2^3 + 2^2 + 2^0 |
+|     |     |     |     |     |     |     |     | 64 + 32 + 8 + 4 + 1         |
+|     |     |     |     |     |     |     |     | 109                         |
+
+
+Take a look at this example as well:
+
+| 2^7 | 2^6 | 2^5 | 2^4 | 2^3 | 2^2 | 2^1 | 2^0 | Value                 |
+|-----+-----+-----+-----+-----+-----+-----+-----+-----------------------|
+|   1 |   0 |   1 |   0 |   1 |   0 |   1 |   0 | 2^7 + 2^5 + 2^3 + 2^1 |
+|     |     |     |     |     |     |     |     | 128 + 32 + 8 + 2      |
+|     |     |     |     |     |     |     |     | 170 (unsigned)        |
+
+If we start considering the difference  between signed and unsigned numbers, the
+first binary  number (109) will remain  the same. The second  one, however, will
+not.
+
+From  an  unsigned perspective,  the  second  number is  170  --  and from  this
+perspective, the greatest value  that we can represent (if it  all bits were on)
+would be 255. So we have a range ~0x00~ to ~0xff~.
+
+We're talking about an unsigned BYTE,  but we can extend that rationalization to
+other types. an unsigned HALF ranges from ~0x0000~ to ~0xffff~ (0 to 65,535), and
+an unsigned WORD ranges from ~0x00000000~ to ~0xffffffff~ (0 to 4,294,967,295).
+
+** So what about negative numbers?
+
+Intuitively we know that  we can reserve a bit of the number  to tell whether it
+is positive or negative.
+
+So we  end up  reserving the  most significant bit  of the  number to  tell just
+whether  the number  is  negative. If  it  is  flipped on,  then  the number  is
+negative. That bit is called a _sign bit_.
+
+But that's  not all.  We can't just  store numbers this  way. For  the remaining
+bits, we  interpret them  as a  two's complement,  so that  bitwise mathematical
+operations don't break.
+
+This  means that,  mathematically, instead  of having  the most  significant bit
+represent just a  sign bit with no value,  we make it worth ~-2^7~  as a decimal
+equivalent. Like so:
+
+| -2^7 | 2^6 | 2^5 | 2^4 | 2^3 | 2^2 | 2^1 | 2^0 | Value                  |
+|------+-----+-----+-----+-----+-----+-----+-----+------------------------|
+|    1 |   0 |   1 |   0 |   1 |   0 |   1 |   0 | -2^7 + 2^5 + 2^3 + 2^1 |
+|      |     |     |     |     |     |     |     | -128 + 32 + 8 + 2      |
+|      |     |     |     |     |     |     |     | -86 (signed)           |
+
+In practice, this gives us the formula:  take the non-sign bits; subtract 128 if
+the sign bit is on (for the BYTE  case), and you'll have the signed value of the
+number.
+
+This  also means  that, in  a  certain way,  if  our number  is negative,  we're
+starting at -128 and  "shrinking" its absolute value at each  flipped bit to the
+right.
+
+So now, considering the zero in the middle, we know that we can represent, using
+a signed BYTE, the range -128 to 127.
+
+Same goes for  other types: a signed  HALF ranges from -32,768 to  32,767, and a
+signed WORD ranges from -2,147,483,648 to 2,147,483,647.
+
+** Why is this so important?
+
+- There is only one way to represent zero.
+- The sign bit still tells us if the number is positive (~0~) or negative (~1~).
+- _Addition and subtraction work out of the box the same way!_
+
+* Sign extension
+
+What happens if we try to move a signed  number from 8 bits to 16 bits? Well, in
+this case,  we need to move  the sign of the  number to the leftmost  bit on the
+slot or register we're trying to fit it.
+
+- If the number is _positive_, simply fill the new bits to the left with zeroes.
+
+  ~0011_1001~ (8 bits) => ~0000_0000_0011_1001~ (16 bits)
+
+- If the  number is _negative_, all  we need to do  is fill the new  bits to the
+  left with ones. This way, we keep the two's complement aspect of it.
+
+  ~1011_1001~ (8 bits) => ~1111_1111_1011_1001~ (16 bits)
+
+  So, to simplify:  look at the original  number's sign bit, and  then just keep
+  copying it to the left.
+
+* Logical Bitwise instructions
+
+I know all about that, so I'm just gonna go pretty fast through it.
+
+These perform bitwise operations. You know the drill.
+
+| Description  | Instruction |
+|--------------+-------------|
+| Logical AND  | ~and~       |
+| Logical OR   | ~or~        |
+| Exclusive-OR | ~xor~       |
+
+
+- You'll see programmers  use a bitwise instruction to "mask"  certain bits of a
+  byte.
+- A logical OR is true when at least one of the inputs is true.
+- An Exclusive-OR is similar to a normal  logical OR, with the exception that it
+  is false when both inputs are true.
+
+* Bitshifting instructions
+
+I know  all about shifting bits  left and right as  well. So again I'm  gonna go
+through with it.
+
+| Description                  | Instruction & syntax  | Loses sign bit? | Immediate bits? |
+|------------------------------+-----------------------+-----------------+-----------------|
+| Shift right logical          | ~srl dest, reg, bits~ | Yes             | Yes             |
+| Shift left logical           | ~sll dest, reg, bits~ | Yes             | Yes             |
+| Shift right arithmetic       | ~sra dest, reg, bits~ | No              | Yes             |
+| Shift right logical variable | ~srlv dest, reg, qt~  | Yes             | No              |
+| Shift left logical variable  | ~sllv dest, reg, qt~  | Yes             | No              |
+| Shift right arithmetic var.  | ~srav dest, reg, qt~  | No              | No              |
+| Rotate right                 | ~vror dest, reg, qt~  | Yes             | No              |
+| Rotate left                  | ~rol dest, reg, qt~   | Yes             | No              |
+
+- The  _arithmetic shifts_  keep  the  sign bit,  maintaining  the  sign of  the
+  original number.
+- To use registers on the amount of  bits to be shifted on the shift operations,
+  use their _variable_ variant, which works  by basically appending a ~v~ to the
+  end of the instruction.
+- The _rotate_ instructions have no arithmetic variant.
+- Shiting left/right  are _faster_  ways to perform  _multiplication/division by
+  2_, respectively.

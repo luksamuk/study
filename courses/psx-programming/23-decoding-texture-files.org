@@ -1,0 +1,1055 @@
+#+title: Decoding Texture Files
+#+startup: content
+
+* CMP File Layout
+
+We're gonna load ~ALLSH.CMP~.
+
+Just by opening the file  on a hex editor, we can see that  the CMP files are on
+_little endian_.
+
+- CMP files store a list of TIM textures inside.
+- CMP files use a *little-endian* order of bytes.
+- Each texture is stored *compressed* inside the CD-ROM.
+- The  algorithm used  for compression  is *LZSS*  (Lempel-Ziv-Storer-Szymansk),
+  which is also lossless.
+
+So what is the file layout? Well...
+
+1. The number of textures (~long~).
+2. A vector of the *uncompressed* sizes of TIM textures (each is a ~long~).
+3. TIM files, *compressed*, one after the other (you'd have to convert the sizes
+   to know the offsets....)
+
+So I  looked it up here,  you can't know the  compressed file size from  what we
+have. We can  only know it after  uncompressing. Or, rather -- we  would need to
+decompress anyway, so knowing the compressed size is simply not worth it!
+
+I managed to  build a pattern for ImHex for  handling .CMP files. Unfortunately,
+it is not that useful.
+
+#+begin_src c
+#include <std/mem.pat>
+
+struct CmpFile {
+    le u32 numtextures;
+    le u32 unpackedLen[numtextures];
+    le u8  compressedData[while(!std::mem::eof())];
+};
+
+
+CmpFile file @ 0x00;
+#+end_src
+
+[[file:img/imhex003.png]]
+
+I also found a nice guide on LZSS compression [[https://go-compression.github.io/algorithms/lzss/][here]].
+
+* Reading Number of Textures from File
+
+Remember to include ~ALLSH.CMP~ on our CD-ROM.
+
+#+begin_src fundamental
+          File ALLSH.CMP
+            XaFileAttributes Form1 Data
+            Source [GameDir]\ASSETS\COMMON\ALLSH.CMP
+          EndFile
+#+end_src
+
+#+begin_src xml
+      <file name="ALLSH.CMP" type="data" source="ASSETS/COMMON/ALLSH.CMP" />
+#+end_src
+
+We're going  to create a  function to  load our file,  and we'll call  it before
+loading our object, since all we're going to do is basically upload the textures
+to VRAM.
+
+#+begin_src c
+// on setup
+// ...
+load_texture_cmp("\\ALLSH.CMP;1");
+load_object_prm(&object, "\\ALLSH.PRM;1");
+#+end_src
+
+Now declare files ~texture.h~ and ~texture.c~.
+
+#+begin_src c
+#ifndef TEXTURE_H
+#define TEXTURE_H
+
+void load_texture_cmp(char *filename);
+
+#endif
+#+end_src
+
+
+#+begin_src c
+#include "texture.h"
+#include <sys/types.h>
+
+void
+load_texture_cmp(char *filename)
+{
+    u_long b, i;
+    u_long length;
+    u_char *bytes
+    // code goes here
+}
+#+end_src
+
+First things that we are going to are...
+
+1. Read the actual file from disk into buffer;
+2. Fetch the number of textures.
+
+Well that's easy enough.
+
+#+begin_src c
+#include "utils.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+// ...
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+
+    u_long numtextures = get_long_le(bytes, &b);
+    printf("Number of textures: %lu\n", numtextures);
+
+    free3(bytes);
+#+end_src
+
+* More on LZSS Compression
+
+Some more resources on LZSS:
+
+- [[https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv%E2%80%93Storer%E2%80%93Szymanski][Wikipedia article]]
+- It uses dictionary coding, but the dictionary is not external; it is a sliding
+  window containing  the last N symbols  encoded/decoded; the larger the  N, the
+  longer it takes to search the whole  dictionary for a match, and the more bits
+  will be required to store the offset there.
+- Many compression methods like ARJ and RAR  use LZSS instead of LZ77 as primary
+  compression method.
+- The Game Boy Advance BIOS has a small LZSS decoder.
+- The Mac OS X uses LZSS as one of the compression methods for the kernel.
+- We're going to be using the  LZSS decoding algorithm from the original wipEout
+  code that was [[https://www.reddit.com/r/WipeOut/comments/tpny6a/the_source_code_for_wipeout_has_been_released/][leaked in 2021]].
+- Here's that [[https://go-compression.github.io/algorithms/lzss/][LZSS compression guide]] again.
+  
+* Reading TIM Sizes from File
+
+Let's keep incrementing our ~load_texture_cmp~ function.
+
+Next on our list is look at the sizes of all TIM files and allocate them.
+
+So first things first,  we're going to accumulate the total  size in a variable,
+and then we can work with that total  size. Also, we'll save the offsets of each
+TIM on the memory we allocated for them.
+
+Finally, we're going to allocate the space to  load the TIM files -- and then we
+loop over the offsets we stored, which  are currently relative, and add the base
+address of the newly allocated vector. This way, our offset vector will now hold
+absolute base addresses.
+
+#+begin_src c
+void
+load_texture_cmp(char *filename)
+{
+    u_long b, i;
+    u_long length;
+    u_char *bytes;
+    u_long numtextures;
+
+    static u_long timoffsets[400];
+    static void   *timsbaseaddr;
+    
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+
+    numtextures = get_long_le(bytes, &b);
+    printf("Number of textures: %lu\n", numtextures);
+
+    u_long totalsize = 0;
+    for(u_long i = 0; i < numtextures; i++) {
+        timoffsets[i] = totalsize;
+        u_long timsize = get_long_le(bytes, &b);
+        printf("TIM %lu size (uncompressed): %lu B\n", i, timsize);
+        totalsize += timsize;
+    }
+    printf("Total size: %lu B\n", totalsize);
+    timsbaseaddr = malloc3(totalsize);
+
+    // Correct offsets
+    for(u_long i = 0; i < numtextures; i++) {
+        timoffsets[i] += (u_long)timsbaseaddr;
+    }
+
+    // TODO
+
+    free3(bytes);
+    
+    free3(timsbaseaddr);
+}
+#+end_src
+
+Now we still have two things to do:
+
+1. Uncompress all TIM textures, starting  at memory position bytes[b], using the
+   LZSS algorithm, into ~timsbaseaddr~;
+2. Upload all uncompressed TIM textures (and their CLUTs) to VRAM.
+
+* A Function to Extract LZSS Data
+
+** Copying the LZSS files
+
+So  the  LZSS  files were  provided  and  I'm  going  to provide  them  here  as
+well. These were also tweaked a little so they fit my code writing tastes.
+
+~lzss.h~:
+
+#+begin_src c
+#ifndef LZSS_H
+#define LZSS_H
+
+#define INDEX_BIT_COUNT       13
+#define LENGTH_BIT_COUNT      4
+#define WINDOW_SIZE           (1 << INDEX_BIT_COUNT)
+#define BREAK_EVEN            ((1 + INDEX_BIT_COUNT + LENGTH_BIT_COUNT ) / 9)
+#define END_OF_STREAM         0
+#define MOD_WINDOW(a)         ((a) & (WINDOW_SIZE - 1))
+
+void expand_lzss_data(unsigned char *indata, unsigned char *outdata);
+
+#endif
+#+end_src
+
+~lzss.c~:
+
+#+begin_src c
+#include "lzss.h"
+
+void
+expand_lzss_data(unsigned char *indata, unsigned char *outdata)
+{
+    short         i;
+    short         current_position;
+    unsigned char cc;
+    short         match_length;
+    short         match_position;
+    unsigned long mask;
+    unsigned long return_value;
+    unsigned char inBfile_mask;
+    short         inBfile_rack;
+    short         value;
+    unsigned char window[WINDOW_SIZE];
+
+    inBfile_rack = 0;
+    inBfile_mask = 0x80;
+
+    current_position = 1;
+    for (;;) {
+        if (inBfile_mask == 0x80)
+             inBfile_rack = (short)*indata++;
+
+        value = inBfile_rack & inBfile_mask;
+        inBfile_mask >>= 1;
+        if (inBfile_mask == 0)
+            inBfile_mask = 0x80;
+
+        if (value) {
+            mask = 1L << (8 - 1);
+            return_value = 0;
+            while (mask != 0) {
+                if (inBfile_mask == 0x80)
+                     inBfile_rack = (short)*indata++;
+
+                if (inBfile_rack & inBfile_mask)
+                    return_value |= mask;
+                mask >>= 1;
+                inBfile_mask >>= 1;
+
+                if (inBfile_mask == 0)
+                    inBfile_mask = 0x80;
+            }
+            cc = (unsigned char) return_value;
+            ,*outdata++ = cc;
+            window[current_position] = cc;
+            current_position = MOD_WINDOW(current_position + 1);
+        } else {
+            mask = 1L << (INDEX_BIT_COUNT - 1);
+            return_value = 0;
+            while (mask != 0) {
+                if (inBfile_mask == 0x80)
+                     inBfile_rack = (short)*indata++;
+
+                if (inBfile_rack & inBfile_mask)
+                    return_value |= mask;
+                mask >>= 1;
+                inBfile_mask >>= 1;
+
+                if (inBfile_mask == 0)
+                    inBfile_mask = 0x80;
+            }
+            match_position = (short) return_value;
+
+            if (match_position == END_OF_STREAM)
+                    break;
+
+            mask = 1L << (LENGTH_BIT_COUNT - 1);
+            return_value = 0;
+            while (mask != 0) {
+                if (inBfile_mask == 0x80)
+                     inBfile_rack =  (short)*indata++;
+
+                if (inBfile_rack & inBfile_mask)
+                    return_value |= mask;
+                mask >>= 1;
+                inBfile_mask >>= 1;
+
+                if (inBfile_mask == 0)
+                    inBfile_mask = 0x80;
+            }
+            match_length = (short) return_value;
+
+            match_length += BREAK_EVEN;
+
+            for (i = 0; i <= match_length; i++) {
+                cc = window[MOD_WINDOW( match_position + i )];
+                ,*outdata++ = cc;
+                window[current_position] = cc;
+                current_position = MOD_WINDOW(current_position + 1);
+            }
+        }
+    }
+}
+#+end_src
+
+** Uncompressing data
+
+So let's start decompressing.
+
+#+begin_src c
+#include "lzss.h"
+// ...
+expand_lzss_data(&bytes[b], timsbaseaddr);
+free3(bytes);
+
+// TODO: Upload TIMs to VRAM
+
+free3(timsbaseaddr);
+#+end_src
+
+* Texture Structs
+
+This is going to be a little annoying, because we're going to have to handle the
+data as it comes  from the file. So there is a certain  order of bytes and there
+will be a few types which we'll need to declare.
+
+** Defining structs and macros
+
+So  let's start  by  declaring  our ~Texture~  struct,  with  its parts  already
+disposed in  the order they're  going to be  read. This is  going to sit  on the
+~texture.h~ file.
+
+#+begin_src c
+typedef struct {
+    short type;
+    short tpage;
+    short clut;
+    short clutX;
+    short clutY;
+    short clutW;
+    short clutH;
+    short textureX;
+    short textureY;
+    short textureW;
+    short textureH;
+    short u0;
+    short v0;
+    short u1;
+    short v1;
+    short u2;
+    short v2;
+    short u3;
+    short v3;
+} Texture;
+#+end_src
+
+We'll also need to declare two more structs, that represent a texture whether it
+has an 8-bit or a 4-bit CLUT:
+
+#+begin_src c
+typedef struct {
+    long  id;
+    long  flags;
+    long  clutBytes;
+    short clutX;
+    short clutY;
+    short clutW;
+    short clutH;
+    short clut[256];
+    long  textureBytes;
+    short textureX;
+    short textureY;
+    short textureW;
+    short textureH;
+} TimClut8;
+
+typedef struct {
+    long  id;
+    long  flags;
+    long  clutBytes;
+    short clutX;
+    short clutY;
+    short clutW;
+    short clutH;
+    short clut[16];
+    long  textureBytes;
+    short textureX;
+    short textureY;
+    short textureW;
+    short textureH;
+} TimClut4;
+#+end_src
+
+For these CLUT-based textures, we're going to  have to look at the ~flags~ value
+to decide the nature of the texture and CLUT.
+
+However, we're going to take a look at the source code of wipEout and just mimic
+what was done there.
+
+Now we're going  to have a final  struct that encompasses the  two first generic
+values of the ~TimClutX~ structs:
+
+#+begin_src c
+typedef struct {
+    long id;
+    long flags;
+} Tim;
+#+end_src
+
+Let's also copypaste some definitions from wipEout itself:
+
+#+begin_src c
+#define CLUT4       0x00
+#define CLUT8       0x01
+#define TRUE15      0x10
+
+#define CLUT_4BIT   0
+#define CLUT_8BIT   1
+#define CLUT_15BIT  2
+
+#define TRANSLUCENT 1
+
+#define CLUT(x, y)        ((y << 6) | x)
+#define TPAGE(c, a, x, y) ((c << 7) | (a << 5) | ((x >> 6) + ((y & 0x100) >> 4)))
+
+#define TEXTUREHOFFSET(x) (x & 0xffc0)
+#define TEXTUREVOFFSET(y) (y & 0x100)
+
+#define CLUTTYPE(t)       (t->flags & 7)
+#+end_src
+
+** Uploading textures to VRAM
+
+Now back to ~texture.c~, let's upload those textures just like we wanted.
+
+We're going to iterate over the textures and upload each of them to the VRAM.
+
+#+begin_src c
+    // Upload to VRAM
+    printf("Uploading textures to VRAM...\n");
+    for(u_long i = 0; i < numtextures; i++) {
+        upload_texture_to_vram(timoffsets[i]);
+    }
+
+    free3(timsbaseaddr);
+#+end_src
+
+We're  going now  to  declare this  ~upload_texture_to_vram~  function (at  this
+point, don't forget to declare ~upload_texture_to_vram~ on ~texture.h~):
+
+#+begin_src c
+Texture *
+upload_texture_to_vram(u_long ptr)
+{
+    // TODO
+}
+#+end_src
+
+We're going to have to:
+
+1. Cast ~ptr~ to the correct type (~TimClut4~ or ~TimClut8~);
+2. Populate a Texture object with Texture and CLUT RECTs;
+3. Set the correct X, Y, W, H, UV coords;
+4. Call ~LoadImage~ and ~DrawSync(0)~ (from  ~libgpu~):
+   - For the CLUT;
+   - For the texture.
+
+* Uploading CMP Textures to VRAM
+
+Let's start our implementation.
+
+First things first, let's  start by verifying the TIM type.  We're also going to
+create a generic ~Texture~ pointer which we can return later.
+
+#+begin_src c
+#include <libgte.h>
+
+//...
+Texture *texture = NULL;
+Tim *tim = (Tim *) ptr;
+RECT rect;
+
+switch(CLUTTYPE(tim)) {
+case CLUT_4BIT: {
+    TimClut4 *tc4 = (TimClut4 *)tim;
+    texture = (Texture *)malloc3(sizeof(Texture));
+    texture->type = CLUT4;
+    texture->textureX = tc4->textureX;
+    texture->textureY = tc4->textureY;
+    texture->textureW = tc4->textureW;
+    texture->textureH = tc4->textureH;
+    texture->clutX    = tc4->clutX;
+    texture->clutY    = tc4->clutY;
+    texture->clutW    = tc4->clutW;
+    texture->clutH    = tc4->clutH;
+
+    u_short x = tc4->textureX - TEXTUREHOFFSET(tc4->textureX),
+        y = tc4->textureY - TEXTUREVOFFSET(tc4->textureY);
+
+    texture->u0 = (x << 2);
+    texture->v0 = y;
+    texture->u1 = ((x + tc4->textureW) << 2) - 1;
+    texture->v1 = y;
+    texture->u2 = (x << 2);
+    texture->v2 = (y + tc4->textureH) - 1;
+    texture->u3 = ((x + tc4->textureW) << 2) - 1;
+    texture->v3 = (y + tc4->textureH) - 1;
+
+    texture->tpage = TPAGE(CLUT_4BIT, TRANSLUCENT, texture->textureX, texture->textureY);
+    texture->clut  = CLUT(texture->clutX >> 4, texture->clutY);
+
+    // Load CLUT into VRAM
+    rect.x = tc4->clutX;
+    rect.y = tc4->clutY;
+    rect.w = tc4->clutW;
+    rect.h = tc4->clutH;
+    LoadImage(&rect, (u_long *)tc4->clut);
+    DrawSync(0);
+
+    // Load texture into VRAM
+    rect.x = tc4->textureX;
+    rect.y = tc4->textureY;
+    rect.w = tc4->textureW;
+    rect.h = tc4->textureH;
+    LoadImage(&rect, (u_long *)(tc4 + 1));
+    DrawSync(0);
+    } break;
+case CLUT_8BIT: {
+    TimClut8 *tc8 = (TimClut8 *)tim;
+    texture = (Texture *)malloc3(sizeof(Texture));
+    texture->type = CLUT8;
+    texture->textureX = tc8->textureX;
+    texture->textureY = tc8->textureY;
+    texture->textureW = tc8->textureW;
+    texture->textureH = tc8->textureH;
+    texture->clutX    = tc8->clutX;
+    texture->clutY    = tc8->clutY;
+    texture->clutW    = tc8->clutW;
+    texture->clutH    = tc8->clutH;
+
+    u_short x = tc8->textureX - TEXTUREHOFFSET(tc8->textureX),
+        y = tc8->textureY - TEXTUREVOFFSET(tc8->textureY);
+
+    texture->u0 = (x << 2);
+    texture->v0 = y;
+    texture->u1 = ((x + tc8->textureW) << 2) - 1;
+    texture->v1 = y;
+    texture->u2 = (x << 2);
+    texture->v2 = (y + tc8->textureH) - 1;
+    texture->u3 = ((x + tc8->textureW) << 2) - 1;
+    texture->v3 = (y + tc8->textureH) - 1;
+
+    texture->tpage = TPAGE(CLUT_8BIT, TRANSLUCENT, texture->textureX, texture->textureY);
+    texture->clut  = CLUT(texture->clutX >> 4, texture->clutY);
+
+    // Load CLUT into VRAM
+    rect.x = tc8->clutX;
+    rect.y = tc8->clutY;
+    rect.w = tc8->clutW;
+    rect.h = tc8->clutH;
+    LoadImage(&rect, (u_long *)tc8->clut);
+    DrawSync(0);
+
+    // Load texture into VRAM
+    rect.x = tc8->textureX;
+    rect.y = tc8->textureY;
+    rect.w = tc8->textureW;
+    rect.h = tc8->textureH;
+    LoadImage(&rect, (u_long *)(tc8 + 1));
+    DrawSync(0);
+    } break;
+default: break;
+};
+
+return texture;
+#+end_src
+
+So after verifying the type, as we  can see, we're going to populate our texture
+pointer with actual information. When calculating  our four UVs for the texture,
+we use those handy macros we defined before. Finally, we calculate the TPAGE and
+CLUT location for our texture.
+
+At last, we determine the CLUT rectangle  and upload its bytes to VRAM; and then
+we do the same for the texture itself.
+
+Ok, that should be it. Now we should  be able to see these textures on our VRAM,
+at least.
+
+[[file:img/cmprender.png]]
+
+* Global Texture Store Array
+
+So let's look back at how we're loading our objects from .PRM files.
+
+#+begin_src c
+// From TYPE_FT3 case
+prm->texture   = get_short_be(bytes, &b); // Texture number
+prm->clut      = get_short_be(bytes, &b);
+prm->tpage     = get_short_be(bytes, &b);
+#+end_src
+
+~prm->texture~ is an index of a texture in an array of textures.
+
+So let's go ahead and create a global texture store in ~texture.c~.
+
+#+begin_src c
+// In texture.h
+#define MAX_TEXTURES       800
+
+// In texture.c
+static Texture *texturestore[MAX_TEXTURES];
+static u_short  texturecount = 0;
+
+//...
+
+static u_long timoffsets[MAX_TEXTURES];
+
+//...
+
+// Upload to VRAM
+printf("Uploading textures to VRAM...\n");
+for(i = 0; i < numtextures; i++) {
+    printf("Uploading texture %lu...\n", i);
+    Texture *texture = upload_texture_to_vram(timoffsets[i]);
+    if(texture != NULL) texturestore[texturecount++] = texture;
+    if(texturecount >= MAX_TEXTURES)
+        printf("Warning: Texture global store is full!\n");
+}
+#+end_src
+
+Now create some getters:
+
+#+begin_src c
+Texture *
+get_from_texture_store(u_int i) {
+    return texturestore[i];
+}
+
+u_short
+get_texture_count() {
+    return texturecount;
+}
+#+end_src
+
+** Using textures within object
+
+Back to ~object.c~, let's use our textures:
+
+#+begin_src c
+#include "texture.h"
+
+// At the beginning of load_object_prm
+Texture *texture;
+u_short uoffset, voffset;
+
+// At end of TYPE_FT3 and TYPE_GT3 cases
+texture = get_from_texture_store(prm->texture);
+uoffset = texture->u0;
+voffset = texture->v0;
+prm->u0 += uoffset;
+prm->v0 += voffset;
+prm->u1 += uoffset;
+prm->v1 += voffset;
+prm->u2 += uoffset;
+prm->v2 += voffset;
+prm->tpage = texture->tpage;
+prm->clut  = texture->clut;
+
+// At the end of TYPE_FT4 and TYPE_GT4 cases
+texture = get_from_texture_store(prm->texture);
+uoffset = texture->u0;
+voffset = texture->v0;
+prm->u0 += uoffset;
+prm->v0 += voffset;
+prm->u1 += uoffset;
+prm->v1 += voffset;
+prm->u2 += uoffset;
+prm->v2 += voffset;
+prm->u3 += uoffset;
+prm->v3 += voffset;
+prm->tpage = texture->tpage;
+prm->clut  = texture->clut;
+#+end_src
+
+Ok, now all we have to do is use the actual textures in our rendering.
+
+* Rendering Textured Triangles
+
+Here's what we need to do:
+
+1. Don't hardcode the colors. We're going to load them.
+2. Use gouraud shading when available.
+3. Pass on the texture information when available.
+
+I'll  just  go  ahead  and  provide the  entire  ~render_object~  function  from
+~object.c~ since it is mostly boilerplate.
+
+#+begin_src c
+void
+render_object(Object *object, Camera *camera)
+{
+    int i;
+    short nclip;
+    long otz, p, flg;
+
+    MATRIX worldmat;
+    MATRIX viewmat;
+
+    RotMatrix(&object->rotation, &worldmat);
+    TransMatrix(&worldmat, &object->position);
+    ScaleMatrix(&worldmat, &object->scale);
+
+    CompMatrixLV(&camera->lookat, &worldmat, &viewmat);
+
+    SetRotMatrix(&viewmat);
+    SetTransMatrix(&viewmat);
+
+    for (i = 0; i < object->numprimitives; i++) {
+        switch (object->primitives[i].type) {
+        case TYPE_F3: {
+            POLY_F3* poly;
+            F3* prm;
+            prm = (F3*) object->primitives[i].primitive;
+            poly = (POLY_F3*) get_next_prim();
+            SetPolyF3(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_F3));
+            }
+            } break;
+        case TYPE_G3: {
+            POLY_G3* poly;
+            G3* prm;
+            prm = (G3*) object->primitives[i].primitive;
+            poly = (POLY_G3*) get_next_prim();
+            SetPolyG3(poly);
+            setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+            setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+            setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_G3));
+            }
+            } break;
+        case TYPE_FT3: {
+            POLY_FT3* poly;
+            FT3* prm;
+            prm = (FT3*) object->primitives[i].primitive;
+            poly = (POLY_FT3*) get_next_prim();
+            SetPolyFT3(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV3(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_FT3));
+            }
+            } break;
+        case TYPE_GT3: {
+            POLY_GT3* poly;
+            GT3* prm;
+            prm = (GT3*) object->primitives[i].primitive;
+            poly = (POLY_GT3*) get_next_prim();
+            SetPolyGT3(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_avsz3();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV3(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_GT3));
+            }
+            } break;
+        case TYPE_F4: {
+            POLY_F4* poly;
+            F4* prm;
+            prm = (F4*) object->primitives[i].primitive;
+            poly = (POLY_F4*) get_next_prim();
+            SetPolyF4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_F4));
+            }
+            break;
+            }
+        case TYPE_G4: {
+            POLY_G4* poly;
+            G4* prm;
+            prm = (G4*) object->primitives[i].primitive;
+            poly = (POLY_G4*) get_next_prim();
+            SetPolyG4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                setRGB3(poly, prm->color[3].r, prm->color[3].g, prm->color[3].b);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_G4));
+            }
+            break;
+            }
+        case TYPE_FT4: {
+            POLY_FT4* poly;
+            FT4* prm;
+            prm = (FT4*) object->primitives[i].primitive;
+            poly = (POLY_FT4*) get_next_prim();
+            SetPolyFT4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color.r, prm->color.g, prm->color.b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV4(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2, prm->u3, prm->v3);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_FT4));
+            }
+            break;
+            }
+        case TYPE_GT4: {
+            POLY_GT4* poly;
+            GT4* prm;
+            prm = (GT4*) object->primitives[i].primitive;
+            poly = (POLY_GT4*) get_next_prim();
+            SetPolyGT4(poly);
+            gte_ldv0(&object->vertices[prm->coords[0]]);
+            gte_ldv1(&object->vertices[prm->coords[1]]);
+            gte_ldv2(&object->vertices[prm->coords[2]]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip < 0) {
+                continue;
+            }
+            gte_stsxy0(&poly->x0);
+            gte_ldv0(&object->vertices[prm->coords[3]]);
+            gte_rtps();
+            gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz > 0 && otz < OT_LEN) {
+                setRGB0(poly, prm->color[0].r, prm->color[0].g, prm->color[0].b);
+                setRGB1(poly, prm->color[1].r, prm->color[1].g, prm->color[1].b);
+                setRGB2(poly, prm->color[2].r, prm->color[2].g, prm->color[2].b);
+                setRGB3(poly, prm->color[3].r, prm->color[3].g, prm->color[3].b);
+                poly->tpage = prm->tpage;
+                poly->clut = prm->clut;
+                setUV4(poly, prm->u0, prm->v0, prm->u1, prm->v1, prm->u2, prm->v2, prm->u3, prm->v3);
+                addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+                increment_next_prim(sizeof(POLY_GT4));
+            }
+            break;
+            }
+        default: break;
+        }
+    }
+}
+#+end_src
+
+* Visualizing Textured 3D Objects
+
+[[file:img/noice.png]]
+
+Noice. :)
+
+* TSB & CBA
+
+Let us understand the implementation of macros ~CLUT~ and ~TPAGE~.
+
+#+begin_src c
+#define CLUT(x, y)         ((y << 6) | x)
+#define TPAGE(c, a, x, y)  ((c << 7) | (a << 5) | ((x >> 6) + ((y & 0x100) >> 4)))
+#+end_src
+
+They are implemented like this because  of how the PlayStation primitives expect
+TPAGE and CLUT values to be encoded.
+
+When we set the CLUT value of a polygon primitive, the PlayStation expects it to
+be  in a  special format  called CBA,  which  encodes inside  both the  Y and  X
+coordinates of our CLUT on VRAM.
+
+The information for the CBA can be seen on [[https://psx.arthus.net/sdk/Psy-Q/DOCS/Devrefs/Filefrmt.pdf][Sony File Format Documentation]].
+
+The CBA is a 16-bit value.  The six least-significant (rightmost) bits encode the
+X coordinate value, and the nine  most-significant bits (excepting the last bit)
+encode the Y coordinate value. So this is why Y is shifted 6 bits to the left on
+~CLUT()~ macro.
+
+As for the ~TPAGE()~ macro, something like that happens. It uses a format called
+~TSB~.
+
+~TSB~  encodes,  in   a  single  32-bit  number,  the  values   for  the  TPAGE,
+semi-transparency rate (ABR), and the pixel depth used by the texture.
+
+The least-significant  (rightmost) bits  encode the  TPN (texture  page number);
+then  after there  is  a translucence  rate (ABR)  for  blending foreground  and
+background at differente rates); and then, the pixel-depth of the texture (TPF).
+
+** Texture offsets
+
+As for our magic texture offset numbers...
+
+#+begin_src c
+#define TEXTUREHOFFSET(x)  (x & 0xffc0)
+#define TEXTUREVOFFSET(y)  (y & 0x100)
+#+end_src
+
+Remember that we're looking for the texture offset wrt. a TPAGE cell, so:
+
+- ~0xffc0~  is  the  bit  pattern  ~1111_1111_1100_0000~,  which  masks  the  10
+  most-significant bits of a 16-bit value.
+- ~0x100~ is simply the decimal number 256;  256 is the height of our TPAGE, and
+  also half the height of our entire VRAM.
+
+If we use these masks to mask the values on both X and Y of our textures, we get
+a remainder which  should be subtracted from these values,  thus "limiting" them
+to  values relative  to our  TPAGE  position --  which  is exactly  what our  UV
+coordinates are!
+
+Again,  this  is basically  us  saving  calculations involving  calculating  the
+leftmost top  position of our  TPAGE on  VRAM so we  could subtract it  from the
+texture X and Y. Instead, by masking our values, we can do both these arithmetic
+steps with a simple AND and a subtraction.
+
+

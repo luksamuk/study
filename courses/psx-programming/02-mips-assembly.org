@@ -1,0 +1,624 @@
+#+title: MIPS Assembly
+#+startup: content
+
+* CPU Registers & Load Instructions
+
+- MIPS registers are ranged from ~r0~ through ~r31~. But they do have mnemonics.
+- MIPS registers also hold 32 bits, or 4 bytes.
+
+| Actual registers | Mnemonics  | Rough description                              |
+|------------------+------------+------------------------------------------------|
+| r0               | $zero      | Always holds the constant 0.                   |
+| r1               | $at        | Temporary register (for the assembler)         |
+| r2, r3           | $v0, $v1   | First and second return values                 |
+| r4 -- r7         | $a0 -- $a3 | Argument registers (function call args)        |
+| r8 -- r15        | $t0 -- $t7 | Temporary/volatile registers                   |
+| r16 -- r23       | $s0 -- $s7 | Saved/non-volatile registers                   |
+| r24, r25         | $t8, $t9   | More temporary/volatile registers              |
+| r26, r27         | $k0, $k1   | Kernel registers, reserved for the kernel      |
+| r28              | $gp        | Global pointer, points to a global memory area |
+| r29              | $sp        | Stack pointer                                  |
+| r30              | $fp        | Value of $sp before the current function call  |
+| r31              | $ra        | Return address (linked jump)                   |
+
+More info here: https://wiki.arthus.net/?psxdev-registers
+
+We're going to use the ~$tx~ registers for now.
+
+** Size of MIPS Types
+
+| Name  | Size              | C equivalent type |
+|-------+-------------------+-------------------|
+| BYTE  | 1 byte (8 bits)   | char              |
+| HALF  | 2 bytes (16 bits) | short             |
+| WORD  | 4 bytes (32 bits) | int / long        |
+| DWORD | 8 bytes (64 bits) | long long         |
+
+Notice that, in x86_64, the size of ~long~ type differs:
+
+#+begin_src C :includes <stdio.h> :exports both :cache yes
+printf("%d\n", sizeof(char));
+printf("%d\n", sizeof(short));
+printf("%d\n", sizeof(int));
+printf("%d\n", sizeof(long));
+printf("%d\n", sizeof(long long));
+#+end_src
+
+#+RESULTS[09a9208d0abe4d4711f702b271eb31639b7ea986]:
+| 1 |
+| 2 |
+| 4 |
+| 8 |
+| 8 |
+
+** Load instructions
+
+*** ~li~ -- Load immediate
+
+Load an immediate value into the destination register.
+
+~li dest,val~
+
+Example:
+
+#+begin_src asm
+	li	$t0,10
+#+end_src
+
+*** ~la~ -- Load address
+
+Load immediate address into the destination register.
+
+Works fairly like ~li~, but supports  labels, and some assemblers might complain
+if you just use ~li~.
+
+~la dest,addr~
+
+Example:
+
+#+begin_src asm
+Label:
+	la	$t2,Label
+#+end_src
+
+*** ~lb~ -- Load one byte from memory
+
+Load one byte from memory in the described address.
+
+~lb dest,addr~
+
+Example:
+
+#+begin_src asm
+	lb	$t3,0x8000($t0)
+#+end_src
+
+The instruction  above loads  the contents  of address  ~0x8000~, offset  by the
+value in ~$t0~, into ~$t3~.
+
+*** ~lbu~ -- Load one unsigned byte from memory
+
+Just like ~lb~, but unsigned.
+
+#+begin_src asm
+	lbu	$t3,0x8000($t0)
+#+end_src
+
+*** ~lui~ -- Load upper immediate
+
+Loads immediate 4-byte value into upper bytes of the target.
+
+~lui dest,val~
+
+Example:
+
+#+begin_src asm
+	lui	$t4,0x8001
+#+end_src
+
+The instruction above makes ~$t4~ contain the value ~0x80010000~.
+
+*** Other "load" instructions
+
+These are equivalent to ~lb~ and ~lbu~:
+
+| Instruction | Meaning                            |
+|-------------+------------------------------------|
+| lb          | Load one BYTE from memory          |
+| lh          | Load one HALF from memory          |
+| lw          | Load one WORD from memory          |
+| lbu         | Load one unsigned BYTE from memory |
+| lhu         | Load one unsigned HALF from memory |
+| lwu         | Load one unsigned WORD from memory |
+
+In advanced MIPS  processors, there are instructions to load  DWORDs, but in our
+case, there is no such thing.
+
+** Trivia
+
+- MIPS doesn't  have a traditional stack,  so the stack is  essentially having a
+  value on ~$sp~ and using sp-relative loads and stores.
+- The ~$gp~ points to a global memory area so it is always accessible.
+- The ~$s0~  -- ~$s7~ registers are  non-volatile. In other words,  they must be
+  saved and restored at the beginning and end of a function call, respectively.
+- ~$fp~ is less useful in MIPS than x86, since the ~PUSH~ and ~POP~ instructions
+  are less common here. In MIPS, ~$sp~  is typically adjusted once on entry to a
+  function and sp-relative addressing can be used. [[https://stackoverflow.com/a/48469323][See this answer on StackOverflow]].
+- ~$zero~ is not special  except for the fact that 0 is  a very useful constant,
+  so the designers of MIPS ISA dedicated a register for it. [[https://stackoverflow.com/a/32233978][See this answer on
+  StackOverflow]].
+- Values can have decimal (~10~), hexadecimal (~0xfe~) notation.
+
+* Store Instructions, Addition & Subtraction
+
+** Store instructions
+
+Consider the following example
+
+#+begin_src asm
+	lui	$t0,0x1f80
+	li	$t1,0x12345678
+	sw	$t1,0x1810($t0)	; store one word at 0x1f801810
+#+end_src
+
+The  instruction ~sw  src,ptr~ stores  a  word from  ~src~ at  ~ptr~ address  in
+memory.
+
+Notice that ~$t0~ represents an offset  for the store instruction; in this case,
+it contains ~0x1f800000~.
+
+If you  recall from  the [[./01-hardware.org][Hardware]] class, ~0x1f800000~ is  the base  address for
+mapping the GPU registers. ~0x1f801810~,  specifically, is the write address for
+~GP0~, so we're sending a command or  packet to the GPU to control rendering and
+VRAM.
+
+Here  are some  equivalent instructions.  The  logic is  the same  for the  load
+instructions.
+
+| Instruction | Description               |
+|-------------+---------------------------|
+| sw          | Store one WORD at address |
+| sh          | Store one HALF at address |
+| sb          | Store one BYTE at address |
+
+** Add & Subtract instructions
+
+*** Signed operations
+
+Between registers:
+
+#+begin_src asm
+	add	$t0,$t1,$t2	; $t0 = $t1 + $t2 (signed addition)
+	sub	$a0,$a0,$a2	; $a0 = $a0 - $a2 (signed subtraction)
+#+end_src
+
+Between registers and actual numbers:
+
+#+begin_src asm
+	addi	$t0,$t1,5	; Add immediate. $t0 = $t1 + 5
+	; there is NO subi instruction. Just use negative values.
+	addi	$t0,$t1,-5
+#+end_src
+
+*** Unsigned operations
+
+#+begin_src asm
+	addu	$s0,$s1,$s1	; $s0 = $s1 + $s1 (unsigned addition)
+	addiu	$s0,$s1,7	; Add immediate unsigned. $s0 = $s1 + 7
+#+end_src
+
+* Jump & Branch Instructions
+
+** Jump instructions
+
+#+begin_src asm
+Loop:
+	j Loop	; unconditional jump. No tests.
+	nop
+
+	la $a3,0x8001001
+	jr $a3	; jump to register
+	nop
+
+	jal MySubroutine	; jump and link
+	nop
+#+end_src
+
+- ~jal~ is a jump  that memorizes the address of the caller.  The address of the
+  caller is saved to special register ~$ra~.
+
+** Branch instructions
+
+These are basically conditional jumps.
+
+#+begin_src asm
+Loop:
+	beq	$t0,$t1,Loop	; branch if equals (if $t0 == $t1 goto Loop)
+	nop
+
+	bne	$t0,$t1,Loop	; branch if not equals (if $t0 != $t1 goto Loop)
+	nop
+#+end_src
+
+Other cases:
+
+| Instruction | Description                            |
+|-------------+----------------------------------------|
+| b           | Branch unconditionally                 |
+| blt         | Branch if less than (signed)           |
+| bltu        | Branch if less than (unsigned)         |
+| bgt         | Branch if greater than (signed)        |
+| bgtu        | Branch if created than (unsigned)      |
+| ble         | Branch if less or equals (signed)      |
+| bleu        | Branch if less or equals (unsigned)    |
+| bge         | Branch if greater or equals (signed)   |
+| bgeu        | Branch if greater or equals (unsigned) |
+
+** Trivia
+
+- In some  places we are  adding a _no  operation_ (~nop~) instruction.  A ~nop~
+  does nothing;  it simply consumes  some clock cycles.  This is related  to the
+  processor pipeline. This ensures some safety, but we'll get to that soon.
+- So why use ~b~  instead of ~j~? According to this  StackOverflow link, ~b~ may
+  allow  shorter addresses  (since  it  takes up  more  space),  but allows  for
+  position-independent code,  so you don't have  to relink stuff as  if you were
+  using ~j~. So ~b~ is nice for shorter branches.
+  
+* MIPS Instructions Cheat Sheet
+
+There is a  simplified MIPS instruction cheat sheet provided  with the course. I
+converted it to PDF so I can view it more easily within emacs.
+
+[[file:./MIPSCheatSheet.pdf][MIPSCheatSheet.pdf]]
+
+* *EXERCISE:* Our First MIPS Assembly Code
+
+An example code:
+
+#+begin_src asm
+; code entry point
+.org	0x80010000
+
+	; constant declaration
+	BASE_ADDR equ 0x0000
+
+Main:
+	li	$t0,0xa000
+	li	$t1,0xa0ff
+	li	$t2,0x11
+
+Loop:
+	sb	$t2,BASE_ADDR($t0)
+	addi	$t0,$t0,1
+	blt	$t0,$t1,Loop
+
+.close
+#+end_src
+
+** Answer
+
+This  code  iterates  over  255  bytes  (ranged  from  address  ~0x0000a000~  to
+~0x0000a0ff~)  and stores  the value  ~0x11~ (16)  on each  byte. The  iteration
+happens by  having ~$t0~ as  an address iterator,  which is incremented  at each
+step. When  ~$t0~ is greater or  equal than ~$t1~, the  iteration doesn't branch
+back on the loop anymore.
+
+** Trivia
+
+- ~.org~ is an _assembler directive_, and not an instruction. They are important
+  only to  the assembler and the  linker. This is the  _origin directive_, which
+  determines  the entry  point of  our code;  in other  words, it  instructs the
+  assembler and the linker the address where the code should be put in memory.
+
+* Understanding Our First MIPS Code
+
+See above.
+
+* MIPS Assembly Syntax Rules
+
+- Labels are  always placed on the  far left of the  document. MIPS instructions
+  must be indented to the right.
+- Indentation can use tabs or spaces, as long as we're consistent.
+- Assembler directives are also indented to the left.
+- Register names are traditionally written using a ~$~ prefix, but ~armips~ will
+  also accept register names without a prefix.
+- It is a  good practice to write the instructions  using lowercase, even though
+  ~armips~ accepts uppercase; other assemblers might not be so forgiving.
+
+* Installing the ARMIPS Assembler
+
+** ARMIPS
+
+GitHub project link: https://github.com/Kingcom/armips
+
+We're using version 0.11.0.
+
+If you're using  Windows, just download it.  If you're a Linux  hipster like me,
+clone the repository and build it,
+
+Also, if you're using Arch (btw), there is an ~armips-git~ PKGBUILD available on
+AUR.
+
+** Emulator
+
+We'll       be      using       PCSX-Redux.      GitHub       project      link:
+https://github.com/grumpycoders/pcsx-redux
+
+*MAKE SURE YOU ENABLE FAST BOOT ON Configuration > Emulation > check Fast Boot*.
+
+It is GREAT for debugging, and uses ImGui too!
+
+Make sure you download the AppImage if you're on Linux. Easy as that.
+
+*** Trivia
+
+I  heard that  ~no$px~ *IS*  the  best emulator  around,  and it  works well  on
+Windows, but I found  out that DuckStation is pretty decent too --  and it has a
+debugger. So try it out as well if you need to.
+
+* Assembling our MIPS Code
+
+Create a file ~src/fillmem.s~ containing our example code.
+
+#+begin_src asm
+	.psx
+	.create "fillmem.bin", 0x80010000
+	.org 0x80010000
+
+	BASE_ADDR equ 0x0000
+
+Main:
+	li	$t0, 0xa000
+	li	$t1, 0xa0ff
+	li	$t2, 0x11
+
+Loop:
+	sb	$t2, BASE_ADDR($t0)
+	addi	$t0, $t0, 1
+	blt	$t0, $t1, Loop
+
+End:
+	.close
+#+end_src
+
+Assemble the code:
+
+#+begin_src bash :eval never
+armips src/fillmem.s
+#+end_src
+
+** Trivia
+
+- Some new directives were added:
+  - ~.psx~: Tells the assembler the target architecture we are aiming for.
+  - ~.create~: Tells  the assembler the name  of the output file,  starting at a
+    specific address we already discussed.
+  - ~.org~: Still  tells the entrypoint  for the code.  See that it  works along
+    with ~.create~.
+  - ~.close~: As the name implies, ends the code.
+
+* The PSX-EXE File Format
+
+Right   now  the   ~fillmem.bin~  is   just  a   raw  binary   file  with   MIPS
+instructions. But  the PlayStation expects the  file to be in  a certain format,
+not just  raw instructions.  It has  to conform to  a specific  standard, called
+PSX-EXE.
+
+It is similar to the standard UNIX ELF format; it's a MIPS 32-bit executable for
+the PlayStation that contains both code and data.
+
+The first 2048 bytes contain a standard header format:
+
+| Offset | Size     | Description                                                            |
+|--------+----------+------------------------------------------------------------------------|
+|  0x000 | 8 bytes  | "PS-X EXE" (magic number)                                              |
+|  0x010 | 4 bytes  | execution start address                                                |
+|  0x018 | 4 bytes  | starting address of TEXT section                                       |
+|  0x01c | 4 bytes  | size of TEXT section                                                   |
+|  0x030 | 4 bytes  | stack (~$sp~) start address                                            |
+|  0x04c | variable | "Sony Computer Entertainment Inc. for North America" (region specific) |
+
+To convert the file, use the [[./bin2exe.py][bin2exe.py]] script.
+
+#+begin_src bash :eval never
+python3 bin2exe.py fillmem.bin fillmem.psexe
+#+end_src
+
+(I  actually  put  ~bin2exe.py~  at ~$HOME/.local/bin/bin2psxexe~  and  made  it
+executable, so all I have to do is run the ~bin2psxexe~ command).
+
+In my case, see that the Linux  ~file~ command now gives valid information about
+the generated executable:
+
+#+begin_src bash :eval never
+file fillmem.psexe
+#+end_src
+
+#+begin_example
+fillmem.ps-exe: Sony Playstation executable PC=0x80010000, GP=0xffffffff, .text=[0x80010000,0x800], Stack=0x801fff00, ()
+#+end_example
+
+* Emulator & Step-By-Step Execution
+
+Use PCSX-Redux. Some tips:
+
+1. Configuration >  Emulation. Disable Dynarec CPU  (dynamic recompiling) before
+   it bites you in the rear. Use File > Reboot to reboot the system.
+2. Debug  > Rendering  > Uncheck  Full window render.   This way,  the emulation
+   screen will be draggable within the app.
+3. Debug > CPU > Show Registers. This will show the CPU registers, of course.
+4. Debug > CPU > Show Assembly. Shows actual MIPS instructions.
+5. Debug > Show Logs. Shows some important messages.
+6. Debug > CPU > Memory Editors > Memory Editor #1.
+
+Here's a screenshot of how I set up my workspace.
+
+[[file:img/workspace.png]]
+
+Now load the file from File > Load binary.
+
+On the  assembly window, type  the code start  address (80010000) on  the bottom
+left field, press enter, and you'll jump to the beginning of the code.
+
+Right click the first instruction > Toggle Breakpoint.
+
+On the  memory editor, use  the box at  the right of the  range values to  go to
+position 8000a000, so we can inspect the memory as well.
+
+On  the Registers  box, notice  how ~pc~  has the  value 80010000.  This is  the
+program counter, and it has the address of where we're currently at in the code.
+
+On the  Assembly window, if you  press Step In, you  should be able to  see ~pc~
+increment and the arrow move.
+
+While stepping,  you'll notice that  ~blt~ doesn't branch immediately,  it still
+runs for two more instructions before the ~pc~ loops back how it was supposed to
+be. It  relates to the usage  of the ~nop~  instruction (or, for this  code, the
+lack of it).
+
+There is a bug: The memory on 0xa0ff was not written. We need to fix this.
+
+** Fixing the bug
+
+Just  replace the  ~blt~ instruction  with ~ble~,  since we  still need  to keep
+incrementing when ~$t0~ == ~t1~.
+
+If  you want  to  keel  using ~blt~,  just  programatically  increment ~$t1~  or
+initialize it to ~0xa100~.
+
+#+begin_src asm :tangle exercises/src/fillmem.s
+	.psx
+	.create "fillmem.bin", 0x80010000
+	.org 0x80010000
+
+	BASE_ADDR equ 0x0000
+
+Main:
+	li	$t0, 0xa000
+	li	$t1, 0xa0ff
+	li	$t2, 0x11
+
+Loop:
+	sb	$t2, BASE_ADDR($t0)
+	addi	$t0, $t0, 1
+	ble	$t0, $t1, Loop
+End:
+	.close
+#+end_src
+
+Now assembling and generating the binary on my machine...
+
+#+begin_src bash :eval never
+armips src/fillmem.s
+bin2psxexe fillmem.bin fillmem.psexe
+#+end_src
+
+* Fixing the Off-By-One bug
+
+See the previous exercise.
+
+Something interesting:  the ~ble~ instruction  is roughly replaced  by something
+like this:
+
+#+begin_src asm
+	slt	$at, $t1, $t0
+	beq	$at, $zero, Loop
+#+end_src
+
+I noticed the following things:
+
+1. ~$at~ is the assembler-reserved register.
+2. Instead  of comparing whether ~$t0~  is smaller than ~$t1~,  the assembler is
+   smart enough to invert these things  and create two instructions: since ~$t0~
+   is   always  being   incremented   and  we   want  to   compare   if  it   is
+   less-or-equal-than ~$t1~, we just have to:
+   - Make an inverted comparison (is ~$t1~ < ~$t0~?), store the results in ~$at~
+     (~slt~ is "Set on Less Than",  which stores the boolean comparison on ~$at~
+     here. 1 for true, 0 for false).
+   - If ~$at~ is equal 0 (if the  previous comparison was false), jump to ~Loop~
+     label (~beq~ = branch if equals).
+   - ~$at~ will continue to be false until ~$t0~ surpassed the value on ~$t1~.
+
+I will  create a proper  ~Makefile~ for  our studies as  well, but in  a proper,
+generic way:
+
+#+begin_src makefile :tangle exercises/Makefile
+.PHONY: clean purge
+
+all: ;
+
+%.psexe: src/%.s
+	armips $<
+	python3 ../bin2exe.py $(subst .psexe,,$@).bin $@
+
+clean:
+	rm *.bin
+
+purge:
+	rm *.psexe
+#+end_src
+
+Now all I have to do is add a target, and any homonymous ~.s~ file in the ~src/~
+folder will be compiled as needed. All I have to do is run ~make~.
+
+To build the current app, use:
+
+#+begin_src bash :eval never
+make fillmem.psxexe
+#+end_src
+
+* Pseudo-Instructions
+
+What if we wanted to store an entire word in memory?
+
+#+begin_src asm :tangle exercises/src/fillmemw.s
+	.psx
+	.create "fillmemw.bin", 0x80010000
+	.org 0x80010000
+
+	BASE_ADDR equ 0x0000
+
+Main:
+	li	$t0, 0xa000
+	li	$t1, 0xa0ff
+	li	$t2, 0x12345678
+
+Loop:
+	sw	$t2, BASE_ADDR($t0)
+	addi	$t0, $t0, 4
+	ble	$t0, $t1, Loop
+End:
+	.close
+#+end_src
+
+To build with my Makefile:
+
+#+begin_src bash :eval never
+make fillmemw.psxexe
+#+end_src
+
+There  is a  little  problem  with the  instruction  that  puts ~0x12345678~  in
+register ~$t2~. All instructions in MIPS  assembly have a fixed size of 32-bits,
+but since our ~0x12345678~ value is already  a 32-bit operand, there would be no
+more  space  for the  actual  instruction  and register  name.  So  what is  the
+assembler doing here?
+
+So MIPS assembly and the  assembler allow something called _pseudo-opcodes_, and
+this is an  example of it. So this  instruction will be replaced by  one or more
+instructions, so in this  case it uses ~la~ in such a  way that two instructions
+are executed; first it loads the two MSB and then the two LSB.
+
+We don't really have  to worry about it, since this is  the assembler's job. The
+assembler and the CPU might even try to optimize the execution, which is a plus.
+
+** Trivia
+
+Pseudo-opcodes are  valid MIPS instructions that  do not have a  direct hardware
+implementation  and  are provided  as  a  convenience  for the  programmer.  The
+assembler translates them to one or more equivalent MIPS instructions.
+
+* PlayStation Emulators
+
+- No$psx:
+  - http://www.psxdev.net/forum/viewtopic.php?t=4017
+  - http://problemkaputt.de/psx.htm

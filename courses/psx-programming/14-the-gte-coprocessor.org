@@ -1,0 +1,531 @@
+#+title: The GTE Coprocessor
+#+startup: content
+
+* ~RotTransPers~ Function
+
+We're now going to start coding what we've discussed so far.
+
+Now that we have declared our vertices and  faces, we want to be able to perform
+rotation, translationd and scaling. So we're  going to declare three vectors for
+each transformation.
+
+#+begin_src c
+SVECTOR rotation    = {0, 0, 0};
+VECTOR  translation = {0, 0, 480};
+VECTOR  scale       = {ONE, ONE, ONE};
+#+end_src
+
+Notice that  we didn't  use a constant  such as ~1.0~  when declaring  the scale
+vector,  instead we  used the  ~ONE~ constant.  This is  because the  GTE has  a
+"special" way of encoding numbers.
+
+We're using an  ~SVECTOR~ for the rotation  because they're not going  to be big
+values, so  16-bit per  axis is  enough. Translation and  scaling, though,  is a
+different story; they will demand an entire ~VECTOR~.
+
+Our ~scale~  vector is unitary in  all three dimensions because  we don't really
+want to scale anything (also known as identity).
+
+We will then declare the world matrix:
+
+#+begin_src c
+MATRIX  world = {0};
+#+end_src
+
+Or matrix is basically an arrangement of  values so that we can encode rotation,
+translation and scale into a single matrix.
+
+What we  need to do now  is clear our  ordering table, and start  populating our
+data.
+
+#+begin_src c
+void
+update(void)
+{
+    ClearOTagR(ot[currbuff], OT_LENGTH);
+
+    RotMatrix(&rotation, &world);
+    TransMatrix(&world, &translation);
+    ScaleMatrix(&world, &scale);
+
+    SetRotMatrix(&world);
+    SetTransMatrix(&world);
+
+    // ...
+}
+#+end_src
+
+After clearing  our ordering table, the  first block of function  calls populate
+rotation, translation and scale values into the world matrix.
+
+The second block of functions sets the  world matrix to be used for rotation and
+translation by the GTE, for the following calls.
+
+Now we can properly sort each face into the ordering table, like this:
+
+#+begin_src c
+poly = (POLY_F3*)nextprim;
+SetPolyF3(poly);
+setRGB0(poly, 255, 0, 0);
+
+otz = 0;
+otz += RotTransPers(&vertices[faces[0]], (long*)&poly->x0, &p, &flg);
+otz += RotTransPers(&vertices[faces[1]], (long*)&poly->x1, &p, &flg);
+otz += RotTransPers(&vertices[faces[2]], (long*)&poly->x2, &p, &flg);
+otz /= 3;
+
+addPrim(ot[currbuff][otz], poly);
+nextprim += sizeof(POLY_F3);
+#+end_src
+
+The first  block is us  setting up a flat-shaded  red triangle on  the primitive
+buffer. Let's assume ~poly~ is a global variable we declared somewhere else.
+
+Next, we're  going to rotate, translate,  and project the vertices.  Then, we'll
+output the results  into our primitive. These three operations  are performed by
+the ~RotTransPers~ function (rotation, translation, perspective divide). In this
+case, we chose to invoke this function per vertex.
+
+Arguments passed  to ~RotTransPers~  are a  pointer to the  vertex of  the given
+face, a pointer to the output, and  two extra ponters: ~p~ and ~flg~, which will
+be explained later, but  right now we're not going to use ~p~,  and ~flg~ is for
+flag values.
+
+Notice that we pass  as output the address of ~x0~, but we  are ALSO saving into
+~y0~; it is assumed that ~y0~ is right after ~x0~ on memory, so we're implicitly
+writing to it  too! Notice that we're  casting the address of ~x0~  to a ~long*~
+pointer, but ~x0~ and ~y0~ are actually of ~short~ type.
+
+The ~otz~  value is the  _ordering table  Z depth_. The  GTE is smart  enough to
+generate the Z  value for our ordering  table, thus telling us  where the vertex
+should  be   drawn.  We  sum  all   the  values  generated  for   each  call  to
+~RotTransPers~, then measure them  (hence the division by 3), and  so we get our
+~otz~ value.
+
+The  last code  block is  just us  adding the  primitive to  the ordering  table
+position that  was pre-calculated  into ~otz~,  and then  we bump  our primitive
+buffer pointer.
+
+Notice that  averaging the depth per  triangle *does* create some  artifacts, so
+some  triangles may  end  up over  others  when they're  not  supposed to  (some
+Z-fighting and visual glitches).
+
+* Coding a Rotating 3D Cube
+
+** Project skeleton
+
+Let's start with a project skeleton just  like the one before, but including our
+vertex and face data.
+
+#+begin_src c
+#include <stdlib.h>
+#include <libgte.h>
+#include <libetc.h>
+#include <libgpu.h>
+
+#define VIDEO_MODE 0
+#define SCREEN_RES_X 320
+#define SCREEN_RES_Y 240
+#define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
+#define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
+#define SCREEN_Z 400
+
+#define OT_LENGTH 256
+
+#define NUM_VERTICES  8
+#define NUM_FACES    12
+
+SVECTOR vertices[] = {
+    { -128, -128, -128 },
+    {  128, -128, -128 },
+    {  128, -128,  128 },
+    { -128, -128,  128 },
+    { -128,  128, -128 },
+    {  128,  128, -128 },
+    {  128,  128,  128 },
+    { -128,  128,  128 }
+};
+
+short faces[] = {
+    0, 3, 2, // top
+    0, 2, 1,
+    4, 0, 1, // front
+    4, 1, 5,
+    7, 4, 5, // bottom
+    7, 5, 6,
+    5, 1, 2, // right
+    5, 2, 6,
+    2, 3, 7, // back
+    2, 7, 6,
+    0, 4, 7, // left
+    0, 7, 3
+};
+
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+DoubleBuff screen;
+short currbuff;
+
+u_long ot[2][OT_LENGTH];
+char primbuff[2][2048];
+char *nextprim;
+
+POLY_G3 *poly;
+
+SVECTOR rotation    = {0, 0, 0};
+VECTOR  translation = {0, 0, 900};
+VECTOR  scale       = {ONE, ONE, ONE};
+
+MATRIX  world = {0};
+
+void
+screen_init(void)
+{
+    // Reset GPU
+    ResetGraph(0);
+
+    // Set display and draw areas of buffers
+    SetDefDispEnv(&screen.disp[0], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[1], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+
+    // Set draw buffers as background buffers
+    screen.draw[0].isbg = 1;
+    screen.draw[1].isbg = 1;
+
+    // Set background clear color
+    setRGB0(&screen.draw[0], 63, 0, 127);
+    setRGB0(&screen.draw[1], 63, 0, 127);
+
+    // Set current initial buffer
+    currbuff = 0;
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // Initialize and setup the GTE geometry offsets
+    InitGeom();
+    SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+    SetGeomScreen(SCREEN_Z);
+
+    // Enable display
+    SetDispMask(1);
+}
+
+void
+display_frame(void)
+{
+    DrawSync(0);
+    VSync(0);
+
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // Sort objects in ordering table
+    DrawOTag(ot[currbuff] + OT_LENGTH - 1);
+
+    currbuff = !currbuff;
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    nextprim = primbuff[currbuff];
+}
+
+void
+setup(void)
+{
+    screen_init();
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    nextprim = primbuff[currbuff];
+}
+
+void
+update(void)
+{
+    ClearOTagR(ot[currbuff], OT_LENGTH);
+}
+
+void
+render(void)
+{
+    display_frame();
+}
+
+int
+main(void)
+{
+    setup();
+
+    while(1) {
+        update();
+        render();
+    }
+
+    return 0;
+}
+#+end_src
+
+What we did, apart from removing the unneeded variables, was:
+
+- Setting ~OT_LENGTH~ to 256, which should be enough;
+- Defined ~NUM_VERTICES~ and ~NUM_FACES~ to be 8 and 12, respectively;
+- Declared a pointer to a Gouraud-shaded triangle (~poly~);
+- Added  declarations  of  rotation,  translation, scale  vectors  as  discussed
+  previously;
+- Added declaration for a world matrix.
+
+** Rendering the cube
+
+The greatest change is going to be in the ~update~ function:
+
+#+begin_src c
+void
+update(void)
+{
+    int i;
+    long otz, p, flg;
+
+    // Empty the ordering table
+    ClearOTagR(ot[currbuff], OT_LENGTH);
+
+    // Populate world matrix with rotation, translation, scale values
+    RotMatrix(&rotation, &world);
+    TransMatrix(&world, &translation);
+    ScaleMatrix(&world, &scale);
+
+    // Sets world matrix to be used by the GTE for rotation and translation
+    SetRotMatrix(&world); // scale values are encoded with the rotation
+    SetTransMatrix(&world);
+
+    // Loop over all triangle faces
+    for(i = 0; i < NUM_FACES * 3; i += 3) {
+        poly = (POLY_G3*)nextprim;
+        setPolyG3(poly);
+        setRGB0(poly, 255, 0, 255);
+        setRGB1(poly, 0, 255, 0);
+        setRGB2(poly, 0, 255, 255);
+
+        otz = 0;
+        otz += RotTransPers(&vertices[faces[i]], (long*)&poly->x0, &p, &flg);
+        otz += RotTransPers(&vertices[faces[i + 1]], (long*)&poly->x1, &p, &flg);
+        otz += RotTransPers(&vertices[faces[i + 2]], (long*)&poly->x2, &p, &flg);
+        otz /= 3;
+
+        if((otz > 0) && (otz < OT_LENGTH)) {
+            addPrim(ot[currbuff][otz], poly);
+            nextprim += sizeof(POLY_G3);
+        }
+    }
+}
+#+end_src
+
+This is no  different than what was discussed before,  except now we're properly
+iterating over  each face (notice how  we increment ~i~ by  3 at the end  of the
+loop!!!).
+
+in the end of the loop, we also compare  and we don't add the primitive if it is
+smaller than 0 or greater than ~OT_LENGTH~.
+
+** Rotating the cube
+
+We can  increase the values  on our ~rotation~ vertex  so that the  cube rotates
+each frame.
+
+At the end of the ~update~ function, add the following:
+
+#+begin_src c
+rotation.vx += 6;
+rotation.vy += 8;
+rotation.vz += 12;
+#+end_src
+
+[[file:img/hellogte0.png]]
+
+So we are  rendering our cube, but  we still get these ugly  glitches related to
+rendering triangles that are facing away from  the camera. There are ways to fix
+it, especially when using normal clipping.
+
+* Normal Clip
+
+So, sometimes we're  getting depth fighting and seeing things  that we shouldn't
+see -- the back faces appearing in the front of the front ones, for example.
+
+There is a simple way to improve that. This is not perfect, but we can basically
+discard triangle faces that are "looking away" from us.
+
+This is what  we call _backface culling_ (called _normal  clipping_ by the GTE),
+and the GTE can help us with that. What  we're going to do is just clip away the
+faces based on their normal vector.
+
+Still on the ~update~ function, we'll start by declaring an integer value called
+~nclip~.
+
+#+begin_src c
+int i, nclip;
+#+end_src
+
+Now comment  out all  the parts  related to calculate  our ordering  table index
+(~otz~), and replace it with a smarter option:
+
+#+begin_src c
+nclip = RotAverageNclip3(
+    &vertices[faces[i]],
+    &vertices[faces[i + 1]],
+    &vertices[faces[i + 2]],
+    (long*)&poly->x0,
+    (long*)&poly->x1,
+    (long*)&poly->x2,
+    &p, &otz, &flg);
+
+if(nclip <= 0) continue;
+#+end_src
+
+The ~nclip~ always assumes a zero or negative value if the face normal is facing
+away from the camera.
+
+[[file:img/hellogte1.png]]
+
+:)
+
+* Exercise: Quads for Cube Faces
+
+I'm gonna attempt to implement the quad rendering thing.
+
+First of  all, I  changed my  project a  little bit.  We still  didn't introduce
+scaling, and I wanted to have both  cubes spinning side by side, but in opposite
+directions.
+
+So I tweaked the vertices a little bit so the cube had half its original size:
+
+#+begin_src c
+SVECTOR vertices[] = {
+    { -64, -64, -64 },
+    {  64, -64, -64 },
+    {  64, -64,  64 },
+    { -64, -64,  64 },
+    { -64,  64, -64 },
+    {  64,  64, -64 },
+    {  64,  64,  64 },
+    { -64,  64,  64 }
+};
+#+end_src
+
+I also didn't want  to redefine vertices, so I thought I  should just reuse them
+with quad elements. I simply declared a new array of quad faces:
+
+#+begin_src c
+#define NUM_QUAD_FACES 6
+
+short quad_faces[] = {
+    2, 1, 3, 0, // top
+    1, 5, 0, 4, // front
+    5, 6, 4, 7, // bottomn
+    2, 6, 1, 5, // right
+    7, 6, 3, 2, // back
+    7, 3, 4, 0  // left
+};
+#+end_src
+
+Notice that I had to tweak the order of these elements a little, since the order
+of the quad vertices matter a lot.
+
+I declared a gouraud-shaded quad pointer:
+
+#+begin_src c
+POLY_G4 *qpoly;
+#+end_src
+
+I also declared quad-only translation and rotation, plus I gave it its own world
+matrix. For the original cube, I had to translate it a little to the left, while
+the new one is translated a little to the right:
+
+#+begin_src c
+SVECTOR rotation    = {0, 0, 0};
+VECTOR  translation = {-160, 0, 900}; // Modified
+VECTOR  scale       = {ONE, ONE, ONE};
+
+SVECTOR quadrot     = {0, 0, 0};
+VECTOR  quadtrans   = {160, 0, 900};
+
+MATRIX  world = {0};
+MATRIX  quadworld = {0};
+#+end_src
+
+Now, all that remains is change the ~update~ function.
+
+We can  reuse the  same ordering  table, it has  enough space  for us  to render
+another cube.
+
+#+begin_src c
+void
+update(void)
+{
+    // ...preparation, first cube rendering, etc...
+
+    /* Cube rendering with quads */
+    RotMatrix(&quadrot, &quadworld);
+    TransMatrix(&quadworld, &quadtrans);
+    ScaleMatrix(&quadworld, &scale);
+    SetRotMatrix(&quadworld);
+    SetTransMatrix(&quadworld);
+
+    for(i = 0; i < NUM_QUAD_FACES * 4; i += 4) {
+        qpoly = (POLY_G4*)nextprim;
+        setPolyG4(qpoly);
+        setRGB0(qpoly, 255, 0, 0);
+        setRGB1(qpoly, 0, 255, 0);
+        setRGB2(qpoly, 0, 0, 255);
+        setRGB3(qpoly, 255, 255, 255);
+
+        nclip = RotAverageNclip4(
+            &vertices[quad_faces[i + 0]],
+            &vertices[quad_faces[i + 1]],
+            &vertices[quad_faces[i + 2]],
+            &vertices[quad_faces[i + 3]], 
+            (long*)&qpoly->x0,
+            (long*)&qpoly->x1,
+            (long*)&qpoly->x2,
+            (long*)&qpoly->x3,
+            &p, &otz, &flg);
+        
+        if(nclip <= 0) continue;
+
+        if((otz > 0) && (otz < OT_LENGTH)) {
+            addPrim(ot[currbuff][otz], qpoly);
+            nextprim += sizeof(POLY_G4);
+        }
+    }
+
+    // ......
+}
+#+end_src
+
+There really isn't much  to discuss here -- it all looks  the same, except we're
+preparing a Gouraud-shaded quad for each  face. As for applying the world matrix
+and  averaging  the  OTZ,  we  use the  function  ~RotAverageNclip4~,  which  is
+basically the same as its 3-vertex variant.
+
+Notice also that  the loop iterates on  quad faces, and that  these face indices
+are offset by 4  short values, which we take into  consideration when setting up
+our loop.
+
+Finally, just  add the cube's own  rotation at the end  of ~update~, subtracting
+instead of adding:
+
+#+begin_src c
+quadrot.vx -= 6;
+quadrot.vy -= 8;
+quadrot.vz -= 12;
+#+end_src
+
+[[file:img/hellogte2.png]]
+
+Nice! :D
+
+* Coding Quads as Cube Faces
+
+See what I did above.
+

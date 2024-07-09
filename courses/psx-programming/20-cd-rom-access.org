@@ -1,0 +1,1068 @@
+#+title: CD-ROM Access
+
+* CD-ROM Basics
+
+So far, all the data we've been using is in our executable.
+
+- We need more than 2MB of RAM for executable and assets.
+- We need images, textures, 3D mesh data, audio, etc.
+
+The PlayStation allows CD-ROM with up to 650 MB of information.
+
+The CD-ROM has sections and sectors, but it is also divided in areas such as the
+lead-in area, table of Content (TOC), and lead-out area.
+
+Hard  drives  are  magnetic  disks,  so   they  use  magnetic  forces  to  store
+information (repulsion and attraction are 1's and 0's).
+
+The  CD-ROM, though,  is  optic media,  so  it'll  either have  a  scratch or  a
+reflection simbolizing 0's and 1's.
+
+** Rainbow books
+
+The rainbow books are a collection of CD format specifications generally written
+and published by standards bodies including the ISO, IEC, and ECMA.
+
+| Kind   | Color   | Year | Description               |
+|--------+---------+------+---------------------------|
+| CD-DA  | Red     | 1980 | Digital Audio             |
+| CD-ROM | Yellow  | 1983 | Read-Only Memory          |
+| CD-I   | Green   | 1986 | Interactive               |
+| CD-RW  | Orange  | 1990 | Recordable & Rewritable   |
+| PCD    | Beige   | 1992 | Photo CD                  |
+| VCD    | White   | 1993 | Video CD & Super Video CD |
+| E-CD   | Blue    | 1995 | Enhanced                  |
+| SA-CD  | Scarlet | 1999 | Super Audio               |
+| DD-CD  | Purple  | 2000 | Double Density            |
+
+Source: [[https://en.wikipedia.org/wiki/Rainbow_Books][Wikipedia]]
+
+** Data tracks
+
+#+begin_example
+CD
+└─ Section 1
+   └─ Track 1
+      ├─ TEXTURES
+      │  └─ GRASS.TIM
+      └─ MODELS
+         ├─ CUBE.OBJ
+         └─ FLOOR.OBJ
+#+end_example
+
+- PlayStation CDs are  made up of small data blocks  called *sectors*, each 2048
+  bytes long.
+- Sectors are grouped in *tracks* (either data or audio), and tracks are grouped
+  into *sections*.
+- PS1 disks _usually_ contain one single data track.
+- Data track information is organized using the standard filesystem *ISO-9660*.
+
+** ISO generation with 32-bit toolchain
+
+For ISO generation on  32-bit contexts (Windows XP preferably), we  use a set of
+three tools.
+
+*** ~BUILDCD.EXE~
+
+Generates ~GAME.IMG~ image from ~CDLAYOUT.CTI~. Here is an example of this file:
+
+#+begin_src conf
+Define GameName "MyGame"
+Define GameDir .
+Disc CDROMXA_PSX
+  CatalogNumber 0000000000000
+  Leadin XA
+    Empty 300
+    PostGap 150
+  EndTrack
+
+  Track XA
+    Pause 150
+    Volume ISO9660
+      SystemArea .\LCNSFILE\LICENSEE.DAT
+      PrimaryVolume
+        SystemIdentifier "PLAYSTATION"
+        VolumeIdentifier [GameName]
+        VolumeSetIdentifier [GameName]
+        PublisherIdentifier "SCEE"
+        DataPreparerIdentifier "SONY"
+        ApplicationIdentifier "PLAYSTATION"
+        LPath
+        OptionalLpath
+        MPath
+        OptionalMpath
+
+        Hierarchy
+          XAFileAttributes  Form1 Audio
+          XAVideoAttributes ApplicationSpecific
+          XAAudioAttributes ADPCM_C Stereo
+
+          File SYSTEM.CNF
+            XAFileAttributes Form1 Data
+            Source [GameDir]\SYSTEM.TXT
+          EndFile
+
+          File MAIN.EXE
+            XAFileAttributes Form1 Data
+            Source [GameDir]\MAIN.EXE
+          EndFile
+
+          File CUBE.OBJ
+            XAFileAttributes Form1 Data
+            Source [GameDir]\CUBE.OBJ
+          EndFile
+        EndHierarchy
+      EndPrimaryVolume
+    EndVolume
+  EndTrack
+EndDisk
+#+end_src
+
+*** ~PSXLICENSE.EXE~
+
+Bundles the Sony license ~LICENSEE.DAT~ into CD image file.
+
+*** ~STRIPISO.EXE~
+
+Generate ~ISO~ file ~GAME.ISO~ from ~GAME.IMG~.
+
+*** Utility BAT file
+
+We would  probably have  to create  a ~BUILDISO.BAT~  helper file  somewhat like
+this:
+
+#+begin_src bat
+@ECHO OFF
+
+ECHO Compiling and generating executable...
+psymake
+
+ECHO Building IMG file...
+BUILDCD -l -iGAME.IMG CDLAYOUT.CTI
+
+ECHO Converting GAME.IMG to GAME.ISO...
+STRIPISO S 2352 GAME.IMG GAME.ISO
+
+ECHO Bundling license to game ISO...
+PSXLICENSE /eu /i GAME.ISO
+
+ECHO The ISO file was built successfully!
+#+end_src
+
+* Generating an ISO on Windows XP
+
+We're  going  to   build  a  new  project  that  we're   going  to  create  from
+scratch. It'll  be called ~hellocd~.  I simply copied  everything -- and  I also
+created the ~Cube~ and ~Floor~ structs just to be 1:1 with the course project.
+
+Instead of  encoding vertices and  faces on our project  code files, we  want to
+have more dynamic stuff. So we're gonna make these data external, as data files.
+
+On Windows XP, let's start by adding our ~CDTOOLS~ to the Path.
+
+** CD-ROM building files
+
+Now, let's add important files to our  directory. The files are:
+
+- ~LCNSFILE/LICENSEE.DAT~: Sony License file. I'm  not going to provide it here,
+  I'm sorry. It used to be redistributed along with the original Psy-Q SDK.
+- ~assets/model.bin~: Model data file.
+- ~SYSTEM.TXT~: CD-ROM configuration variables.
+- ~CDLAYOUT.CTI~:
+
+*** ~SYSTEM.TXT~
+
+These are the configurations for booting the CD-ROM.
+
+#+begin_src ini :tangle c/hellocd/SYSTEM.TXT
+BOOT=cdrom:\MAIN.EXE;1
+TCB=4
+EVENT=10
+STACK=801FFFF0
+#+end_src
+
+*** ~CDLAYOUT.CTI~
+
+These  are the  configurations for  building  the CD-ROM  image, licensing,  and
+ISO9660 filesystem configuration.
+
+#+begin_src conf :tangle c/hellocd/CDLAYOUT.CTI
+Define GameName "Game"
+Define GameDir .
+
+Disc CDROMXA_PSX
+  CatalogNumber 0000000000000
+
+  Leadin XA
+    Empty 300
+    PostGap 150
+  EndTrack
+
+  Track XA
+    Pause 150
+    Volume ISO9660
+      SystemArea .\LCNSFILE\LICENSEE.DAT
+
+      PrimaryVolume
+        SystemIdentifier "PLAYSTATION"
+        VolumeIdentifier [GameName]
+        VolumeSetIdentifier [GameName]
+        PublisherIdentifier "SCEE"
+        DataPreparerIdentifier "SONY"
+        ApplicationIdentifier "PLAYSTATION"
+        LPath
+        OptionalLpath
+        MPath
+        OptionalMpath
+
+        Hierarchy
+          XAFileAttributes  Form1 Audio
+          XAVideoAttributes ApplicationSpecific
+          XAAudioAttributes ADPCM_C Stereo
+
+          File SYSTEM.CNF
+            XAFileAttributes Form1 Data
+            Source [GameDir]\SYSTEM.TXT
+          EndFile
+
+          File MAIN.EXE
+            XAFileAttributes Form1 Data
+            Source [GameDir]\MAIN.EXE
+          EndFile
+
+          File MODEL.BIN
+            XAFileAttributes Form1 Data
+            Source [GameDir]\assets\MODEL.BIN
+          EndFile
+        EndHierarchy
+      EndPrimaryVolume
+    EndVolume
+  EndTrack
+EndDisk
+#+end_src
+
+** Generating ISO
+
+Provided that the  toolchain binaries are on  your PATH, this is  easy. Just use
+the following ~BUILDISO.BAT~ file to build the project and also build the ISO:
+
+#+begin_src bat c/hellocd/BUILDISO.BAT
+@ECHO OFF
+psymake
+BUILDCD -l -iGAME.IMG CDLAYOUT.CTI
+STRIPISO S 2352 GAME.IMG GAME.ISO
+PSXLICENSE /eu /i GAME.ISO
+#+end_src
+
+** The filesystem
+
+On No$psx, go to Window > Filesystem. There,  you should be able to see that the
+CD-ROM drive has  a single track (Track 01) of  data, containing three important
+files: ~SYSTEM.CNF~, ~MAIN.EXE~ and ~MODEL.BIN~.
+
+There is also going to be a ~License.txt~ file and a ~Logo.tmd~ file.
+
+There  would also  be  a final  dummy  track  (Track AA),  which  is the  CD-ROM
+lead-out.
+
+* Generating an ISO on Windows 11
+
+If you're using a modern Windows 11 machine, there is also a way to generate the
+ISO.
+
+Make sure you already have the ~assets/model.bin~ and ~SYSTEM.TXT~ files.
+
+You'll also need to download [[https://github.com/Lameguy64/mkpsxiso][~mkpsxiso~]] and install it to your path.
+
+In the  case of  the modern  toolchain, we  are going  to have  a ~CDLAYOUT.xml~
+file. It has  basically the same idea as ~CDLAYOUT.CTI~,  except we're declaring
+it as a XML format for a different tool that builds our CD.
+
+#+begin_src xml :tangle c/hellocd/CDLAYOUT.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="GAME.ISO" cue_sheet="GAME.CUE" no_xa="0">
+  <track type="data">
+    <identifiers
+	system        = "PLAYSTATION"
+	application   = "PLAYSTATION"
+	volume        = "MYDISC"
+	volume_set    = "GAME"
+	publisher     = "ME"
+	data_preparer = "MKPSXISO"
+	copyright     = "COPYLEFT" />
+    <license file="LCNSFILE/LICENSEE.DAT" />
+    <directory_tree>
+      <file name="SYSTEM.CNF" type="data" source="SYSTEM.TXT" />
+      <file name="MAIN.EXE" type="data" source="hellocd.ps-exe" />
+      <file name="MODEL.BIN" type="data" source="assets/model.bin" />
+    </directory_tree>
+  </track>
+</iso_project>
+#+end_src
+
+Now just run ~mkpsxiso~:
+
+#+begin_src powershell
+mkpsxiso CDLAYOUT.xml
+#+end_src
+
+** Using the ISO with PCSX-Redux
+
+After you  build the ISO image  for the first time,  think of it as  a read-only
+storage for our asset files. You can run the ISO image on PCSX-Redux no problem,
+but if you still  want to be able to debug your application  like you were doing
+before,  first load  the  image, then  just  press  ~F5~ on  VSCode  to run  the
+~.ps-exe~ directly from your machine.
+
+* Generating the project using Docker
+
+I took  the liberty of  creating a Docker  project containing the  toolchain for
+building  these. The  Docker image  contains  both the  GCC-MIPSEL compiler  and
+mkpsxiso.
+
+The Dockerfile for the toolchain can be found [[https://github.com/luksamuk/psxtoolchain][here]].
+
+#+begin_src bash :tangle c/hellocd/buildiso.sh
+#!/bin/bash
+exec docker run --rm \
+     -v $(pwd):/source \
+     -w /source \
+     luksamuk/psxtoolchain:latest \
+     "make && mkpsxiso -y CDLAYOUT.xml"
+#+end_src
+
+* What is ~SYSTEM.CNF~?
+
+This file is basically an ASCII ~.txt~ containing boot information for the disc,
+analogous to ~AUTOEXEC.BAT~ or ~CONFIG.SYS~ on old MS-DOS.
+
+The parameters provided are:
+
+- ~BOOT=cdrom:\MAIN.EXE;1~: tells  the main boot executable  (~;1~ specifies its
+  version, a filesystem property).
+- ~TCB=4~: provides information  about Thread Control Blocks  (maximum number of
+  threads).
+- ~EVENT=10~: provides information about Event Control Blocks (maximum number of
+  events).
+- ~STACK=801FFFF0~: tells the system where to initialize the stack pointer.
+
+If needed be, [[https://problemkaputt.de/psxspx-cdrom-file-playstation-exe-and-system-cnf.htm][check the documentation on psx-spx]].
+
+* A Function to Read Files from the CD
+
+Now, we wish to have a function named ~file_read~ that could work like this:
+
+#+begin_src c
+u_long length;
+char *bytes;
+bytes = (char*) file_read("\\MODEL.BIN;1", &length);
+#+end_src
+
+Notice that these bytes will be allocated on the *heap*.
+
+** Function definition
+
+Here's how this function should be declared:
+
+#+begin_src c
+char *
+file_read(char *filename, u_long *length)
+{
+    CdlFILE filepos;
+    int numsectors;
+    char *buffer;
+
+    buffer = NULL;
+
+    // Find file on CD
+    if(CdSearchFile(&filepos, filename) == NULL) {
+        printf("File %s not found on the CD.\n", filename);
+        return NULL;
+    }
+
+    // Compute number of sectors to read from the CD
+    numsectors = (filepos.size + 2047) / 2048;
+    // Allocate buffer for file (must be a multiple of 2048)
+    buffer = (char*) malloc(2048 * numsectors);
+
+    if(!buffer) {
+        printf("Error allocating %d sectors.\n", numsectors);
+        return NULL;
+    }
+
+    // Set read target to the file position on the CD
+    CdControl(CdlSetloc, (u_char*) &filepos.pos, 0);
+    // Start reading from CD (at full speed)
+    CdRead(numsectors, (u_long*) buffer, CdlModeSpeed);
+    // Wait until the reading is complete
+    CdReadSync(0, 0);
+
+    // Return length of the number of bytes read and a buffer pointer
+    ,*length = filepos.size;
+    return buffer;
+}
+#+end_src
+
+There are a few Psy-Q specific functions  and data types that we need to invoke,
+and they come from ~libcd.h~.
+
+We would also need to initialize the  CD subsystem using ~CdInit()~, and then we
+can start reading files from the CD.
+
+** Creating the code
+
+Create a file ~utils.h~ and declare the function prototype.
+
+Create also a ~utils.c~  file (remember to add it to the  Makefile) and copy the
+function there.
+
+Since we're using a  modern stack, we also need to initialize  the heap, or else
+we won't be able to use the ~malloc~ function. We'll see that soon.
+
+Include ~utils.h~ on ~main.c~. Then, on ~setup~, add the following:
+
+#+begin_src c
+CdInit();
+#+end_src
+
+** Reading the file
+
+Directly on ~setup~, read the file:
+
+#+begin_src c
+char *buffer;
+u_long length;
+
+buffer = file_read("\\MODEL.BIN;1", &length);
+printf("Read %lu bytes from MODEL.BIN (ptr %p)\n", length, buffer);
+
+free(buffer);
+#+end_src
+
+* CD-ROM Access via BIOS Functions
+
+There are already some BIOS functions for accessing the CD-ROM subsystem.
+
+These can be seen on the BIOS functions documentation. There are [[https://psx-spx.consoledev.net/kernelbios/#bios-cdrom-functions][CD-ROM
+functions]].
+
+There are also [[https://psx-spx.consoledev.net/kernelbios/#bios-file-functions][File functions]] such as ~open~, ~lseek~, ~read~, ~write~, ~close~,
+etc.
+
+CD-ROMs are basically accessed via normal  BIOS file functions, under the device
+name ~cdrom0:~.
+
+You can also visit the [[https://psx-spx.consoledev.net/kernelbios/#bios-function-summary][BIOS Function Summary]] to see a list of all functions.
+
+* Understanding the ~MODEL.BIN~ File
+
+Let's take a look at ~MODEL.BIN~.
+
+#+begin_src bash :eval never :tangle no
+xxd c/hellocd/assets/model.bin
+#+end_src
+
+#+begin_example
+00000000: 0008 ff80 ff80 ff80 0080 ff80 ff80 0080  ................
+00000010: ff80 0080 ff80 ff80 0080 ff80 0080 ff80  ................
+00000020: 0080 0080 ff80 0080 0080 0080 ff80 0080  ................
+00000030: 0080 0006 0003 0002 0000 0001 0000 0001  ................
+00000040: 0004 0005 0004 0005 0007 0006 0001 0002  ................
+00000050: 0005 0006 0002 0003 0006 0007 0003 0000  ................
+00000060: 0007 0004 06ff 0000 0000 ff00 0000 00ff  ................
+00000070: 00ff 00ff 00ff ff00 0000 ffff 00         .............
+#+end_example
+
+Here is the relation for the bytes sequentially:
+
+| Description            | Size                                       |
+|------------------------+--------------------------------------------|
+| Number of vertices     | 2 bytes                                    |
+| X, Y, Z                | 6 bytes per vertex (2 bytes per component) |
+| Number of face indices | 2 bytes                                    |
+| Face indices           | 8 bytes per face (4 shorts per index)      |
+| Number of color faces  | 1 byte                                     |
+| Colors                 | 4 bytes per color (R, G, B + padding)      |
+
+So we have:
+
+- 2 bytes containing the number of vertices (8)
+
+#+begin_example
+00000000: 0008
+00000010:
+00000020:
+00000030:
+00000040:
+00000050:
+00000060:
+00000070:
+#+end_example
+
+- 48 bytes of vertex data (2 bytes x 3 components x 8 vertices)
+  - We  can notice  that a  ~short~ starting  with ~ff~  is probably  a negative
+    number
+
+#+begin_example
+00000000:      ff80 ff80 ff80 0080 ff80 ff80 0080
+00000010: ff80 0080 ff80 ff80 0080 ff80 0080 ff80
+00000020: 0080 0080 ff80 0080 0080 0080 ff80 0080
+00000030: 0080
+00000040:
+00000050:
+00000060:
+00000070:
+#+end_example
+
+- 2 bytes containing the number of faces (6)
+
+#+begin_example
+00000000:
+00000010:
+00000020:
+00000030:      0006
+00000040:
+00000050:
+00000060:
+00000070:
+#+end_example
+  
+- 48 bytes of face data (2 bytes x 4 face indices x 6 faces)
+
+#+begin_example
+00000000:
+00000010:
+00000020:
+00000030:           0003 0002 0000 0001 0000 0001
+00000040: 0004 0005 0004 0005 0007 0006 0001 0002
+00000050: 0005 0006 0002 0003 0006 0007 0003 0000
+00000060: 0007 0004
+00000070:
+#+end_example
+
+- 1 byte containing the number of colors (6, like the number of faces)
+
+#+begin_example
+00000000:
+00000010:
+00000020:
+00000030:
+00000040:
+00000050:
+00000060:           06
+00000070:
+#+end_example
+  
+- 24 bytes of color data (1 byte x 4 components including padding x 6 colors)
+
+#+begin_example
+00000000:
+00000010:
+00000020:
+00000030:
+00000040:
+00000050:
+00000060:             ff 0000 0000 ff00 0000 00ff
+00000070: 00ff 00ff 00ff ff00 0000 ffff 00
+#+end_example
+
+We could also use a hex editor  (I recommend [[https://imhex.werwolv.net/][ImHex]]) to watch this layout. Here's
+the code for the Pattern Editor:
+
+#+begin_src c
+struct SVECTOR {
+    be u16 vx;
+    be u16 vy;
+    be u16 vz;
+};
+
+struct QuadFaces {
+    be u16 a;
+    be u16 b;
+    be u16 c;
+    be u16 d;
+};
+
+struct Color {
+    u8 r;
+    u8 g;
+    u8 b;
+    padding[1];
+};
+
+struct Layout {
+    be u16 numverts;
+    SVECTOR vertices[numverts];
+    be u16 numfaces;
+    QuadFaces faces[numfaces];
+    u8 numcolors;
+    Color colors[numcolors];
+};
+
+Layout layout @ 0x0;
+#+end_src
+
+[[file:img/imhex000.png]]
+
+* Dynamically Allocating Buffers
+
+First things first, remove the floor, the cube movement and its collision. Let's
+keep things simple.
+
+Let's define a new data type called ~Object~:
+
+#+begin_src c
+typedef struct Object {
+    short numverts;
+    SVECTOR *vertices;
+
+    short numfaces;
+    short *faces;
+
+    short numcolors;
+    CVECTOR *colors;
+} Object;
+#+end_src
+
+We do not know at compile-time how  many vertices we'll need to store inside the
+3D object, so  this is only known at  runtime after we read the  contents of our
+file.
+
+We're going to declare a global variable, allocate the vertices on the heap, and
+then define them.
+
+* Heap Initialization on Windows 11
+
+Since  we're using  Nugget, we  have to  initialize the  heap, since  Nugget, by
+default, does not initialize the heap and the stack by default.
+
+Include the ~malloc.h~ header from Nugget.
+
+#+begin_src c
+#include <malloc.h>
+#+end_src
+
+Declare the following globals on ~main.c~:
+
+#+begin_src c
+extern char __heap_start, __sp;
+#+end_src
+
+Now, on ~setup~, initialize the heap and the stack:
+
+#+begin_src c
+InitHeap3((unsigned long *) (&__heap_start), (&__sp - 0x5000) - &__heap_start);
+#+end_src
+
+With this, we're  setting the size of our stack  (20480 bytes), and initializing
+our heap.
+
+Furthermore, *anytime* we use ~malloc~, we'll need to replace it with ~malloc3~.
+
+#+begin_src c
+// In utils.c...
+buffer = (char*) malloc3(2048 * numsectors);
+#+end_src
+
+You should not be able to see any results of ~printf~ with the log window (Debug
+> Show Logs).
+
+* Interpreting Bytes as Numbers
+
+Let's start by cleaning up our project.
+
+Comment out  anything related to rendering  our cube.  We won't  be needing that
+for now, but we will tweak that later.
+
+** ~object~ library
+
+Create two files: ~object.h~ and ~object.c~ (add it to the Makefile!).
+
+On ~object.h~, add the ~Object~ definition as provided before.
+
+Include ~object.h~ on ~main.c~ and declare a global variable:
+
+#+begin_src c
+Object object;
+#+end_src
+
+Now we're gonna start loading the data from ~MODEL.BIN~ into this object.
+
+** Reading bytes
+
+On ~setup~, let's tweak a little how we're reading our file:
+
+#+begin_src c
+char *bytes;
+u_long length;
+
+bytes = file_read("\\MODEL.BIN;1", &length);
+printf("Read %lu bytes from MODEL.BIN (ptr %p)\n", length, bytes);
+
+// << New code goes here >>
+
+free(bytes);
+#+end_src
+
+Now, let's think about what we want on the indicated comment above.
+
+We want to read and count a number of bytes as we read our byte buffer.
+
+Let's start by reading a single ~short~ from our buffer -- the first number, the
+number of vertices on this object.
+
+#+begin_src c
+u_long b = 0; // Counter of bytes
+object.numverts = get_short(bytes, &b);
+printf("NUM VERTS = %d\n", object.numverts);
+#+end_src
+
+** Defining ~get_short~
+
+~get_short~ is going to be a function of ~utils.h~. Let's define it there.
+
+#+begin_src c
+short
+get_short(u_char *bytes, u_long *b)
+{
+    unsigned short value = 0;
+    value |= bytes[(*b)++];
+    value |= bytes[(*b)++] << 8;
+    return (short) value;
+}
+#+end_src
+
+Notice that we're returning an unsigned cast  to signed short because we want to
+be able to read signed values.
+
+However, once we run our code, we will see that the console shows the following:
+
+#+begin_example
+NUM VERTS = 2048
+#+end_example
+
+So what is going on?
+
+** My two cents on the problem
+
+We're reading  a number on  *big endian* format  instead of *little  endian*. So
+we think we're reading ~0x0008~, but the PSX hardware is little endian, so these
+bytes are understood in the order ~0x0800~, which is equal to ~2048~.
+
+* Handling Different Order of Bytes
+
+The reason  that our number is  wrong is because  the file is being  provided in
+*big endian* format, while our hardware expects *little endian* format.
+
+Don't worry, this is  on purpose. We don't need a file  in little endian format;
+this knowledge will come in handy very soon.
+
+Let's split  our functions into  two: ~get_short_le~ and ~get_short_be~.  As the
+names suggest, one is  for _little endian_ (original one), and  the other is for
+_big endian_.
+
+#+begin_src c
+short
+get_short_le(u_char *bytes, u_long *b)
+{
+    unsigned short value = 0;
+    value |= bytes[(*b)++];
+    value |= bytes[(*b)++] << 8;
+    return (short) value;
+}
+
+short
+get_short_be(u_char *bytes, u_long *b)
+{
+    unsigned short value = 0;
+    value |= bytes[(*b)++] << 8;
+    value |= bytes[(*b)++];
+    return (short) value;
+}
+#+end_src
+
+** Adjusting our code
+
+On ~main.c~, let's ensure that we're reading using the _big endian_ format:
+
+#+begin_src c
+object.numverts = get_short_be(bytes, &b);
+#+end_src
+
+Now everything looks fine:
+
+#+begin_example
+NUM VERTS = 8
+#+end_example
+
+** Reading vertices
+
+Now that we  have what we need, we  can read the vertices of our  file and start
+storing them onto our object:
+
+#+begin_src c
+u_long b = 0; // Counter of bytes
+object.numverts = get_short_be((u_char *) bytes, &b);
+object.vertices = malloc3(object.numverts * sizeof(SVECTOR));
+for(u_long i = 0; i < object.numverts; i++) {
+    object.vertices[i].vx = get_short_be((u_char *) bytes, &b);
+    object.vertices[i].vy = get_short_be((u_char *) bytes, &b);
+    object.vertices[i].vz = get_short_be((u_char *) bytes, &b);
+    printf("VERTEX %ld, X=%d, Y=%d, Z=%d\n",
+           i,
+           object.vertices[i].vx,
+           object.vertices[i].vy,
+           object.vertices[i].vz);
+}
+#+end_src
+
+Everything looks pretty fine, including the signal:
+
+#+begin_example
+Read 125 bytes from MODEL.BIN (ptr 801fa6f8)
+VERTEX 0, X=-128, Y=-128, Z=-128
+VERTEX 1, X=128, Y=-128, Z=-128
+VERTEX 2, X=128, Y=-128, Z=128
+VERTEX 3, X=-128, Y=-128, Z=128
+VERTEX 4, X=-128, Y=128, Z=-128
+VERTEX 5, X=128, Y=128, Z=-128
+VERTEX 6, X=128, Y=128, Z=128
+VERTEX 7, X=-128, Y=128, Z=128
+#+end_example
+
+** Exercise: Read the face indices from the file
+
+Ok, let's try that.
+
+I recall from before  that the number of faces is a short  value, and then every
+face has four shorts.  So we'll be reading four shorts per face,  and we need to
+be careful how we're going to iterate there.
+
+#+begin_src c
+object.numfaces = get_short_be((u_char *) bytes, &b);
+object.faces = malloc3(object.numfaces * 4 * sizeof(short));
+#+end_src
+
+To iterate,  we'll be moving 4  by 4 elements and  getting a short for  each. We
+could also iterate on  ~4 * object.numfaces~, but nah, let's  make this a little
+more difficult.
+
+#+begin_src c
+for(u_long i = 0; i < object.numfaces * 4; i += 4) {
+    object.faces[i] = get_short_be((u_char *) bytes, &b);
+    object.faces[i + 1] = get_short_be((u_char *) bytes, &b);
+    object.faces[i + 2] = get_short_be((u_char *) bytes, &b);
+    object.faces[i + 3] = get_short_be((u_char *) bytes, &b);
+    printf("FACES %ld ~ %ld: %d, %d, %d, %d\n",
+           i, i + 3,
+           object.faces[i],
+           object.faces[i + 1],
+           object.faces[i + 2],
+           object.faces[i + 3]);
+}
+#+end_src
+
+Let's take a look...
+
+#+begin_example
+FACES 0 ~ 3: 3, 2, 0, 1
+FACES 4 ~ 7: 0, 1, 4, 5
+FACES 8 ~ 11: 4, 5, 7, 6
+FACES 12 ~ 15: 1, 2, 5, 6
+FACES 16 ~ 19: 2, 3, 6, 7
+FACES 20 ~ 23: 3, 0, 7, 4
+#+end_example
+
+Ok, on range 0 to 7... Looking good. I think that's it.
+
+** Exercise: Read the color values from the file
+
+So the  color vectors are  of type ~CVECTOR~, which  is composed of  four ~char~
+values.
+
+Each color component is composed of four bytes, read on the order ~R~, ~G~, ~B~,
+and a padding value.
+
+Let's start  by making a new  function on ~utils.h~ called  ~get_byte~. We won't
+need to account for endianness here, since bytes are not affected by it:
+
+#+begin_src c
+char
+get_byte(u_char *bytes, u_long *b)
+{
+    return (char) bytes[(*b)++];
+}
+#+end_src
+
+Now let's read the number of bytes and allocate the vectors:
+
+#+begin_src c
+object.numcolors = (short) get_byte((u_char *) bytes, &b);
+object.colors = malloc3(object.numcolors * sizeof(CVECTOR));
+#+end_src
+
+Notice  how I'm  casting  the  result of  ~get_byte~  there  because our  struct
+actually holds the number of colors as ~short~.
+
+Now all  we have to do  is iterate normally,  reading bytes (one per  each color
+component):
+
+#+begin_src c
+for(u_long i = 0; i < object.numcolors; i++) {
+    object.colors[i].r = get_byte((u_char *) bytes, &b);
+    object.colors[i].g = get_byte((u_char *) bytes, &b);
+    object.colors[i].b = get_byte((u_char *) bytes, &b);
+    object.colors[i].cd = get_byte((u_char *) bytes, &b);
+    printf("COLOR %ld: R=%d G=%d B=%d CD=%d\n",
+           i,
+           object.colors[i].r,
+           object.colors[i].g,
+           object.colors[i].b,
+           object.colors[i].cd);
+}
+#+end_src
+
+Let's see the result...
+
+#+begin_example
+COLOR 0: R=255 G=0 B=0 CD=0
+COLOR 1: R=0 G=255 B=0 CD=0
+COLOR 2: R=0 G=0 B=255 CD=0
+COLOR 3: R=255 G=0 B=255 CD=0
+COLOR 4: R=255 G=255 B=0 CD=0
+COLOR 5: R=0 G=255 B=255 CD=0
+#+end_example
+
+Perfect!
+
+* Reading Vertices & Faces from a File
+
+*IMPORTANT:* So, the only thing I need  to be aware of is that ~object.numfaces~
+ is not holding the number of faces * 4. So when iterating for rendering, I have
+ to remember that.
+
+** Util functions for reading long values
+ 
+Let's go ahead and create our ~long~ readers for big endian and little endian on
+~utils.h~:
+
+#+begin_src c
+long
+get_long_le(u_char *bytes, u_long *b)
+{
+    unsigned long value = 0;
+    value |= bytes[(*b)++];
+    value |= bytes[(*b)++] << 8;
+    value |= bytes[(*b)++] << 16;
+    value |= bytes[(*b)++] << 24;
+    return (long) value;
+}
+
+long
+get_long_be(u_char *bytes, u_long *b)
+{
+    unsigned long value = 0;
+    value |= bytes[(*b)++] << 24;
+    value |= bytes[(*b)++] << 16;
+    value |= bytes[(*b)++] << 8;
+    value |= bytes[(*b)++];
+    return (long) value;
+}
+#+end_src
+
+** Tweaking the object and rendering
+
+Let's tweak the Object definition a  little, adding again a position, a rotation
+and a scale to it.
+
+#+begin_src c
+typedef struct Object {
+    SVECTOR rotation;
+    VECTOR  position;
+    VECTOR  scale;
+
+    short numverts;
+    SVECTOR *vertices;
+
+    short numfaces;
+    short *faces;
+
+    short numcolors;
+    CVECTOR *colors;
+} Object;
+#+end_src
+
+Now let's uncomment our code for rendering. Tweak  it in any way you must, so we
+can use a flat shaded quad (~POLY_F4~) for each face:
+
+#+begin_src c
+POLY_F4 *poly;
+
+...
+
+// Look at object
+look_at(&camera, &camera.position, &object.position, &(VECTOR){0, -ONE, 0});
+
+/* Object rendering */
+RotMatrix(&object.rotation, &world);
+TransMatrix(&world, &object.position);
+ScaleMatrix(&world, &object.scale);
+CompMatrixLV(&camera.lookat, &world, &view);
+SetRotMatrix(&view);
+SetTransMatrix(&view);
+
+for(int i = 0, j = 0; i < object.numfaces * 4; i += 4, j++) {
+    poly = (POLY_F4*)get_next_prim();
+    setPolyF4(poly);
+    setRGB0(poly, object.colors[j].r, object.colors[j].g, object.colors[j].b);
+
+    // Inline GTE quad calls
+    gte_ldv0(&object.vertices[object.faces[i + 0]]);
+    gte_ldv0(&object.vertices[object.faces[i + 0]]);
+    gte_ldv1(&object.vertices[object.faces[i + 1]]);
+    gte_ldv2(&object.vertices[object.faces[i + 2]]);
+    gte_rtpt();
+    gte_nclip();
+    gte_stopz(&nclip);
+    if(nclip <= 0) continue;
+    gte_stsxy0(&poly->x0);
+
+    gte_ldv0(&object.vertices[object.faces[i + 3]]);
+    gte_rtps();
+    gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+    gte_avsz4();
+    gte_stotz(&otz);
+
+    if((otz > 0) && (otz < OT_LEN)) {
+        addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+        increment_next_prim(sizeof(POLY_F4));
+    }
+}
+#+end_src
+
+The only "weird"  thing here is how  we're declaring ~j~ to  increment little by
+little so we can have a proper index for our color that doesn't go up 4 by 4.
+
+Further, on ~setup~, let's use the macro ~setVector~ to initialize our position,
+rotation and scale:
+
+#+begin_src c
+setVector(&object.position, 0, 0, 0);
+setVector(&object.rotation, 0, 0, 0);
+setVector(&object.scale, ONE, ONE, ONE);
+#+end_src
+
+Let's also go back  to the end of ~update~ and add a  little rotation on Y axis,
+just to be cool:
+
+#+begin_src c
+object.rotation.vy += 20;
+#+end_src
+
+Everything should look fine now!
+
+[[file:img/hellocd-final.png]]
+
+Here is a video of it in action:
+
+[[file:img/hellocd-video.mp4]]

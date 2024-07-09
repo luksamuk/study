@@ -1,0 +1,410 @@
+#+title: Rendering Polygons
+#+startup: content
+#+property: header-args:asm :tangle exercises/src/trianglesub.s
+
+The previous topics of this chapter chan be seen on the [[./hello-gpu.org][Hello GPU]] exercise.
+
+* Gouraud-Shading in Games
+
+Gouraud-Shading was very important for the 5th generation of consoles.
+
+This kind  of shading means  we have diferent color  values per vertex,  and the
+pixels inbetween have  their colors interpolated by the GPU,  achieving a smooth
+shading effect.
+
+It  is  one  of the  most  powerful  techniques  for  the consoles  of  the  5th
+generation, being used extensively on games for the PlayStation and Nintendo 64.
+
+A nice example is *Mario's model on Nintendo 64*. Textures are used for the eyes
+and some  details such  as buttons or  the M on  the hat,  but the rest  is just
+polygons with Gouraud shading. This allowed for the developers to avoid textures
+altogether in most part of the model.
+
+People normally know about this technique but  does not know its name (it was my
+case).  Used correctly,  this technique  helps developers  overcome the  texture
+limitations of early 3D consoles.
+
+An interesting article on porting Gouraud shading of Sonic R from Sega Saturn to
+PC: https://invisibleup.com/articles/24/
+
+* Flat-Shaded Triangle Subroutine
+
+** Convenient header
+
+Just like the Hello GPU example.
+
+#+begin_src asm
+	.psx
+	.create "trianglesub.bin", 0x80010000
+	.org 0x80010000
+
+	IO_BASE_ADDR equ 0x1f80
+	GP0 equ 0x1810
+	GP1 equ 0x1814
+
+Main:
+	; display setup
+	lui	$t0, IO_BASE_ADDR
+	li	$t1, 0x00000000	; 00 = reset gpu
+	sw	$t1, GP1($t0)	; write packet to GP1
+	li	$t1, 0x03000000	; 03 = Display enable
+	sw	$t1, GP1($t0)
+	li	$t1, 0x08000001 ; 08 = display mode (320x240, 15-bit, NTSC)
+	sw	$t1, GP1($t0)
+	li	$t1, 0x06c60260	; 06 = H display range
+	sw	$t1, GP1($t0)
+	li	$t1, 0x07042018	; 07 = V display range
+	sw	$t1, GP1($t0)
+	li	$t1, 0xe1000400	; E1 = Draw Mode Settings
+	sw	$t1, GP0($t0)	; write packet to GP0
+	li	$t1, 0xe3000000	; E3 = drawing area topleft
+	sw	$t1, GP0($t0)
+	li	$t1, 0xe403bd3f	; E4 = drawing area bottomright
+	sw	$t1, GP0($t0)
+	li	$t1, 0xe5000000	; E5 = drawing offset
+	sw	$t1, GP0($t0)
+#+end_src
+
+** Flat triangle subroutine
+:PROPERTIES:
+:header-args:asm: :tangle no
+:END:
+
+_(Notice that  the blocks in  this subsection are  never tangled since  they are
+part of an implementation without a stack)_
+
+We would like to perform draws to the GPU in such a way:
+
+#+begin_src asm
+	lui	$a0, IO_BASE_ADDR
+
+	;;  Invoke subroutine to draw flat triangle
+	li	$s0, 0xffff00	; Param: Color (0xBBGGRR)
+	li	$s1, 200	; Param: x1
+	li	$s2, 40		; Param: y1
+	li	$s3, 288	; Param: x2
+	li	$s4, 56		; Param: y2
+	li	$s5, 224	; Param: x3
+	li	$s6, 200	; Param: y3
+	jal	DrawFlatTriangle
+	nop
+#+end_src
+
+Here is a halt loop for convenience:
+
+#+begin_src asm
+Halt:
+	j Halt
+	nop
+#+end_src
+
+** Creating the subroutine
+:PROPERTIES:
+:header-args:asm: :tangle no
+:END:
+
+_(Notice that  the blocks in  this subsection are  never tangled since  they are
+part of an implementation without a stack)_
+
+Normally,  according to  the  MIPS  ABI, we  have  to  send function  parameters
+through  the ~$ax~  registers if  we can.  But in  this case,  we have  too many
+arguments, so we don't have enough ~$ax~ registers for them.
+
+The  ~$sx~  registers  are  originally  registers  that  should  persist  across
+functions, but we're using them right now for convenience.
+
+#+begin_src asm
+	;; Subroutine to draw a flat-shaded triangle.
+	;; Args:
+	;; $a0 = IO_BASE_ADDR (IO ports at 0x1f80****)
+	;; $s0 = Color (0xBBGGRR)
+	;; $s1 = x1
+	;; $s2 = y1
+	;; $s3 = x2
+	;; $s4 = y2
+	;; $s5 = x3
+	;; $s6 = x3
+DrawFlatTriangle:
+#+end_src
+
+*** Initial setup
+
+We start by  setting up and configuring  the comment and the  color. These masks
+can be OR'd to be combined.
+
+#+begin_src asm
+	lui	$t0, 0x2000	; 0x20 = flat triangle
+	or	$t1, $t0, $s0	; setup command+color on $t1
+	sw	$t1, GP0($a0)	; write to GP0
+#+end_src
+
+*** Writing X and Y coordinates of vertices
+
+Here we need to merge X and Y into a single 32-bit mask. So we take y1, shift it
+16 bits to the left;  then we AND x1 and ~0xffff~ so that  any extra bytes on x1
+are discarded. Finally, combine it and send it to GP0.
+
+#+begin_src asm
+	sll	$s2, $s2, 16		; y1 = y1 << 16
+	andi	$s1, $s1, 0xffff	; discard anything in x1 after two LSB
+	or	$t1, $s1, $s2		; $t1 = x1 | y1 (at respective offsets)
+	sw	$t1, GP0($a0)		; write vertex 1 to GP0
+#+end_src
+
+Now we do the same to vertices 2 and 3.
+
+#+begin_src asm
+	sll	$s4, $s4, 16
+	andi	$s3, $s3, 0xffff
+	or	$t1, $s3, $s4		; $t1 = x2 | y2 (at respective offsets)
+	sw	$t1, GP0($a0)		; write vertex 2 to GP0
+
+	sll	$s6, $s6, 16
+	andi	$s5, $s5, 0xffff
+	or	$t1, $s5, $s6		; $t1 = x3 | y3 (at respective offsets)
+	sw	$t1, GP0($a0)		; write vertex 3 to GP0
+#+end_src
+
+*** Finish function
+
+Return to main.
+
+#+begin_src asm
+	jr	$ra
+	nop
+#+end_src
+
+* Coding our Flat Triangle Subroutine
+
+Instead of  copying and pasting  the subroutine  in the ~hellogpu.s~  project, I
+created a new project  just for this routine. Just use Org  Babel to tangle this
+file and it should be fine.
+
+However, passing  parameters through ~$sx~ registers  is still a mistake.  If we
+had many  parameters, eventually we  would exhaust  the amount of  registers. So
+there is still a better way to send several parameters to subroutines like this:
+the *stack*.
+
+* Stack & Stack Pointer
+
+- The stack has a fixed size and is contiguous
+- The heap has no size limit, but needs to be allocated dynamically
+
+We want to have a stack especially to  solve the case where we have a subroutine
+with several  parameters. The ideal  case here is to  push them onto  the stack,
+instead of using those extra registers from before.
+
+Some processors  already have the  idea of a stack  (e.g. x86) and  have special
+registers to keep track of the operations.
+
+MIPS is different.  In theory, one could  use any register to keep  track of the
+_stack pointer_  (which points  at the  element at  stack top),  but there  is a
+general agreement that ~$sp~ is always used for this purpose.
+
+** Initialization
+
+First things first, we need to setup the stack pointer.
+
+#+begin_src asm
+	lui	$a0, IO_BASE_ADDR
+	la	$sp, 0x80103cf0		; Initialize stack pointer
+#+end_src
+
+You have to explicitly tell where in the RAM your stack is.
+
+** Invoking the subroutine
+
+Since we're about to push seven word values, we need to move the address pointed
+by ~$sp~  for the same  number of bytes  we need to  push. Seven words,  4 bytes
+each, so subtract 28 bytes from ~$sp~.
+
+#+begin_src asm
+	addiu	$sp, -(4 * 7)	; subtract 7 words from $sp that are gonna be pushed
+#+end_src
+
+Now push the parameters and call the function:
+
+#+begin_src asm
+	lui	$a0, IO_BASE_ADDR
+
+	li	$t0, 0xff4472	; Param: Color (0xBBGGRR)
+	sw	$t0, 0($sp)	; Push argument onto stack
+
+	li	$t0, 200	; Param: x1
+	sw	$t0, 4($sp)
+
+	li	$t0, 40		; Param: y1
+	sw	$t0, 8($sp)
+
+	li	$t0, 288	; Param: x2
+	sw	$t0, 12($sp)
+
+	li	$t0, 56		; Param: y2
+	sw	$t0, 16($sp)
+
+	li	$t0, 224	; Param: x3
+	sw	$t0, 20($sp)
+
+	li	$t0, 200	; Param: y3
+	sw	$t0, 24($sp)
+
+	jal	DrawFlatTriangle
+	nop
+
+Halt:	j Halt
+	nop
+#+end_src
+
+** Exercise: Refactoring the function
+
+As for the function, we are going to  rewrite it so it uses the stack parameters
+instead of the registers.
+
+#+begin_src asm
+	;; Subroutine to draw a flat-shaded triangle.
+	;; Args:
+	;; $a0 = IO_BASE_ADDR (IO ports at 0x1f80****)
+	;; 0($sp)  = Color (0xBBGGRR)
+	;; 4($sp)  = x1
+	;; 8($sp)  = y1
+	;; 12($sp) = x2
+	;; 16($sp) = y2
+	;; 20($sp) = x3
+	;; 24($sp) = x3
+DrawFlatTriangle:
+	lw	$t0, 0($sp)		; $t0 <- color
+	lui	$t1, 0x2000		; $t1(MSB) <- command (draw flat triangle)
+	or	$t0, $t1		; setup command (0x20) + color
+	sw	$t0, GP0($a0)		; write to GP0
+
+	lw	$t0, 8($sp)		; $t0 <- y1
+	lw	$t1, 4($sp)		; $t1 <- x1
+	sll	$t0, 16			; y1 = y1 << 16
+	andi	$t1, 0xffff		; discard anything in x1 after two LSB
+	or	$t0, $t1		; $t0 <- $t0 | $t1
+	sw	$t0, GP0($a0)		; write vertex 1 to GP0
+
+	lw	$t0, 16($sp)		; $t0 <- y2
+	lw	$t1, 12($sp)		; $t1 <- x2
+	sll	$t0, 16			; y2 = y2 << 16
+	andi	$t1, 0xffff		; discard anything in x2 after two LSB
+	or	$t0, $t1		; $t0 <- $t0 | $t1
+	sw	$t0, GP0($a0)		; write vertex 2 to GP0
+
+	lw	$t0, 24($sp)		; $t0 <- y3
+	lw	$t1, 20($sp)		; $t1 <- x3
+	sll	$t0, 16			; y3 = y3 << 16
+	andi	$t1, 0xffff		; discard anything in x3 after two LSB
+	or	$t0, $t1		; $t0 <- $t0 | $t1
+	sw	$t0, GP0($a0)		; write vertex 3 to GP0
+
+	addiu	$sp, (4 * 7)		; reset stack pointer out of convenience
+	jr	$ra
+	nop
+#+end_src
+
+Notice that  we won't be needing  these arguments after we  finish executing our
+function, so we have to pop seven words by moving ~$sp~ to its original position
+(adding 4 * 7 bytes).
+
+*NOTE:* I ended up being very careful at how I managed my loads here so I didn't
+need  any ~nop~  after  a ~lw~,  but  armips will  display  a message  "warning:
+register x may not  be available due to load delay" to help  you in places where
+this might happen.
+
+* Finish tangled file
+
+These code blocks correspond to the end of the file.
+
+** End
+
+#+begin_src asm
+	.close
+#+end_src
+
+* The MIPS ABI
+
+An ABI is an _Application Binary Interface_. Comparatively, while APIs are a set
+of rules on how a programmer interfaces with  a given system, an ABI is a set of
+rules that tells  us how _compiled programs_ interface with  a given system; how
+data structures  and computational routines are  accessed in machine code,  in a
+low-level, hardware-dependent format.
+
+One  very  important aspect  of  an  ABI is  the  standardization  of a  calling
+convention.
+
+We are going to use the O32 ABI, which roughly defines the following rules:
+
+- Register ~$zero~ is a constant 0.
+- Register ~$at~ is for assembler's use.
+- Registers ~$a0~ - ~$a3~ are available to pass arguments to a function. If more
+  arguments are needed, the stack must be used.
+- Register ~$v0~ is used  to store the return value of a  function. If more than
+  one argument is needed, the ~$v1~ register is also available.
+- The responsibility of saving registers that  must be saved is delegated to the
+  _callee_.
+- Register ~$sp~ is reserved for the stack pointer.
+- Register ~$ra~ is reserved for the return address of a call.
+- Register ~$k0~ and ~$k1~ are reserved for OS kernel.
+- Registers ~$s0~ - ~$s7~,  by convention, will not be changed  by a system call
+  or a function call.  If a procedure needs those registers,  they must first be
+  saved to the stack (as it is the responsibility of the _callee_ to do that, as
+  stated before).
+
+These kinds of information are mostly  important to compiler programmers, as the
+PlayStation does  not necessarily follow  them, but  when using a  compiler that
+generates code for  a MIPS processor, it is interesting  to understand these ABI
+conventions so that the generated code behaviour can also be understood.
+
+The  O32 ABI  is for  32-bit systems,  and was  created in  1990, being  updated
+in 1994. For more modern 64-bit MIPS CPUs,  there is also the N64 ABI by Silicon
+Graphics -- one  of the biggest improvements is that,  instead of four registers
+for argument-passing, there would be eight registers.
+
+
+* Stack & Heap Space
+
+In modern computers,  when you're running a popular OS  (such as Windows, Linux,
+Mac OS...), the  operating system is responsible for allocating  heap space. The
+operating  system  (the kernel)  controls  how  much  memory is  available,  and
+allocates or  frees memory  on the heap  according to how  much memory  has been
+requested to it (on Linux, see ~malloc(3)~).
+
+For each process also, the operating system gives you a limited amount of stack,
+and that is done automatically as soon as a process is spawned.
+
+But  this  is  not  what  happens  with the  PlayStation.  There  is  no  kernel
+controlling memory.  You just get access  to plain memory and  that's it, you're
+expected  to  use the  memory  respecting  the  mappings  given by  the  console
+specification.
+
+So the  use of  stack on  the PlayStation, for  example, is  somewhat arbitrary;
+there is no  memory protection involved. There  is no such thing as  the idea of
+protected memory as we are used to on modern computers and operating systems.
+
+* Quads vs. Triangles
+
+Some sources say  that the Panasonic 3DO and the  Sega Saturn were fundamentally
+quad-rendering machines.
+
+For the  Sega Saturn,  everything was 2D  tiles that were  modified to  look 3D,
+being translated, rotated, scaled and skewed as necessary to give the impression
+that it were 3D.
+
+The PlayStation, however, is a triangle-rendering machine.
+
+Using triangles means that,  to draw a quad, we need to  send two extra vertices
+to the GPU (a  total count of six), while a machine focused  on quads would only
+need the four vertices a quad needs at first place.
+
+3D  designers  and  3D  modelling  software also  use  quads  as  their  default
+primitive,  so working  with  these meshes  as quads  can  help programmers  and
+artists be on the same page.
+
+People on the  comments suggest that larger  quads split up nicely  in four more
+quads, making them better for tesselation.  Other people suggest that UV mapping
+(texture application) and  application of transformations and  lighting to quads
+implies less vertices  to process, especially if the PS1  does not support index
+lists natively (see element buffers in OpenGL).
+
+

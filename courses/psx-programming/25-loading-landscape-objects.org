@@ -1,0 +1,239 @@
+#+title: Loading Landscape Objects
+#+startup: content
+
+* Reading Scene Objects from CD
+
+So far  we've been  loading ships,  but these  ships are  just objects  like any
+others.
+
+Scenes are also objects. And we could also load them.
+
+In the ~TRACK02~ directory, we have a few files:
+
+#+begin_example
+ASSETS/TRACK02
+├── LIBRARY.CMP
+├── LIBRARY.INF
+├── LIBRARY.TTF
+├── SCENE.CMP
+├── SCENE.INF
+├── SCENE.PRM
+├── SKY.CMP
+├── SKY.INF
+├── SKY.PRM
+├── TRACK.INF
+├── TRACK.TRF
+├── TRACK.TRS
+├── TRACK.TRV
+└── TRACK.VEW
+
+1 directory, 14 files
+#+end_example
+
+At first glance,  we know that we  have almost everything to render  a track. We
+have ~SCENE.CMP~, which contains scene  textures, and ~SCENE.PRM~ which contains
+the scene OBJECTS.
+
+So for now we won't be able to see the track itself, just its objects.
+
+Let's go ahead and load both these files to our CD.
+
+#+begin_src fundamental
+          Directory TRACK02
+            File SCENE.CMP
+              XaFileAttributes Form1 Data
+              Source [GameDir]\ASSETS\TRACK02\SCENE.CMP
+            EndFile
+
+            File SCENE.PRM
+              XaFileAttributes Form1 Data
+              Source [GameDir]\ASSETS\TRACK02\SCENE.PRM
+            EndFile
+          EndDirectory
+#+end_src
+
+#+begin_src xml
+<dir name="TRACK02">
+  <file name="SCENE.CMP" type="data" source="ASSETS/TRACK02/SCENE.CMP" />
+  <file name="SCENE.PRM" type="data" source="ASSETS/TRACK02/SCENE.PRM" />
+</dir>
+#+end_src
+
+#+begin_src c
+// On global scope
+Object *sceneobjs;
+u_short numsceneobjs;
+
+// On setup function
+u_short scenestarttexture;
+
+//...
+
+// Load scene
+scenestarttexture = get_texture_count();
+load_texture_cmp("\\TRACK02\\SCENE.CMP;1");
+sceneobjs = load_object_list_prm("\\TRACK02\\SCENE.PRM;1", scenestarttexture, &numsceneobjs);
+
+printf("Number of loaded scene objects: %u\n", numsceneobjs);
+#+end_src
+
+Now go to ~object.c~. There are going to be LOTS of objects loaded, and there is
+latency on that, so you'll have to clean up some unnecessary ~printf~ statements
+there (specifically,  anything related to  particular fields that  we're loading
+for each model). Just leave a log on the loaded object name.
+
+Good? Ok. Now do the same for ~texture.c~. I only left the total texture size in
+bytes and the signalling of texture loading to VRAM.
+
+** Changing the rendering and the camera
+
+Now, instead of changing the ship with a tap, and instead of always rotating it,
+let's define a ship by index and  perform some camera movement when pressing the
+directionals.
+
+The ship will be stopped, and the camera will move.
+
+Most parts for  this lecture were already  programmed by me before  and even the
+tap behaviour will not be lost, even though we won't use it anymore.
+
+Let's change ~main.c~:
+
+#+begin_src c
+// On global scope
+// Remove current and currobjid
+Object *ship;
+
+// On setup function
+ship = get_object_from_list(objects, 0);
+#+end_src
+
+Now for the camera movement:
+
+#+begin_src c
+// On update function
+if(joypad_check(PAD1_LEFT)) {
+    camera.position.vx -= 100;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    camera.position.vx += 100;
+}
+
+if(joypad_check(PAD1_UP)) {
+    camera.position.vz += 100;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    camera.position.vz -= 100;
+}
+
+look_at(&camera, &camera.position, &ship->position, &(VECTOR){0, -ONE, 0});
+
+render_object(ship, &camera);
+#+end_src
+
+* Camera-Object Distance Check
+
+We're going to build a naïve object-camera distance check.
+
+This is  because we're going  to have to iterate  over scene objects  and render
+them, but rendering only makes sense if the objects are within a visible range.
+
+Let's start with some  wishful thinking and add the following at  the end of the
+~update~ function:
+
+#+begin_src c
+// ...
+render_scene_objects(sceneobjs, &camera);
+render_object(ship, &camera);
+#+end_src
+
+Now on ~object.c~, we'll declare our function (don't forget to add the prototype
+to ~object.h~!):
+
+#+begin_src c
+void
+render_scene_objects(Object *list, Camera *camera)
+{
+    Object *currobj = list;
+    while(currobj != NULL) {
+        // TODO: Check distance of object from camera.
+        // Render if and only if distance is less than a certain threshold.
+        currobj = currobj->next;
+    }
+}
+#+end_src
+
+** Computing the square length
+
+So this is trivial to me already, but  given that we have two points, we compute
+the vector difference between them (thus subtracting each coordinate component),
+and the distance should  be the vector's magnitude, that is,  the square root of
+the sum of squares of components:
+
+$$d = \sqrt{x ^ {2} + y ^ {2} + z ^ {2}}$$
+
+But uh,  square roots  are *expensive  as hell*, so  we can  get away  with just
+calculating the squared magnitude of the vector:
+
+$$d ^ {2} = x ^ {2} + y ^ {2} + z ^ {2}$$
+
+#+begin_src c
+// Outside the loop
+VECTOR d;
+u_long distmagsq;
+
+// Within the loop
+d.vx = currobj->position.vx - camera->position.vx;
+d.vy = currobj->position.vy - camera->position.vy;
+d.vz = currobj->position.vz - camera->position.vz;
+distmagsq = (d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz);
+if(distmagsq < min_draw_distance) {
+    render_object(currobj, camera);
+}
+// ...
+#+end_src
+
+~distmagsq~ is probably going to be a rather big value, so maybe we can get away
+with a big number as well:
+
+#+begin_src c
+// Before the loop
+const u_long min_draw_distance = 1000000000;
+#+end_src
+
+[[file:img/sceneobjects001.png]]
+
+Ok, fair enough, we got something else on screen.
+
+* Drawing Scene Objects
+
+Let's start  by initializing  the ship  to its proper  start position,  and then
+reposition the camera.
+
+#+begin_src c
+// On Setup function
+setVector(&ship->position, 32599, -347, -45310);
+
+setVector(&camera.position, ship->position.vx, ship->position.vy - 100, ship->position.vz - 1000);
+camera.lookat = (MATRIX){0};
+#+end_src
+
+[[file:img/sceneobjects002.png]]
+
+Let's also  update our minimum  distance on ~object.c~  to a smaller  value that
+makes more sense. This should help with framerates.
+
+#+begin_src c
+const u_long min_draw_distance = 700000000;
+#+end_src
+
+[[file:img/sceneobjects003.png]]
+
+Ok, fair enough.
+
+But here's the catch,  the way we're computing the distance is  not going to fly
+for us here. It is way too much  stuff for the PlayStation to handle in a single
+loop.  We'll  have  to  find  another way  to  handle  these  objects,  perharps
+pre-computing some values, so it would only be a matter of performing lookups.
+

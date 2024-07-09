@@ -1,0 +1,922 @@
+#+title: Loading Track Faces
+#+startup: content
+
+* Track Sections & Faces
+
+The  tracks themselves  require  a few  changes  in our  code  and are  somewhat
+different than loading objects. So we're gonna have to tackle that.
+
+Let's start by  commenting out the loading and rendering  of scene objects; they
+take a lot of time and they will only slow us down for now.
+
+#+begin_src c
+// On setup function
+scenestarttexture = get_texture_count();
+load_texture_cmp("\\TRACK02\\SCENE.CMP;1");
+//sceneobjs = load_object_list_prm("\\TRACK02\\SCENE.PRM;1", scenestarttexture, &numsceneobjs);
+
+// On update function
+//render_scene_objects(sceneobjs, &camera);
+#+end_src
+
+Let's take a look again at the track files in ~ASSETS/TRACK02~:
+
+#+begin_example
+➜  TRACK02 git:(master) ✗ tree
+.
+├── LIBRARY.CMP
+├── LIBRARY.INF
+├── LIBRARY.TTF
+├── SCENE.CMP
+├── SCENE.INF
+├── SCENE.PRM
+├── SKY.CMP
+├── SKY.INF
+├── SKY.PRM
+├── TRACK.INF
+├── TRACK.TRF
+├── TRACK.TRS
+├── TRACK.TRV
+└── TRACK.VEW
+
+1 directory, 14 files
+#+end_example
+
+Back  then, we  were loading  the ~SCENE.CMP~  and ~SCENE.PRM~  files, which  we
+learned  that  are  the scene  objects.  But  there  are  three other  files  of
+importance here:
+
+1. ~TRACK.TRV~: Vertices for our track.
+2. ~TRACK.TRF~: Track faces.
+3. ~TRACK.TRS~: Track sections.
+
+So the idea is that:
+
+- All vertices are on the ~.TRV~ files.
+- The track is  divided into chunks which  we call sections; we're  gonna have a
+  linked list  of sections  which loop  back to  the first  one (so,  a circular
+  list).
+- A section is made of faces.
+- All track faces are quads.
+
+Some extra information:
+
+- Face flags describe information about that  particular position, in such a way
+  that it is possible that the face is a power-up, for example.
+- Since  the tracks  are  divided into  sections,  it will  help  us with  track
+  visibility. It  is interesting that  we only  display sections that  should be
+  displayed; this way, we can save on performance.
+- Section flags also pertain to section visibility.
+- Distance check is going to pertain to the center of the section.
+- Faces only describe how  many faces it has and point to the  first face on the
+  face array.
+
+* Structs for Sections & Faces
+
+Let's start by adding the pertinent files to our CD.
+
+#+begin_src fundamental
+            File TRACK.TRV
+              XaFileAttributes Form1 Data
+              Source [GameDir]\ASSETS\TRACK02\TRACK.TRV
+            EndFile
+
+            File TRACK.TRF
+              XaFileAttributes Form1 Data
+              Source [GameDir]\ASSETS\TRACK02\TRACK.TRF
+            EndFile
+
+            File TRACK.TRS
+              XaFileAttributes Form1 Data
+              Source [GameDir]\ASSETS\TRACK02\TRACK.TRS
+            EndFile
+#+end_src
+
+#+begin_src xml
+<dir name="TRACK02">
+  ...
+  <file name="TRACK.TRV" type="data" source="ASSETS/TRACK02/TRACK.TRV" />
+  <file name="TRACK.TRF" type="data" source="ASSETS/TRACK02/TRACK.TRF" />
+  <file name="TRACK.TRS" type="data" source="ASSETS/TRACK02/TRACK.TRS" />
+</dir>
+#+end_src
+
+Let's create ~track.h~ and ~track.c~:
+
+
+#+begin_src c
+#ifndef TRACK_H
+#define TRACK_H
+
+#include <libgpu.h>
+
+#define FACE_TRACK_BASE         1
+#define FACE_WEAPON_GRID_LEFT   2
+#define FACE_FLIP_TEXTURE       4
+#define FACE_WEAPON_GRID_RIGHT  8
+#define FACE_START_GRID        16
+#define FACE_SPEED_UP          32
+
+#define BYTES_PER_VERTEX   16
+#define BYTES_PER_FACE     20
+#define BYTES_PER_SECTION 156
+
+typedef struct Face {
+    short   indices[4];
+    SVECTOR normal;
+    char    texture;
+    char    flags;
+    short   clut;
+    short   tpage;
+    CVECTOR color;
+    short   u0, v0;
+    short   u1, v1;
+    short   u2, v2;
+    short   u3, v3;
+} Face;
+
+typedef struct Section {
+    short  id;
+    short  flags;
+
+    struct Section *prev;
+    struct Section *next;
+
+    VECTOR center;
+
+    short  numfaces;
+    short  facestart;
+} Section;
+
+typedef struct Track {
+    long   numvertices;
+    VECTOR *vertices;
+
+    long numfaces;
+    Face *faces;
+
+    long numsections;
+    Section *sections;
+} Track;
+
+void load_track_vertices(Track *track, char *filename); // .TRV file
+void load_track_faces(Track *track, char *filename);    // .TRF file
+void load_track_sections(Track *track, char *filename); // .TRS file
+
+#endif
+#+end_src
+
+Notice that we declared special flags  to determine the properties of each face,
+as discussed before,  and we also defined some important  values for calculating
+the amount of vertices, faces and  sections, since they're not embedded directly
+on our files.
+
+We'll  populate  ~track.c~ with  some  basic  stuff  which  we'll need  for  the
+following steps:
+
+#+begin_src c
+#include "track.h"
+#include "utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+void
+load_track_vertices(Track *track, char *filename)
+{
+    u_char *bytes;
+    u_long b;
+    u_long length;
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+    printf("%s: %lu bytes\n", filename, length);
+    
+    // TODO
+
+    free3(bytes);
+}
+
+void
+load_track_faces(Track *track, char *filename)
+{
+    u_char *bytes;
+    u_long b;
+    u_long length;
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+    printf("%s: %lu bytes\n", filename, length);
+
+    // TODO
+
+    free3(bytes);
+}
+
+void
+load_track_sections(Track *track, char *filename)
+{
+    u_char *bytes;
+    u_long b;
+    u_long length;
+
+    bytes = (u_char *)file_read(filename, &length);
+
+    if(bytes == NULL) {
+        printf("Error reading %s from the CD.\n", filename);
+        return;
+    }
+
+    b = 0;
+    printf("%s: %lu bytes\n", filename, length);
+
+    // TODO
+
+    free3(bytes);
+}
+#+end_src
+
+And then, on ~main.c~:
+
+#+begin_src c
+#include "track.h"
+// ...
+Track track;
+// ...
+
+// On Setup function
+// Before setting the ship
+load_track_vertices(&track, "\\TRACK02\\TRACK.TRV;1");
+load_track_faces(&track, "\\TRACK02\\TRACK.TRF;1");
+load_track_sections(&track, "\\TRACK02\\TRACK.TRS;1");
+#+end_src
+
+* Reading Vertices, Faces, & Sections
+
+Let's load these files.
+
+** File layouts
+
+*** Vertices
+
+The ~.TRV~ file is comprised of a 16-byte vector component of 32-bit ~vx~, ~vy~,
+~vz~ components plus a 4-byte padding. All being of big-endian byte order.
+
+#+begin_src c
+#include <std/mem.pat>
+
+struct VECTOR {
+    be s32 vx;
+    be s32 vy;
+    be s32 vz;
+    padding[4];
+};
+
+VECTOR vertices[while(!std::mem::eof())] @ 0x00;
+#+end_src
+
+*** Faces
+
+The ~.TRF~ file maps almost the same  as a ~Face~ struct, except that the fields
+for ~clut~, ~tpage~,  and UV's are entirely something of  our implementation and
+are not stored in the files.
+
+#+begin_src c
+#include <std/mem.pat>
+
+struct SVECTOR {
+    be s16 vx;
+    be s16 vy;
+    be s16 vz;
+};
+
+struct CVECTOR {
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 cd;
+};
+
+struct Face {
+    be u16  indices[4];
+    SVECTOR normal;
+    u8      texture;
+    u8      flags;
+    CVECTOR color;
+};
+
+Face faces[while(!std::mem::eof())] @ 0x00;
+#+end_src
+
+*** Sections
+
+The  mapping   of  there  ones   is  dramatically  different  from   the  struct
+definition. Especially since the ~.TRS~ files encode index values for ~prev~ and
+~next~, given that everything is in an array. We also end up ignoring many bytes
+which are not very interesting to us right now.
+
+#+begin_src c
+#include <std/mem.pat>
+
+struct VECTOR {
+    be s32 vx;
+    be s32 vy;
+    be s32 vz;
+};
+
+struct Section {
+    padding[4];
+    be s32 prev;
+    be s32 next;
+    VECTOR center;
+    padding[118];
+    be u16 facestart;
+    be u16 numfaces;
+    padding[4];
+    be u16 flags;
+    be u16 id;
+    padding[2];
+};
+
+Section sections[while(!std::mem::eof())] @ 0x0;
+#+end_src
+
+** Loading the files
+
+The next sections describe function behaviours after reading the file and before
+dellocating it.
+
+*** Loading vertices
+
+That's easy enough.
+
+Remember that we're going to use ~BYTES_PER_VERTEX~ here to calculate the number
+of vertices, since this number is not embedded within our file.
+
+#+begin_src c
+track->numvertices = length / BYTES_PER_VERTEX;
+track->vertices = malloc3(track->numvertices * sizeof(VECTOR));
+for(long i = 0; i < track->numvertices; i++) {
+    track->vertices[i].vx  = get_long_be(bytes, &b);
+    track->vertices[i].vy  = get_long_be(bytes, &b);
+    track->vertices[i].vz  = get_long_be(bytes, &b);
+    track->vertices[i].pad = get_long_be(bytes, &b);
+}
+#+end_src
+
+*** Loading faces
+
+Similarly, we compute the amount of faces from our file size.
+And we  also have  to be careful  since the ~SVECTOR~  here contains  no padding
+equivalent on the file.
+
+So that's easy too.
+
+#+begin_src c
+track->numfaces = length / BYTES_PER_FACE;
+track->faces = malloc3(track->numfaces * sizeof(Face));
+for(long i = 0; i < track->numfaces; i++) {
+    track->faces[i].indices[0] = get_short_be(bytes, &b);
+    track->faces[i].indices[1] = get_short_be(bytes, &b);
+    track->faces[i].indices[2] = get_short_be(bytes, &b);
+    track->faces[i].indices[3] = get_short_be(bytes, &b);
+    track->faces[i].normal = (SVECTOR) {
+        get_short_be(bytes, &b),
+        get_short_be(bytes, &b),
+        get_short_be(bytes, &b),
+        0,
+    };
+    track->faces[i].texture = get_byte(bytes, &b);
+    track->faces[i].flags   = get_byte(bytes, &b);
+    track->faces[i].color = (CVECTOR) {
+        get_byte(bytes, &b),
+        get_byte(bytes, &b),
+        get_byte(bytes, &b),
+        get_byte(bytes, &b),
+    };    
+}
+#+end_src
+
+*** Loading sections
+
+Same calculation of number of sections through the file size.
+
+But the  mappings here  are dramatically  different since  we are  ignoring many
+values, pre-calculating pointers,  and the struct does  not necessarily describe
+values in the same order they are stored within the file.
+
+#+begin_src c
+track->numsections = length / BYTES_PER_SECTION;
+track->sections = malloc3(track->numsections * sizeof(Section));
+for(long i = 0; i < track->numsections; i++) {
+    b += 4; // Skip information about junction indices
+
+    // Directly determine pointers from indices on file
+    track->sections[i].prev = track->sections + get_long_be(bytes, &b);
+    track->sections[i].next = track->sections + get_long_be(bytes, &b);
+    track->sections[i].center = (VECTOR) {
+        get_long_be(bytes, &b),
+        get_long_be(bytes, &b),
+        get_long_be(bytes, &b),
+        0,
+    };
+
+    b += 118; // Skip other information
+
+    track->sections[i].facestart = get_short_be(bytes, &b);
+    track->sections[i].numfaces  = get_short_be(bytes, &b);
+
+    b += 4; // Skip other info
+
+    track->sections[i].flags     = get_short_be(bytes, &b);
+    track->sections[i].id        = get_short_be(bytes, &b);
+
+    b += 2; // Skip other info
+
+    // Fix ID with respect to loop index
+    track->sections[i].id = i;
+}
+#+end_src
+
+* Function to Render Track Sections
+
+Now back on ~main.c~, let's do some wishful thinking once again:
+
+#+begin_src c
+// On update function
+// ...
+//render_scene_objects(sceneobjs, &camera);
+render_track(&track, &camera);
+render_object(ship, &camera);
+#+end_src
+
+Now let's implement it (don't forget to declare the prototype in ~track.h~).
+
+#+begin_src c
+void
+render_track(Track *track, Camera *camera)
+{
+    Section *currsection = track->sections;
+    VECTOR d;
+    u_long distmagsq;
+    u_long distmag;
+
+    do {
+        d.vx = currsection->center.vx - camera->position.vx;
+        d.vy = currsection->center.vy - camera->position.vy;
+        d.vz = currsection->center.vz - camera->position.vz;
+        distmagsq = (d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz);
+        distmag = SquareRoot12(distmagsq);
+        if(distmag < 2500000) {
+            render_track_section(track, currsection, camera);
+        }
+        currsection = currsection->next;
+    } while(currsection != track->sections);
+}
+#+end_src
+
+First of all, we're looping in a  circular list, hence the do-while approach. We
+are also  using the same naïve  distance check as  before, for lack of  a better
+option for now. Notice, though, that we  do indeed compute a square root here --
+by using ~SquareRoot12~ from ~libgte~, which computes a 20.12 fixed-point value.
+
+Now let's  declare ~render_track_section~. No  need to  expose it in  the header
+file, just declare it right above ~render_track~.
+
+For this function,  we're gonna use the  starting face number and  the number of
+faces, and then  loop over the faces rendering them.
+
+#+begin_src c
+void
+render_track_section(Track *track, Section *section, Camera *camera)
+{
+    short nclip;
+    long otz, p, flg;
+    POLY_F4 *poly;
+
+    // Set the matrices
+    MATRIX worldmat, viewmat;
+    VECTOR pos, scale;
+    SVECTOR rot;
+
+    setVector(&pos, 0, 0, 0);
+    setVector(&rot, 0, 0, 0);
+    setVector(&scale, ONE, ONE, ONE);
+
+    worldmat = (MATRIX){0};
+    RotMatrix(&rot, &worldmat);
+    TransMatrix(&worldmat, &pos);
+    ScaleMatrix(&worldmat, &scale);
+    CompMatrixLV(&camera->lookat, &worldmat, &viewmat);
+    SetRotMatrix(&viewmat);
+    SetTransMatrix(&viewmat);
+
+    for(u_long i = 0; i < section->numfaces; i++) {
+        Face *face = track->faces + section->facestart + i;
+
+        poly = (POLY_F4*) get_next_prim();
+        SetPolyF4(poly);
+        setRGB0(poly, 255, 255, 255);
+        gte_ldv0(&track->vertices[face->indices[1]]);
+        gte_ldv1(&track->vertices[face->indices[0]]);
+        gte_ldv2(&track->vertices[face->indices[2]]);
+        gte_rtpt();
+        gte_nclip();
+        gte_stopz(&nclip);
+        if (nclip < 0) {
+            continue;
+        }
+        gte_stsxy0(&poly->x0);
+        gte_ldv0(&track->vertices[face->indices[3]]);
+        gte_rtps();
+        gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+        gte_avsz4();
+        gte_stotz(&otz);
+        if (otz > 0 && otz < OT_LEN) {
+            addPrim(get_ot_at(get_curr_buffer(), otz), poly);
+            increment_next_prim(sizeof(POLY_F4));
+        }
+    }
+}
+#+end_src
+
+For now we'll just render flat faces for our track, and also, we'll render these
+faces as they are, and we won't move  them around. The only thing that will move
+is the camera.
+
+Also, notice how the indices of  the vertices passed to ~gte_ldvX~ are "flipped"
+at the first  two vertices -- this  is a characteristic of  Wipeout's files, and
+not something  related to the rendering  itself. It just happened  to be encoded
+in a flipped way. :)
+
+Now that we have  all of this, we...... still are not able  to see anything. But
+there are a few artifacts on the screen sometimes.
+
+[[file:img/artifacts001.png]]
+
+[[file:img/artifacts002.png]]
+
+And the reason for this is  actually quite simple: remember that, when rendering
+objects, we  actually are  using an  ~SVECTOR~. When  rendering our  tracks, our
+coordinates use ~VECTOR~. So we have 32-bit values that, when they get sent over
+to GTE  and/or GPU,  are getting  wrapped around,  possibly becoming  very small
+negative numbers, and basically f-ing up the whole thing.
+
+* Shrinking Track Vertices
+
+So... we could solve this problemby  shrinking everything. For example, we could
+divide our vertices by 16.
+
+#+begin_src c
+// In globals.h
+#define SHRINK_FACTOR 4
+#+end_src
+
+#+begin_src c
+// In track.h
+typedef struct Track {
+    //...
+    SVECTOR *vertices;
+    //...
+} Track;
+#+end_src
+
+#+begin_src c
+// In track.c
+
+// Function load_track_vertices
+track->vertices = malloc3(track->numvertices * sizeof(SVECTOR));
+for(long i = 0; i < track->numvertices; i++) {
+    track->vertices[i].vx  = get_long_be(bytes, &b) >> SHRINK_FACTOR;
+    track->vertices[i].vy  = get_long_be(bytes, &b) >> SHRINK_FACTOR;
+    track->vertices[i].vz  = get_long_be(bytes, &b) >> SHRINK_FACTOR;
+    track->vertices[i].pad = get_long_be(bytes, &b) >> SHRINK_FACTOR;
+}
+
+// Function load_track_sections
+track->sections[i].center = (VECTOR) {
+    get_long_be(bytes, &b) >> SHRINK_FACTOR,
+    get_long_be(bytes, &b) >> SHRINK_FACTOR,
+    get_long_be(bytes, &b) >> SHRINK_FACTOR,
+    0,
+};
+#+end_src
+
+Since we're shrinking our track, let's shrink our objects too:
+
+#+begin_src c
+// In object.c, function load_object_prm
+for(short i = 0; i < object->numvertices; i++) {
+    object->vertices[i].vx = get_short_be(bytes, b) >> SHRINK_FACTOR;
+    object->vertices[i].vy = get_short_be(bytes, b) >> SHRINK_FACTOR;
+    object->vertices[i].vz = get_short_be(bytes, b) >> SHRINK_FACTOR;
+    (*b) += sizeof(u_short);
+}
+#+end_src
+
+Let's adjust the start position too:
+
+#+begin_src c
+// In main.c
+
+// Function setup
+setVector(&ship->position, 32599 >> SHRINK_FACTOR, -347 >> SHRINK_FACTOR, -45310 >> SHRINK_FACTOR);
+setVector(&camera.position, ship->position.vx, ship->position.vy - 5, ship->position.vz - 30);
+
+// Function update
+if(joypad_check(PAD1_LEFT)) {
+    camera.position.vx -= 2;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    camera.position.vx += 2;
+}
+
+if(joypad_check(PAD1_UP)) {
+    camera.position.vz += 10;
+    ship->position.vz += 10;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    camera.position.vz -= 10;
+    ship->position.vz -= 10;
+}
+#+end_src
+
+And also, let's change the screen Z so we don't move too far back:
+
+#+begin_src c
+// In display.h
+#define SCREEN_Z 160
+#+end_src
+
+It's  not definitive,  and oh  boy,  there's a  lot  of ugly  near clipping  and
+rendering problems, but at least we can see our track for now.
+
+[[file:img/flat-tracks-shrunk.png]]
+
+But... we still need to think about what we would do in a real-world scenario.
+
+* Exercise: Testing Face Flags
+
+Let's set some different face colors based on ~face->flags~.
+
+[[file:img/colored-flat-tracks.png]]
+
+Fair enough.
+
+* Drawing Quad Lines
+
+It is interesting to draw lines around our quad so we can see its edges.
+
+On ~render_track_section~, do the following:
+
+#+begin_src c
+LINE_F2 *line0, line1, line2, line3;
+
+// within the loop, after adding our primitive, within the otz check...
+line0 = (LINE_F2*)get_next_prim();
+setLineF2(line0);
+setXY2(line0, poly->x0, poly->y0, poly->x1, poly->y1);
+setRGB0(line0, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line0);
+increment_next_prim(sizeof(LINE_F2));
+
+line1 = (LINE_F2*)get_next_prim();
+setLineF2(line1);
+setXY2(line1, poly->x1, poly->y1, poly->x3, poly->y3);
+setRGB0(line1, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line1);
+increment_next_prim(sizeof(LINE_F2));
+
+line2 = (LINE_F2*)get_next_prim();
+setLineF2(line2);
+setXY2(line2, poly->x3, poly->y3, poly->x2, poly->y2);
+setRGB0(line2, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line2);
+increment_next_prim(sizeof(LINE_F2));
+
+line3 = (LINE_F2*)get_next_prim();
+setLineF3(line3);
+setXY2(line3, poly->x2, poly->y2, poly->x0, poly->y0);
+setRGB0(line3, 255, 255, 0);
+addPrim(get_ot_at(get_curr_buffer(), 0), line3);
+increment_next_prim(sizeof(LINE_F2));
+#+end_src
+
+[[file:img/quad-lines.png]]
+
+K cool
+
+* Avoiding the GTE 16-bit Limitation
+
+The idea  is this: since we  have a big mesh  with many vertices related  to the
+mesh  origin,   let's  change   the  coordinate  system   to  something   a  bit
+more... local.
+
+And this local part could be... the camera.
+
+So we can do everything with 32-bit points, but a little before the GTE step, we
+perform the vertices  translation by hand (by subtracting  the camera position),
+and then we would still have to perform the camera LookAt's rotation.
+
+So that's exactly what we're going to do.
+
+We  subtract  the camera  position,  and  hopefully  this  will give  us  vertex
+positions  that  would  fit  in  a  16-bit  value.  Afterwards,  we  take  these
+translated-by-hand vertices and perform a "Look-At rotation".
+
+* Clamping Overflow Values
+
+** Un-shrink the scene
+
+Let's start by reverting  a few things. Remove the shrinking  factor and set the
+track vertices to 32-bit again.
+
+#+begin_src c
+// In globals.h
+#define SHRINK_FACTOR 0
+#+end_src
+
+#+begin_src c
+// In track.h
+typedef struct Track {
+    //...
+    VECTOR *vertices;
+    //...
+} Track;
+#+end_src
+
+#+begin_src c
+// In track.c, function load_track_vertices
+track->vertices = malloc3(track->numvertices * sizeof(VECTOR));
+#+end_src
+
+We're gonna remove all this shrinking later.
+
+** Saving camera rotation
+
+We need to have a separate Camera rotation matrix for this to work.
+
+So go to ~camera.h~ and add a rotation matrix to the camera:
+
+#+begin_src c
+typedef struct {
+    VECTOR  position;
+    SVECTOR rotation;
+    MATRIX  rotmat;
+    MATRIX  lookat;
+} Camera;
+#+end_src
+
+Now go to the ~look_at~ function in ~camera.c~.
+
+Right  before applying  our  matrix (with  ~ApplyMatrixLV~),  save the  rotation
+components within the rotation matrix, much like we did before with the ~lookat~
+matrix:
+
+#+begin_src c
+// Save the rotation matrix
+camera->rotmat.m[0][0] = x.vx;
+camera->rotmat.m[0][1] = x.vy;
+camera->rotmat.m[0][2] = x.vz;
+
+camera->rotmat.m[1][0] = y.vx;
+camera->rotmat.m[1][1] = y.vy;
+camera->rotmat.m[1][2] = y.vz;
+
+camera->rotmat.m[2][0] = z.vx;
+camera->rotmat.m[2][1] = z.vy;
+camera->rotmat.m[2][2] = z.vz;
+#+end_src
+
+** Performing rotation and translation separately
+
+Now back on ~track.c~. Let's adjust  the track rendering to perform the rotation
+first, and then we manually translate  those vertices so that they are processed
+by the GTE later:
+
+#+begin_src c
+// Function render_track_section
+
+// Before the loop...
+CompMatrixLV(&camera->rotmat, &worldmat, &viewmat);
+
+// Within the loop...
+SVECTOR v0, v1, v2, v3;
+v0.vx = (short) track->vertices[face->indices[1]].vx - camera->position.vx;
+v0.vy = (short) track->vertices[face->indices[1]].vy - camera->position.vy;
+v0.vz = (short) track->vertices[face->indices[1]].vz - camera->position.vz;
+
+v1.vx = (short) track->vertices[face->indices[0]].vx - camera->position.vx;
+v1.vy = (short) track->vertices[face->indices[0]].vy - camera->position.vy;
+v1.vz = (short) track->vertices[face->indices[0]].vz - camera->position.vz;
+
+v2.vx = (short) track->vertices[face->indices[2]].vx - camera->position.vx;
+v2.vy = (short) track->vertices[face->indices[2]].vy - camera->position.vy;
+v2.vz = (short) track->vertices[face->indices[2]].vz - camera->position.vz;
+
+v3.vx = (short) track->vertices[face->indices[3]].vx - camera->position.vx;
+v3.vy = (short) track->vertices[face->indices[3]].vy - camera->position.vy;
+v3.vz = (short) track->vertices[face->indices[3]].vz - camera->position.vz;
+
+gte_ldv0(&v0); // Changed
+gte_ldv1(&v1); // Changed
+gte_ldv2(&v2); // Changed
+gte_rtpt();
+gte_nclip();
+gte_stopz(&nclip);
+if (nclip < 0) {
+    continue;
+}
+gte_stsxy0(&poly->x0);
+gte_ldv0(&v3); // Changed
+gte_rtps();
+gte_stsxy3(&poly->x1, &poly->x2, &poly->x3);
+gte_avsz4();
+gte_stotz(&otz);
+#+end_src
+
+** Fixing draw distance
+
+We're still overflowing  on draw distance when calculating  the distance between
+the camera and the faces. So everything ends up looking weird still.
+
+After all... the GTE is being used on ~SquareRoot12~.
+
+Let's adjust this with some wishful thinking  first -- and also, adjust the draw
+distance:
+
+#+begin_src c
+// track.c, function render_track
+d.vx = clamp_16bits(currsection->center.vx - camera->position.vx);
+d.vy = clamp_16bits(currsection->center.vy - camera->position.vy);
+d.vz = clamp_16bits(currsection->center.vz - camera->position.vz);
+distmagsq = (d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz);
+distmag = SquareRoot12(distmagsq);
+if(distmag < 1350000) {
+    render_track_section(track, currsection, camera);
+}
+#+end_src
+
+The function definition is very simple:
+
+#+begin_src c
+// Defined right above render_track
+long
+clamp_16bits(long value)
+{
+    if(value > 32767) return 32767;
+    if(value < -32767) return -32767;
+    return value;
+}
+#+end_src
+
+** Adjusting the code
+
+Let's push our camera back further again so we can see our ship.
+
+#+begin_src c
+// main.c, setup function
+setVector(&camera.position, ship->position.vx, ship->position.vy - 200, ship->position.vz - 800);
+// ...
+camera.rotmat = (MATRIX){0}; // Initialize rotmat as a safeguard
+#+end_src
+
+Change the ship movement back again.
+
+#+begin_src c
+if(joypad_check(PAD1_LEFT)) {
+    camera.position.vx -= 100;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    camera.position.vx += 100;
+}
+
+if(joypad_check(PAD1_UP)) {
+    camera.position.vz += 100;
+    ship->position.vz += 100;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    camera.position.vz -= 100;
+    ship->position.vz -= 100;
+}
+#+end_src
+
+[[file:img/flat-tracks-final.png]]
+
+OK! LOOKING GOOOOOD!!!
+

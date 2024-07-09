@@ -1,0 +1,16 @@
+*.bin
+*.elf
+*.o
+*.dep
+*.map
+*.ps-exe
+*.psexe
+*.html
+*.iso
+*.ISO
+*.cue
+*.CUE
+*.bin
+LICENSEA.DAT
+LICENSEE.DAT
+LICENSEJ.DAT

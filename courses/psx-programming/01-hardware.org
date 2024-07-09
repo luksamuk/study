@@ -1,0 +1,232 @@
+#+title: PlayStation Hardware
+#+startup: content
+
+Father of the PSX: Ken Kutaragi
+
+* PS1 Hardware Overview
+
+** Technical Specs (1994)
+
+- *CPU:* 32-bit R3000A MIPS @ 33.86MHz  (manufactured by LSI Logic).  Capable of
+  performing 30 MIPS (millions of instructions per second)
+- *RAM:* 2MB EDO Memory (four 512KB chips)
+- *VRAM:* 1MB (two 512KB chips)
+- *GPU:* SCPH-9000 chip responsible for rasterization
+  - RGB Encoder chip
+  - Composite Encoder chip
+- *Coprocessors:*
+  - CP0: System Control -- handles cache instructions and interrupts
+  - CP2: GTE (Geometry Transformation Engine) -- vector, matrix math, etc
+  - MDEC: Motion Decoder  (a special unit, instead of a  coprocessor) -- handles
+    full motion videos, etc
+- *SPU:* Sound Processing Unit (16-bit 24-channel ADPCM)
+  - *DRAM:* one 512KB chip
+- *CD Subsystem*
+  - DSP controlling motor and laser
+  - CD-ROM Controller chip
+  - Control, connectors, etc
+- *Ports*
+  - AV Multi Out port
+  - Composite Out port
+  - Stereo RCA Out port
+  - Serial Port
+  - Parallel Port
+  - Controllers port, etc
+- *BIOS:* 512KB BIOS ROM
+    
+*So where  is the  CP1?* Generally,  in MIPS processors,  CP1 is  dedicated to
+floating  point  arithmetic.   But  Sony  *DID  NOT*  add   a  floating  point
+coprocessor. *So we are forced to use fixed-point values.*
+
+Some components are accessible via memory  mapping, but other things (like VRAM)
+is not directly accessible  by the CPU. In the VRAM case, the  CPU sends data to
+the GPU, and it in turn populates the VRAM.
+
+** Trivia
+- Previous generation  processors used to run  at around 7MHz, and  before that,
+  around 1.7MHz. So it's a BIG improvement.
+- The GPU is actually  a 2D rasterization GPU, the 3D bits  need to be processed
+  before we send actual data to the GPU.
+- EDO = extended data  out. This is a feature of the  motherboard that makes the
+  RAM slightly more efficient, with lower latency than typical DRAM.
+- The MDEC processes  blocks of data compressed using a  Motion JPEG-like coding
+  scheme. It  allows for high quality  FMV playback, and decompresses  image and
+  video into the VRAM.
+
+* The MIPS CPU
+
+See the [[file:./MIPS-Instruction-Set-Reference.pdf][MIPS Instruction Set Reference]].
+
+** The PS1 MIPS CPU
+
+- ISA: MIPS = Microprocessor without Interlocked Pipelined Stages
+- SoC: Sony CXD8530BQ
+- R3000A from MIPS & LSI Logic
+  - Sony commissioned  LSI Logic to  build thir CPU.  The LSI CW33300  block was
+    binary-compatible with the MIPS R3000A and used the same instruction set.
+- It is a 32-bit RISC architecture
+- Clock frequency: 33.86MHz
+- Coprocessors:
+  - CPO: System Control
+  - CP2: GTE
+  - MDEC: Media Decoder
+
+** The PlayStation CPU has...
+
+- 32 general-purpose registers
+- 2 multiplication & division registers
+- 32-bit data bus
+- 32-bit address bus
+- ALU (arithmetic logic unit)
+- 5-stage pipeline
+  - fetch -> decode -> execute -> memory -> write
+  - We don't need for a stage to finish to start the next one
+  - However, we need to be a little careful with that
+    
+** Trivia
+
+- Jansen Huang, current CEO  of NVIDIA (2024) worked as a  director at LSI Logic
+  between 1985 and 1993.
+- RISC (Reduced Instruction Set Computer) is designed for efficient execution by
+  a pipelined processor and for code generation by an optimized compiler.
+
+* What really is ISA?
+
+ISA =  Instruction Set Architecture.  It is a  specification of the  CPU aspects
+that are visible to a machine language programmer or an assembler.
+
+Visible components are registers, memory model, I/O, exceptions, etc.
+
+Implementations  may differ  from the  ISA, but  the ISA  must be  compatible at
+hardware-level,  so a  program compiled  for  such ISA  can be  executed on  any
+hardware that implements it.
+
+Since the LSI Logic CW33300 block  follows the same programming interface as the
+MIPS ISA, then MIPS machine code can be executed by it.
+
+* Addressable Memory & Endianness
+
+- Addresses are 32-bit, and point to a single byte.
+- Since the address bus is 32-bit we can  have up to 2^32 addressable bytes.
+  - These addresses do  not mean only RAM  memory! They can also be  used to map
+    the GPU, the SPU, etc.
+- The  PlayStation hardware  doesn't have  a MMU,  therefore it  doesn't have  a
+  *virtual memory* -- *All memory is physical memory*.
+
+** Endianness (byte ordering)
+
+- Big Endian: from MSB to LSB (left to right).
+- Little Endian: from LSB to MSB (right to left).
+
+For example, for storing the number  ~0x12345678~, consider how we break it into
+blocks of a single byte.
+
+- Big Endian: ~[12] [34] [56] [78]~
+- Little Endian: ~[78] [56] [34] [12]~
+
+Notice that, for  Little Endian, the bytes themselves are  still the same bytes,
+but *only their order is swapped*.
+
+** Trivia
+
+- MMU = Memory Management Unit. According  to Wikipedia, it is a hardware device
+  that translates  virtual addresses into  physical addresses, and  is generally
+  part of the CPU, but can also be  a separate IC. It is not only effective with
+  virtual memory  management; it  also protects memory,  controls cache  and, in
+  some 8-bit systems, bank switching (to extend the amount of memory addressable
+  by the processor). [[https://pt.wikipedia.org/wiki/Unidade_de_gerenciamento_de_mem%C3%B3ria][See here the article on MMU (Brazillian Portuguese)]].
+- The Motorola 68000  processor uses big endian order.  ISAs  such as i386/IA-32
+  and x86_64  use little endian order.  Other architectures such as  ARM AArch64
+  and  RISC-V  are  actually  "bi-endian"   and  allow  running  both  kinds  of
+  endiannesses. [[https://en.wikipedia.org/wiki/Endianness][See here the article on endianness (English)]].
+
+* Different MIPS CPUs & Endianness
+
+The R3000A MIPS  CPU of the PlayStation uses *LITTLE  ENDIAN.* In theory, MIPS
+CPUs don't have  to use an specific endianness, but  the PlayStation console CPU
+is already wired to use little endian order.
+
+The  [[https://en.wikipedia.org/wiki/Silicon_Graphics][Silicon Graphics  (SGI)]] machines  run  on MIPS  CPUs,  but are  set to  use
+big-endian.  The   chinese  [[https://en.wikipedia.org/wiki/Loongson][Loongson  3]]   systems,  however,  are  set   to  use
+little-endian, just like the PlayStation.
+
+As a  token of  curiosity, GCC  also provides implementations  for MIPS  on both
+endian orders. ~gcc-mips~ is for big-endian MIPS CPUs, while ~gcc-mipsel~ is for
+little-endian MIPS CPUs.
+
+* CPU Memory Map
+
+|      KUSEG |      KSEG0 |      KSEG1 | Size  | Description                            |
+|------------+------------+------------+-------+----------------------------------------|
+| 0x00000000 | 0x80000000 | 0xa0000000 | 2048K | Main RAM (first 64K reserved for BIOS) |
+| 0x1f000000 | 0x9f000000 | 0xbf000000 | 8192K | Expansion Region 1 (ROM/RAM)           |
+| 0x1f800000 | 0x9f800000 |          - | 1K    | Scratchpad (D-Cache used as Fast RAM)  |
+| 0x1f801000 | 0x9f801000 | 0xbf801000 | 4K    | I/O Ports                              |
+| 0x1f802000 | 0x9f802000 | 0xbf802000 | 8K    | Expansion Region 2 (I/O Ports)         |
+| 0x1fa00000 | 0x9fa00000 | 0xbfa00000 | 2048K | Expansion Region 3 (general purpose)   |
+| 0x1fc00000 | 0x9fc00000 | 0xbfc00000 | 512K  | BIOS ROM (Kernel)                      |
+
+- Kernel memory (upper 2GB):
+  - KSEG1: Normal physical memory (cache disabled)
+  - KSEG0: Mirror of KSEG1 with cache enabled
+
+- User memory (lower 2GB):
+  - KUSEG: Only the first 512MB of KUSEG are addressable.
+
+** More info
+
+- Most important structures: *Main RAM*, *Scratchpad*, *I/O Ports*.
+- The Scratchpad is useful for doing things that require speed.
+- The  I/O Ports  map  very important  structures, such  as  GPU registers,  SPU
+  control registers, MDEC registers, etc.
+
+** Examples of I/O Ports starting at ~0x1f801000~
+
+The following addresses are non-exhaustive.
+
+*** GPU registers
+
+For controlling graphics-related operations (GPU chip).
+
+|    Address | Op    | Description                                              |
+|------------+-------+----------------------------------------------------------|
+| 0x1f801810 | write | GP0: Send GP0 commands/packets (rendering & VRAM access) |
+| 0x1f801814 | write | GP1: Send GP1 commands/packets (display control)         |
+| 0x1f801810 | read  | GPUREAD: Read responses to GP0 (C0h) and GP1 (10h) coms. |
+| 0x1f801814 | read  | GPUSTAT: Read GPU status register                        |
+
+- GP0 is used for operations such as sending vertices, shading, colors, etc.
+- GP1 is used for operations such as resetting the GPU, setting the resolutions,
+  mipmaps, NTSC/PAL, etc.
+- GPUREAD returns responses to commands sent to GP0/GP1.
+- GPUSTAT returns the  status register (active, inactive, if there  is an error,
+  if some operation is now allowed, etc).
+
+*** SPU control registers
+
+For controlling sound-related properties (SPU chip).
+
+|    Address | Description                                     |
+|------------+-------------------------------------------------|
+| 0x1f801d80 | Main volume left/right                          |
+| 0x1f801d84 | Reverb output volume left/right                 |
+| 0x1f801d88 | Voice 0..23 key ON (start attack/decay/sustain) |
+| 0x1f801d8c | Voice 0..23 key OFF (start release)             |
+|        ... | ...                                             |
+
+*** MDEC registers
+
+For controlling media motion decodification (MDEC co-processor).
+
+|    Address | Op    | Description                     |
+|------------+-------+---------------------------------|
+| 0x1f801820 | write | MDEC command/parameter register |
+| 0x1f801824 | write | MDEC control/reset register     |
+| 0x1f801820 | read  | MDEC data/response register     |
+| 0x1f801824 | read  | MDEC status register            |
+
+** Trivia
+
+- In  most  MIPS  processors,  KUSEG  is intended  to  contain  2GB  of  virtual
+  memory.  But  since the  PSX  doesn't  support  virtual memory,  KUSEG  simply
+  contains a mirror of KSEG0/KSEG1 in the first 512MB.

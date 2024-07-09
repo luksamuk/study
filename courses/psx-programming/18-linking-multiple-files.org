@@ -1,0 +1,293 @@
+#+title: Linking Multiple Files
+#+startup: content
+
+* Header file for OT & primitive buffer
+
+Let's refactor the rest.
+
+Create files ~globals.h~  and ~globals.c~.
+
+Also create ~display.h~ and ~display.c~.
+
+Add them to the  project, and add the .c files to the Makefile.
+
+** ~globals.c~
+
+In ~globals.c~, add the ordering table,  the primitive buffer and the pointer to
+the next primitive:
+
+#+begin_src c
+#include "globals.h"
+
+static u_long ot[2][OT_LEN];
+static char primbuff[2][PRIMBUFF_LEN];
+static char *nextprim;
+#+end_src
+
+Soon we'll add implementations to function prototypes.
+
+** ~globals.h~
+
+#+begin_src c
+#ifndef GLOBALS_H
+#define GLOBALS_H
+
+#include <sys/types.h>
+
+#define OT_LEN          8192
+#define PRIMBUFF_LEN  131072
+
+void    empty_ot(u_short currbuff);
+void    set_ot_at(u_short currbuff, u_int i, u_long value);
+u_long *get_ot_at(u_short currbuff, u_int i);
+
+void    increment_next_prim(u_int size);
+void    set_next_prim(char *value);
+void    reset_next_prim(u_short currbuff);
+char   *get_next_prim(void);
+
+#endif
+#+end_src
+
+Remove   the   primitive  buffer   declarations   from   ~main.c~  and   include
+~"globals.h"~.
+
+** ~globals.c~ functions implementation
+
+Basically, getters and setters for OT / primitive buffer.
+
+#+begin_src c
+void
+empty_ot(u_short currbuff)
+{
+    ClearOTagR(ot[currbuff], OT_LEN);
+}
+
+void
+set_ot_at(u_short currbuff, u_int i, u_long value)
+{
+    ot[currbuff][i] = value;
+}
+
+u_long *
+get_ot_at(u_short currbuff, u_int i)
+{
+    return &ot[currbuff][i];
+}
+
+void
+increment_next_prim(u_int size)
+{
+    nextprim += size;
+}
+
+void
+set_next_prim(char *value)
+{
+    nextprim = value;
+}
+
+void
+reset_next_prim(u_short currbuff)
+{
+    nextprim = primbuff[currbuff];
+}
+
+char *
+get_next_prim(void)
+{
+    return nextprim;
+}
+#+end_src
+
+** Change ~main.c~
+
+- Remove ~OT_LENGTH~.
+- On ~display_frame~:
+  - On calls to  ~DrawOTag~, use ~get_ot_at(currbuff, OT_LEN - 1)~ as argument.
+  - When resetting ~nextprim~, use ~reset_next_prim(currbuff)~.
+- On ~setup~:
+  - When resetting ~nextprim~, use ~reset_next_prim(currbuff)~.
+- On ~update~:
+  - Whenever casting ~nextprim~, replace it with a call to  ~get_next_prim~.
+  - Whenever using ~OT_LENGTH~, replace it with ~OT_LEN~.
+  - On calls to ~addPrim~, use ~get_ot_at~ to fetch the first argument.
+  - Instead of incrementing ~nextprim~, use ~increment_next_prim~.
+
+** ~display.h~
+
+Move the definition for ~DoubleBuff~ to ~display.h~.
+
+#+begin_src c
+#ifndef DISPLAY_H
+#define DISPLAY_H
+
+#include <libgpu.h>
+
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+#endif
+#+end_src
+
+** ~display.c~
+
+Move  the  definitions  for  the  double   buffer  and  the  current  buffer  to
+~display.c~.
+
+#+begin_src c
+#include "display.h"
+
+static DoubleBuff screen;
+static u_short currbuff;
+#+end_src
+
+** Exercise: implementing getters and setters for screen and double buffer
+
+I ended up taking  all code related to screen and buffer  swapping and moving it
+to ~display.{c|h}~. Here's how.
+
+*** ~display.h~
+
+Not only did I  declare the getters and setters, but  I also moved ~screen_init~
+here, along with screen-related definitions.
+
+#+begin_src c
+#ifndef DISPLAY_H
+#define DISPLAY_H
+
+#include <libgpu.h>
+
+#define VIDEO_MODE 0
+#define SCREEN_RES_X 320
+#define SCREEN_RES_Y 240
+#define SCREEN_CENTER_X (SCREEN_RES_X >> 1)
+#define SCREEN_CENTER_Y (SCREEN_RES_Y >> 1)
+#define SCREEN_Z 320
+
+typedef struct {
+    DRAWENV draw[2];
+    DISPENV disp[2];
+} DoubleBuff;
+
+DoubleBuff *get_screen();
+u_short     get_curr_buffer();
+void        swap_buffers();
+
+void        screen_init();
+void        screen_draw();
+
+#endif
+#+end_src
+
+Notice that I did not declare a setter for the current buffer. I simply swap the
+buffers.
+
+*** ~display.c~
+
+Same thing. Implementation.
+
+#+begin_src c
+#include "display.h"
+#include <libetc.h>
+
+static DoubleBuff screen;
+static u_short currbuff;
+
+DoubleBuff *
+get_screen()
+{
+    return &screen;
+}
+
+u_short
+get_curr_buffer()
+{
+    return currbuff;
+}
+
+void
+swap_buffers()
+{
+    currbuff = !currbuff;
+}
+
+void
+screen_init(void)
+{
+    // Reset GPU
+    ResetGraph(0);
+
+    // Set display and draw areas of buffers
+    SetDefDispEnv(&screen.disp[0], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[0], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDispEnv(&screen.disp[1], 0, 240, SCREEN_RES_X, SCREEN_RES_Y);
+    SetDefDrawEnv(&screen.draw[1], 0, 0, SCREEN_RES_X, SCREEN_RES_Y);
+
+    // Set draw buffers as background buffers
+    screen.draw[0].isbg = 1;
+    screen.draw[1].isbg = 1;
+
+    // Set background clear color
+    setRGB0(&screen.draw[0], 63, 0, 127);
+    setRGB0(&screen.draw[1], 63, 0, 127);
+
+    // Set current initial buffer
+    currbuff = 0;
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+
+    // Initialize and setup the GTE geometry offsets
+    InitGeom();
+    SetGeomOffset(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+    SetGeomScreen(SCREEN_Z);
+
+    // Enable display
+    SetDispMask(1);
+}
+
+void
+screen_draw()
+{
+    DrawSync(0);
+    VSync(0);
+
+    PutDispEnv(&screen.disp[currbuff]);
+    PutDrawEnv(&screen.draw[currbuff]);
+}
+#+end_src
+
+*** Changing ~main.c~
+
+The rest is a breeze.
+
+Wherever we were using ~currbuff~, now we just need to use ~get_curr_buffer()~.
+
+~display_frame~ suffered most of the changes:
+
+#+begin_src c
+void
+display_frame(void)
+{
+    screen_draw();
+
+    // Sort objects in ordering table
+    DrawOTag(get_ot_at(get_curr_buffer(), OT_LEN - 1));
+
+    swap_buffers();
+
+    // Reset next primitive pointer to the start of the primitive buffer
+    reset_next_prim(get_curr_buffer());
+}
+#+end_src
+
+* Header file for Display Routines
+
+So the only thing I did differently  was encapsulate some of the stuff that were
+in ~display_frame~.
+
+I'm gonna go ahead  and move ~display_frame~ into the display  header and C file
+too, since it is really not a concern of ~main.c~.
+

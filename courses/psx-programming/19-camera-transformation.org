@@ -1,0 +1,514 @@
+#+title: Camera Transformation
+#+startup: content
+
+* Camera space
+
+So far, our eye point for the camera has been the origin ~(0, 0, 0)~.
+
+** Camera Object
+
+We start by defining the conceptual camera object on the scene.
+
+#+begin_src c
+typedef struct {
+    VECTOR  position;
+    SVECTOR rotation;
+    MATRIX  lookat;
+} Camera;
+#+end_src
+
+** Camera Transformation
+
+- We will  _not_ look at  the entire derivation  of the formulas  here. Instead,
+  we'll focus on the *intuition* behind the transformation.
+
+The camera transformation transforms all the vertices on the scene, so that they
+get rotated, translated  and converted into a new coordinate  system, where this
+new origin is the eye point of the  camera, looking at a positive Z axis (in our
+case).
+
+- The  *Camera  Transformation*  is  a  stage  of  the  graphics  pipeline  that
+  transforms *all*  the vertices  of our  scene, multiplying  them by  the _view
+  matrix_ and  converting them to  a *new  coordinate system* whose  *origin* is
+  the camera *eye* point looking at the positive z-axis.
+
+*** Camera space on the rendering pipeline
+
+So, where does this camera transformation sit on the pipeline? Well...
+
+1. Local Space
+   - Gets transformed by World Matrix...
+2. World Space
+   - Gets transformed by View Matrix...
+3. Camera Space
+4. Perspective Projection
+5. Clip Space
+6. Screen Space & Rasterization
+
+** Camera models
+
+There are different camera models which we can use.
+
+- FPS camera model: There are rotations (pitch, roll, yaw).
+- Look-at  camera model:  The camera  is  at a  certain position  in the  world,
+  looking at a target.
+
+We're going to  use a look-at camera model,  and for that, we need  to perform a
+look-at transformation, which involves a matrix.
+
+* The Look-At Transformation
+
+- The most popular way of creating a view matrix is by using a camera ~LookAt()~
+  function.
+- This function returns  a matrix that can  be used to multiply  the vertices to
+  convert them to camera/view space.
+  - Like we just saw, this is called a *view matrix*).
+- In order to set  the camera position and orientation, all we  really need is a
+  point to set the camera position in  space (the *eye* point), and a point that
+  defines where the camera is looking at (the *target* point).
+- The camera's ~LookAt~ transformation is responsible for giving us back a *view
+  matrix* ($M _ {\text{view}}$).
+- It consists of _two_ transformations:
+  1. *Translating* the whole scene inversely from the camera eye position to the
+     origin (matrix $M _ {T}$);
+  2. *Rotating*  the scene with  the *reverse* orientation (matrix  $M _ {R}$), so
+     the camera is positioned at the origin and facing the positive z-axis.
+
+$$\\
+M _ {\text{view}} = M _ {R} \cdot M _ {T} =
+\begin{bmatrix}
+r _ {11} & r _ {12} & r _ {13} & 0 \\
+r _ {21} & r _ {22} & r _ {23} & 0 \\
+r _ {31} & r _ {32} & r _ {33} & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}\cdot
+\begin{bmatrix}
+1 & 0 & 0 & t _ {x} \\
+0 & 1 & 0 & t _ {y} \\
+0 & 0 & 1 & t _ {z} \\
+0 & 0 & 0 & 1
+\end{bmatrix}$$
+
+Let's look at translation and rotation individually...
+
+** Translation
+
+Translation is easy. All we need to  do is inversely move the camera position to
+the origin.  We just  replace the  translation column of  matrix $M _ {T}$  by the
+negated *eye* position.
+
+$$\\
+M _ {T} =
+\begin{bmatrix}
+1 & 0 & 0 & -\text{eye} _ {x} \\
+0 & 1 & 0 & -\text{eye} _ {y} \\
+0 & 0 & 1 & -\text{eye} _ {z} \\
+0 & 0 & 0 & 1
+\end{bmatrix}$$
+
+** Rotation
+
+For the _rotation_ part, we must compute the *forward* (z), *right* (x) and *up*
+(y) vectors (these vectors  are relative to the camera eye,  of course. Use your
+left hand toe, index and middle fingers to create these vectors).
+
+If we have these orthogonal  vectors (orthogonal, since they're perpendicular to
+each other), computing a matrix that encodes them is quite easy:
+
+$$\\
+\begin{bmatrix}
+\text{right} _ {x} & \text{up} _ {x} & \text{forward} _ {x} & 0 \\
+\text{right} _ {y} & \text{up} _ {y} & \text{forward} _ {y} & 0 \\
+\text{right} _ {z} & \text{up} _ {z} & \text{forward} _ {z} & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}$$
+
+*However!!!   This  rotation matrix  must  be  _inverted_!!!*  (so we  take  our
+original matrix and elevate it to the power of -1):
+
+$$\\
+M _ {R} =
+\begin{bmatrix}
+\text{right} _ {x} & \text{up} _ {x} & \text{forward} _ {x} & 0 \\
+\text{right} _ {y} & \text{up} _ {y} & \text{forward} _ {y} & 0 \\
+\text{right} _ {z} & \text{up} _ {z} & \text{forward} _ {z} & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix} ^ {-1}$$
+
+Inverting  a   matrix  is  a  complicated   thing  to  do  by   hand,  and  even
+computationally it can be quite expensive.  But... *Good news!* We don't have to
+compute  the inverse  matrix $M  _ {R}$  the hard  way, because  this matrix  is
+_orthogonal_  (where   each  *column*   has  length   *1.0*  and   are  mutually
+*perpendicular*).
+
+In other words,  the vectors are unitary (because they  are normalized), and are
+perpendicular among each other. So it  is an orthogonal matrix. This means that,
+*to invert an orthogonal matrix, all we have to do is transpose said matrix*.
+
+- To  *invert* any  orthogonal matrix,  all  we need  to do  is *transpose*  the
+  matrix.
+
+$$\\
+M _ {R} =
+\begin{bmatrix}
+\text{right} _ {x} & \text{up} _ {x} & \text{forward} _ {x} & 0 \\
+\text{right} _ {y} & \text{up} _ {y} & \text{forward} _ {y} & 0 \\
+\text{right} _ {z} & \text{up} _ {z} & \text{forward} _ {z} & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix} ^ {T} =
+\begin{bmatrix}
+\text{right} _ {x} & \text{right} _ {y} & \text{right} _ {z} & 0 \\
+\text{up} _ {x} & \text{up} _ {y} & \text{up} _ {z} & 0 \\
+\text{forward} _ {x} & \text{forward} _ {y} & \text{forward} _ {z} & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}$$
+
+** Final view matrix
+
+$$M _ {\text{view}} = M _ {R} \cdot M _ {T}$$
+
+$$\\
+M _ {\text{view}} = 
+\begin{bmatrix}
+\text{right} _ {x} & \text{right} _ {y} & \text{right} _ {z} & 0 \\
+\text{up} _ {x} & \text{up} _ {y} & \text{up} _ {z} & 0 \\
+\text{forward} _ {x} & \text{forward} _ {y} & \text{forward} _ {z} & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix} \cdot
+\begin{bmatrix}
+1 & 0 & 0 & -\text{eye} _ {x} \\
+0 & 1 & 0 & -\text{eye} _ {y} \\
+0 & 0 & 1 & -\text{eye} _ {z} \\
+0 & 0 & 0 & 1
+\end{bmatrix}$$
+
+$$\\
+M _ {\text{view}} =
+\begin{bmatrix}
+\text{right} _ {x}   & \text{right} _ {y}   & \text{right} _ {z}   & (-\text{right} _ {x} \text{eye} _ {x} - \text{right} _ {y} \text{eye} _ {y} - \text{right} _ {z} \text{eye} _ {z}) \\
+\text{up} _ {x}      & \text{up} _ {y}      & \text{up} _ {z}      & (-\text{up} _ {x} \text{eye} _ {x} - \text{up} _ {y} \text{eye} _ {y} - \text{up} _ {z} \text{eye} _ {z}) \\
+\text{forward} _ {x} & \text{forward} _ {y} & \text{forward} _ {z} & (-\text{forward} _ {x} \text{eye} _ {x} - \text{forward} _ {y} \text{eye} _ {y} - \text{forward} _ {z} \text{eye} _ {z})
+\end{bmatrix}$$
+
+Notice how, in the Psy-Q library, a  matrix is composed of a 3x3 component, plus
+a t vector:
+
+#+begin_src c
+typedef struct {
+    short m[3][3];
+    long  t[3];
+} MATRIX;
+#+end_src
+
+So this makes sense for our Look-at transformation: it is basically a 3x3 matrix
+plus the  three translation components  on the  fourth column. We're  gonna take
+advantage of that.
+
+* The ~LookAt~ Function
+
+So let's define our ~LookAt~ function.
+
+This function populates and returns a  *view matrix* with the entries to perform
+both rotation and translation.
+
+#+begin_src c
+void
+look_at(Camera *camera, VECTOR *eye, VECTOR *target, VECTOR *up)
+{
+#+end_src
+
+Our parameters  are the  *camera* object,  an *eye*  camera point,  the *target*
+point in world space, and an *up*  vector which defines what the up direction is
+in our world (usually, ~(0, 1, 0)~).
+
+We need to start by computing the *forward* (~z~), *right* (~x~), and *up* (~y~)
+vectors.
+
+Let's declare some variables to hold these vectors and their normalized versions
+(normalized vectors have length ~1.0~).
+
+#+begin_src c
+    VECTOR xright;
+    VECTOR yup;
+    VECTOR zforward;
+
+    VECTOR x, y, z; // Normalized right/up/forward vectors
+#+end_src
+
+Let's also declare some temporary helper vectors. They will be useful later.
+
+#+begin_src c
+    VECTOR pos; // Temporary position
+    VECTOR t;   // Temporary translation
+#+end_src
+
+** Computing the vectors
+
+First we're now going to compute the forward vector and normalize it.
+
+#+begin_src c
+    zforward.vx = target->vx - eye->vx;
+    zforward.vy = target->vy - eye->vy;
+    zforward.vz = target->vz - eye->vz;
+    VectorNormal(&zforward, &z);
+#+end_src
+
+This is  just some  simple vector  math; doing ~target - eye~,  I can  find the
+vector that goes from the eye to the target. Notice that these are like absolute
+values representing real distance on each axis.
+
+The  ~VectorNormal~ function  is part  of ~libgte.h~  and helps  us normalize  a
+vector (refer to the [[file:LibRef47.pdf][Run-Time Library Reference]] for more info).
+
+Let's compute our right vector.
+
+#+begin_src c
+    VectorCross(&z, up, &xright);
+    VectorNormal(&xright, &x);
+#+end_src
+
+So, whenever  we have two  vectors, there is a  vector operation that  returns a
+third vector that is necessarily perpendicular  to the other two. This operation
+is the *cross product* of these vectors.
+
+We use the  parameter ~up~ to compute  a vector perpendicular to it  and to ~z~,
+and then we normalize it. Now we have ~x~, pointing to the right.
+
+Now we have to get our ~y~ vector.  This one is straightforward too. All we need
+to do is a cross product between ~x~ and ~z~.
+
+#+begin_src c
+    VectorCross(&z, &x, &yup);
+    VectorNormal(&yup, &y);
+#+end_src
+
+** Populating the matrix
+
+Now that we have everything, all we need to do is start populating our matrix.
+
+Let's start by populating the rotation  values which are basically just our ~x~,
+~y~ and ~z~ vertices.
+
+#+begin_src c
+    camera->lookat.m[0][0] = x.vx;
+    camera->lookat.m[0][1] = x.vy;
+    camera->lookat.m[0][2] = x.vz;
+
+    camera->lookat.m[1][0] = y.vx;
+    camera->lookat.m[1][1] = y.vy;
+    camera->lookat.m[1][2] = y.vz;
+
+    camera->lookat.m[2][0] = z.vx;
+    camera->lookat.m[2][1] = z.vy;
+    camera->lookat.m[2][2] = z.vz;
+#+end_src
+
+Use the ~pos~ temporary variable to hold the negated ~eye~ values:
+
+#+begin_src c
+    pos.vx = -eye->vx;
+    pos.vy = -eye->vy;
+    pos.vz = -eye->vz;
+#+end_src
+
+Now we're going to use two special functions powered by the GTE:
+
+- ~ApplyMatrixLV~:  This  function  multiplies  a vector  (~pos~)  by  a  matrix
+  (~camera->lookat~). The  final result is  stored in  ~t~. This results  in the
+  translation terms we are looking for.
+- ~TransMatrix~: Populates  the translation terms in  ~camera->lookat~, with the
+  values contained in ~t~.
+
+#+begin_src c
+    ApplyMatrixLV(&camera->lookat, &pos, &t);
+    TransMatrix(&camera->lookat, &t);
+}
+#+end_src
+
+* Coding the Look-At Camera Model
+
+I'm just going to use the same ~hellojoypad~ project.
+
+Create a ~camera.c~ and a ~camera.h~ files.
+
+** ~camera.h~
+
+We define the ~Camera~ type and the prototype for ~look_at~.
+
+#+begin_src c
+#ifndef CAMERA_H
+#define CAMERA_H
+
+#include <libgpu.h>
+
+typedef struct {
+    VECTOR  position;
+    SVECTOR rotation;
+    MATRIX  lookat;
+} Camera;
+
+void look_at(Camera *camera, VECTOR *eye, VECTOR *target, VECTOR *up);
+
+#endif
+#+end_src
+
+We'll need to adjust ~camera.c~ a little, so let's save it for lated.
+
+** ~main.c~
+
+*** Global variable
+
+Include ~"camera.h"~, then declare a camera.
+
+#+begin_src c
+Camera camera;
+#+end_src
+
+*** Setup
+
+On ~setup~ initialize the camera object:
+
+#+begin_src c
+camera.position.vx =   500;
+camera.position.vy = -1000; // Y grows down
+camera.position.vz = -1500; // Push the camera back further
+camera.lookat = (MATRIX){0};
+#+end_src
+
+*** Moving the camera
+
+On ~update~, let's  change the parts related to the  cube rotation and, instead,
+we'll change the camera position.
+
+#+begin_src c
+if(joypad_check(PAD1_LEFT)) {
+    camera.position.vx -= 50;
+}
+
+if(joypad_check(PAD1_RIGHT)) {
+    camera.position.vx += 50;
+}
+
+if(joypad_check(PAD1_UP)) {
+    camera.position.vy -= 50;
+}
+
+if(joypad_check(PAD1_DOWN)) {
+    camera.position.vy += 50;
+}
+
+if(joypad_check(PAD1_CROSS)) {
+    camera.position.vz -= 50;
+}
+
+if(joypad_check(PAD1_CIRCLE)) {
+    camera.position.vz += 50;
+}
+#+end_src
+
+*** Calculating the LookAt code
+
+Now after  the collision code,  let's calculate  our LookAt matrix.  We're gonna
+look at the cube, so the target is its center (~pos~).
+
+The "up" direction in our world is a fixed ~(0, -1, 0)~ vector. Notice how we're
+using -1  here because our Y  axis actually grows  DOWN. So our up  direction is
+toward a negative Y axis.
+
+#+begin_src c
+look_at(&camera, &camera.position, &pos, &(VECTOR){0, -ONE, 0});
+#+end_src
+
+*** Applying the view matrix to our objects
+
+First of all, declare a new global variable to hold the _view matrix_.
+
+#+begin_src c
+MATRIX view = {0};
+#+end_src
+
+Now, on ~update~, before setting our  rotation and translation matrices, we need
+to replace  their use of the  world matrix with  something else. There is  a new
+stage of the pipeline that we have to account for.
+
+We're going to have to combine the World matrix with the LookAt matrix, and this
+results on our View matrix.
+
+We can do that by leveraging the GTE.
+
+#+begin_src c
+CompMatrixLV(&camera.lookat, &world, &view);
+SetRotMatrix(&view);
+SetTransMatrix(&view);
+#+end_src
+
+** ~camera.c~
+
+Straightforward. Just copy the ~look_at~  function above, include ~camera.h~ and
+~libgte.h~.
+
+Don't forget to add it to the Makefile.
+
+However, soon you'll notice that ~VectorCross~ is a function that is not defined
+anywhere!
+
+This is because  the ~libgte.h~ does not call this  operation a _cross product_,
+but an _outer product_. This is the result of a bad translation from Japanese.
+
+So all we need  to do is replace ~VectorCross~ with  ~OuterProduct12~. But out of
+stubbornness, let's just declare this ~VectorCross~ function and use it instead.
+
+Why  ~OuterProduct12~,   you  may  ask?  Well,   because  ~OuterProduct12~  uses
+fixed-point values (12 is our fixed-point scale). Refer to the [[file:LibRef47.pdf][Run-Time Library
+Reference]] for more info.
+
+#+begin_src c
+#include "camera.h"
+#include <libgte.h>
+
+void
+VectorCross(VECTOR *a, VECTOR *b, VECTOR *out)
+{
+    OuterProduct0(a, b, out);
+}
+
+void
+look_at(Camera *camera, VECTOR *eye, VECTOR *target, VECTOR *up)
+{
+    VECTOR xright;
+    VECTOR yup;
+    VECTOR zforward;
+
+    VECTOR x, y, z; // Normalized right/up/forward vectors
+
+    VECTOR pos; // Temporary position
+    VECTOR t;   // Temporary translation
+
+    zforward.vx = target->vx - eye->vx;
+    zforward.vy = target->vy - eye->vy;
+    zforward.vz = target->vz - eye->vz;
+    VectorNormal(&zforward, &z);
+
+    VectorCross(&z, up, &xright);
+    VectorNormal(&xright, &x);
+
+    VectorCross(&z, &x, &yup);
+    VectorNormal(&yup, &y);
+
+    camera->lookat.m[0][0] = x.vx;
+    camera->lookat.m[0][1] = x.vy;
+    camera->lookat.m[0][2] = x.vz;
+
+    camera->lookat.m[0][0] = y.vx;
+    camera->lookat.m[0][1] = y.vy;
+    camera->lookat.m[0][2] = y.vz;
+
+    camera->lookat.m[0][0] = z.vx;
+    camera->lookat.m[0][1] = z.vy;
+    camera->lookat.m[0][2] = z.vz;
+
+    ApplyMatrixLV(&camera->lookat, &pos, &t);
+    TransMatrix(&camera->lookat, &t);
+}
+#+end_src
+
