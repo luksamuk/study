@@ -96,7 +96,7 @@ Simply use my Dockerfile, hehe.
 Here is a  bash script for converting all files  on the ~ASSETS/SOUND~ directory
 to ~.VAG~.
 
-#+begin_src bash
+#+begin_src bash :eval never
 # First open the root directory using the container...
 docker run -it --rm -v $(pwd):/source -w /source luksamuk/psxtoolchain:latest /bin/bash
 
@@ -917,7 +917,7 @@ sample rate of 44100 Hz and and encoding of a signed 16-bit PCM.
 You can do that on Audacity when exporting  the audio as WAV, but here's how you
 can also do that through ~ffmpeg~:
 
-#+begin_src bash
+#+begin_src bash :eval never
 ffmpeg -i oldmusic.wav -c:a pcm_s16le -ar 44100 music.wav
 #+end_src
 
@@ -989,3 +989,34 @@ if(countdown_step > 0) {
 :)
 
 * Adding Scene Objects & Audio
+
+The last thing we need to do is render our scene objects.
+
+Let's uncomment everything.
+
+But uh, it is heavily unoptimized... and  my computer, in the end, plays it like
+garbage. That's sad. But at least it looks cool.
+
+#+begin_src c
+/* On main.c, setup function */
+
+// ...
+sceneobjs = load_object_list_prm("\\TRACK02\\SCENE.PRM;1", scenestarttexture, &numsceneobjs);
+// ...
+
+/* update function */
+render_scene_objects(sceneobjs, &camera);
+#+end_src
+
+** Note on joining .CUE and .ISO files
+
+Check out ~chdman~  (for Windows) and ~tochd~ (for Linux).  These are originally
+formats for MAME emulators, but they work  pretty well for other CD formats, and
+many emulators accept  the .CHD format nowadays (especially  EmulatorJS, which I
+am using to host my stuff).
+
+#+begin_src bash :eval never
+# On the .cue file directory...
+tochd -q .
+#+end_src
+
