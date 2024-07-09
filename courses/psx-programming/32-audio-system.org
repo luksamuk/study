@@ -747,7 +747,245 @@ going to  be actual red  book audio  tracks. So in  theory, we could  play these
 tracks by inserting the disk on a CD-DA disk reader as well.
 
 * Recording an Audio Track
+
+In this  video, the instructor basically  talked about the composing  process of
+the song  we're going to use  for our game.  It is Drum'n'Bass styled  song that
+reminds of 90's action game music atmosphere.
+
+~jungle.wav~ goes inside ~ASSETS\MUSIC\~.
+
 * Adding Audio Track to ISO
+
+To build our ISO, we will not have to use ~mkpsxiso~ and a XML file from now on.
+
+So if you've been using ~BUILDCD.EXE~... put it aside. Hehe.
+
+Here's how we are supposed to build our  XML file -- I am going to transcribe it
+here in full, since this might be the last time we're tweaking this file.
+
+#+begin_src xml
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="GAME.iso" cue_sheet="GAME.cue" no_xa="0">
+  <track type="data">
+    <identifiers
+	system        = "PLAYSTATION"
+	application   = "PLAYSTATION"
+	volume        = "MYDISC"
+	volume_set    = "GAME"
+	publisher     = "ME"
+	data_preparer = "MKPSXISO"
+	copyright     = "COPYLEFT" />
+    <license file="LCNSFILE/LICENSEA.DAT" />
+    <directory_tree>
+      <file name="SYSTEM.CNF"  type="data" source="SYSTEM.TXT" />
+      <file name="MAIN.EXE"    type="data" source="wipefaux.ps-exe" />
+      <file name="ALLSH.PRM"   type="data" source="ASSETS/COMMON/ALLSH.PRM" />
+      <file name="ALLSH.CMP"   type="data" source="ASSETS/COMMON/ALLSH.CMP" />
+      <file name="RESCU.PRM"   type="data" source="ASSETS/COMMON/RESCU.PRM" />
+      <file name="RESCU.CMP"   type="data" source="ASSETS/COMMON/RESCU.CMP" />
+      <file name="POWERUP.VAG" type="data" source="ASSETS/SOUND/POWERUP.VAG" />
+      <file name="COUNT3.VAG"  type="data" source="ASSETS/SOUND/COUNT3.VAG" />
+      <file name="COUNT2.VAG"  type="data" source="ASSETS/SOUND/COUNT2.VAG" />
+      <file name="COUNT1.VAG"  type="data" source="ASSETS/SOUND/COUNT1.VAG" />
+      <file name="COUNTGO.VAG" type="data" source="ASSETS/SOUND/COUNTGO.VAG" />
+      <dir name="TRACK02">
+        <file name="SCENE.CMP"   type="data" source="ASSETS/TRACK02/SCENE.CMP" />
+        <file name="SCENE.PRM"   type="data" source="ASSETS/TRACK02/SCENE.PRM" />
+        <file name="TRACK.TRV"   type="data" source="ASSETS/TRACK02/TRACK.TRV" />
+        <file name="TRACK.TRF"   type="data" source="ASSETS/TRACK02/TRACK.TRF" />
+        <file name="TRACK.TRS"   type="data" source="ASSETS/TRACK02/TRACK.TRS" />
+        <file name="LIBRARY.CMP" type="data" source="ASSETS/TRACK02/LIBRARY.CMP" />
+        <file name="LIBRARY.TTF" type="data" source="ASSETS/TRACK02/LIBRARY.TTF" />
+      </dir>
+      <dummy sectors="1024"/>
+      <file name="audio1.da" trackid="02" type="da" />
+    </directory_tree>
+  </track>
+  <track type="audio" trackid="02" source="ASSETS/MUSIC/jungle.wav" />
+</iso_project>
+#+end_src
+
+Here's the differences so far:
+
+- *Dummy sector:*  This dummy  sector is  added at  the end  of the  file system
+  portion of  the image to avoid  the possibility of "drive  runaway", which can
+  damage a drive  mechanism. It is an invisible file  specified in sector units,
+  and ensures a  clean directory structure when  the file system is  viewed on a
+  file browser. 1024 sectors correspond to 2MB.
+- *First  track, ~audio1.da~  file:* According  to ~mkpsxiso~  [[https://github.com/Lameguy64/mkpsxiso/blob/master/examples/example.xml][example]], this  is
+  necessary so that our  track remains visible as a CD-DA track.  This is not in
+  the original course, I did this so I  could also listen to the game's music as
+  red book CD audio. :P
+- *Track at the  end:* Actual audio file. Notice the  ~trackid~ tag that differs
+  from course file; this  is so that it could be referred  to on the ~audio1.da~
+  file right  above. Plus,  *make sure*  that the  track is  in red  book format
+  (44.1kHz, 16-bit, stereo).
+
+As always, to build our ISO and CUE:
+
+#+begin_src bash :eval never
+mkpsxiso -y CDLAYOUT.XML
+#+end_src
+
 * Play Audio Track Implementation
+
+Let's go to ~sound.h~ and ~sound.c~. Add the following function (don't forget to
+add the prototype to the header file):
+
+#+begin_src c
+#include <libetc.h>
+#include <libcd.h>
+
+// ...
+
+static CdlLOC loc[100];
+static int numtoc;
+
+// ...
+
+void
+play_audio_track(u_short tracknum)
+{
+    u_int i;
+    u_char param[4];
+    u_char result[8];
+
+    // Set transfer mode to DMA
+    SpuSetTransferMode(SpuTransByDMA);
+
+    // Get CD table of contents
+    while((numtoc = CdGetToc(loc)) == 0) {
+        printf("No TOC found! Please use a CD-DA disc...\n");
+    }
+
+    printf("NUMTOC = %d\n", numtoc);
+
+    // Prevent out-of-bounds position
+    for(i = 1; i < numtoc; i++) {
+        CdIntToPos(CdPosToInt(&loc[i]) - 74, &loc[i]);
+        printf("TOC[%d] --> Track=%d --> Minute=%d --> Second=%d\n",
+               i, loc[i].track, loc[i].minute, loc[i].second);
+    }
+
+    // Set CD parameters: Repeat mode ON + CD-DA ON
+    // (see LibOver47.pdf, p. 188)
+    param[0] = CdlModeRept | CdlModeDA;
+    CdControlB(CdlSetmode, param, 0);
+
+    VSync(3); // Wait three vsyncs
+
+    // Play track in TOC array
+    CdControlB(CdlPlay, (u_char *)&loc[tracknum], 0);
+}
+#+end_src
+
+In this case, we're setting the transfer mode to DMA, and then we have to take a
+look at the table  of contents of our CD. This is how  we're going to find where
+our tracks  are on  the CD,  so we  can actually  set the  position to  play our
+tracks. If we don't find anything, we're going for a spinlock here.
+
+After that, we're  going to iterate at  every table of contents  entry. For each
+entry (starting at 1, since track 0 is  our data track), and we subtract 74 from
+the  location so  we can  properly align  sectors here  -- don't  ask much.  The
+~CdIntToPos~ and ~CdPosToInt~ is to/from  position and integer conversions so we
+can properly manipulate these values.
+
+We then  set the  CD controller  mode to  repeating the  song and  playing CD-DA
+audio tracks.
+
+Afterwards, wait for  three vsyncs (this is a customary  amount). and then order
+the CD controller to actually play the audio of a track on the desired location.
+
+Remember that we already  enabled and set the volume for the  CD mixed back when
+we defined ~sound_init~, so we're good to go on just playing our music.
+
+Now in ~main.c~, after loading all the SFX tracks, play the audio:
+
+#+begin_src c
+/* main.c, end of setup function */
+// Play background music (red book audio CD track)
+play_audio_track(2);
+#+end_src
+
+Enjoy.
+
 * Play Background Audio Track
+
+Do not forget:  In order for the audio  to work correctly, one needs  to setup a
+sample rate of 44100 Hz and and encoding of a signed 16-bit PCM.
+
+You can do that on Audacity when exporting  the audio as WAV, but here's how you
+can also do that through ~ffmpeg~:
+
+#+begin_src bash
+ffmpeg -i oldmusic.wav -c:a pcm_s16le -ar 44100 music.wav
+#+end_src
+
+Oh, and  a small note:  I also  managed to make  this work by  converting things
+these audio to FLAC. Still lossless, but much smaller.
+
+The last thing we need to do is play the song at the end of the countdown.
+
+I managed  to add one extra  track, and then  make the game alternate  tracks on
+reset. Here's how to do these things.
+
+First,  on  ~sound.c~  and  ~sound.h~,  add  a  function  to  stop  CD  rotation
+altogether -- Don't forget to add the prototype to the header!
+
+#+begin_src c
+void
+stop_audio_track()
+{
+    CdControlF(CdlStop, 0);
+}
+#+end_src
+
+Now back on ~main.c~.
+
+Declare a variable to help us alternate  the track, and then alternate it on the
+reset function.
+
+#+begin_src c
+// ...
+
+char current_audio_track = 0;
+
+// ...
+
+void
+respawn(void)
+{
+    // ...
+    stop_audio_track();
+    current_audio_track = !current_audio_track;
+}
+#+end_src
+
+Now, *remove* the track playback from the end  of ~setup~, and at the end of the
+countdown function, just play the audio starting at 2:
+
+#+begin_src c
+// In function update
+// ...
+
+// Countdown
+if(countdown_step > 0) {
+    // ...
+    if(frame_countdown <= 0) {
+        switch(countdown_step) {
+            // ...
+        case 1:
+            audio_play(SPU_4CH);
+            is_racing = 1;
+            // Play background music (red book audio CD track)
+            play_audio_track(2 + current_audio_track);
+            break;
+        }
+        // ...
+    }
+}
+#+end_src
+
+:)
+
 * Adding Scene Objects & Audio
