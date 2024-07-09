@@ -47,7 +47,7 @@ mim. Desta forma, acredito que posso atestar o fato de que as respostas para
 exercícios aqui descritas vieram de mim mesmo.
 
 ** Relação de diretórios e atividades incluídas
-Última atualização: [2022-06-03 sex]
+Última atualização: [2024-07-09 ter]
 
 *** ~SI~
 Exercícios feitos no curso de Sistemas de Informação. Nenhuma destas
@@ -212,6 +212,14 @@ Notas e resolução comentada para o livro ~xchg rax,rax~ de ~xorpd~.
 *** =courses=
 
 Cursos variados de várias plataformas.
+
+**** =psx-programming=
+
+Notas do [[https://pikuma.com/courses/ps1-programming-mips-assembly-language][Curso  de Desenvolvimento para PlayStation usando MIPS  Assembly & C]] do
+Gustavo Pezzi.
+
+As anotações desse curso  são bem pessoais e foram documentadas  de acordo com o
+meu gosto. É provável que você tenha dificuldades em acompanhá-las.
 
 **** =machine-learning=
 
