@@ -1,0 +1,597 @@
+#+title: SuperH Architecture - SH-2
+#+startup: content
+
+The Super-H can run in big or little endian mode.
+
+On 32x and Saturn, it runs in big endian, like the Motorola 68000 processor.
+
+* Useful links
+
+- https://www.copetti.org/writings/consoles/sega-saturn/
+- https://www.chibialiens.com/sh2/
+- https://www.chibialiens.com/sh2/saturn.php
+- https://www.chibialiens.com/sh2/helloworld.php
+- https://www.chibialiens.com/sh2/simplesamples.php
+- https://github.com/DanielMerchan/sega-saturn-sgl-tutorial
+- https://github.com/yaul-org/libyaul
+- http://antime.kapsi.fi/sega/docs.html
+  
+* Registers
+
+All SH-2 registers are fully 32-bit.
+
+** General-purpose registers
+
+| Name          | Description                                       |
+|---------------+---------------------------------------------------|
+| ~r0~          | Index address, fixed source for some instructions |
+| ~r1~ to ~r14~ | General purpose                                   |
+| ~r15~ or ~sp~ | Stack pointer                                     |
+
+** Special registers
+
+Notice that ~mach~ is 10-bit on SH-1 (SH7000), but fully 32-bit on SH-2 SH7600).
+
+| Name   | Description                                                        |
+|--------+--------------------------------------------------------------------|
+| ~sr~   | Status Register (flags)                                            |
+| ~gbr~  | Global Base Register (for addressing peripheral data)              |
+| ~vbr~  | Vector Base REgister (TRAP / exception processing base)            |
+| ~mach~ | Multiply and Accumulate (high)                                     |
+| ~macl~ | Multiply and Accumulate (low)                                      |
+| ~pr~   | Procedure register (return address used by ~jsr~/~bsr~ and ~rts~   |
+| ~pc~   | Program counter (current instruction + 4 due to pipeline)          |
+| ~*~    | Pseudo-register, gets current ~pc~ but it is ahead of current line |
+
+*** Status register bits
+
+Function of ~sr~ bits. Count is from left (lsb) to right (msb):
+
+| Bit number    | Function                            |
+|---------------+-------------------------------------|
+| ~1f~ to ~0a~  | None                                |
+| ~09~          | M (used by ~div~ instruction)       |
+| ~08~          | Q (used by ~div~ instruction)       |
+| ~07~ to ~04~  | I (interrupt mask bits)             |
+| ~03~ and ~02~ | Unused                              |
+| ~01~          | S (used by Multiply and Accumulate) |
+| ~00~          | T (Carry Bit)                       |
+
+*** DSP-only registers
+
+| Name  | Description     |
+|-------+-----------------|
+| ~mod~ | Modulo register |
+| ~rs~  | Repeat start    |
+| ~re~  | Repeat end      |
+| ~dsr~ |                 |
+| ~a0~  |                 |
+| ~x0~  |                 |
+| ~y0~  |                 |
+| ~x1~  |                 |
+| ~y1~  |                 |
+
+Some clarification on how  some of these registers work and what  they do can be
+found  in these  GameHut  videos by  Jon  Burton, a  programmer  that worked  on
+Traveller's Tales titles such as Sonic R:
+
+- https://www.youtube.com/watch?v=n8plen8cLro
+- https://www.youtube.com/watch?v=lxpp3KsA3CI
+
+* Assembly
+
+** Getting started
+
+*** First Program
+
+**** Header
+
+#+begin_src asm
+	org	$6004000 		; Base address for BIN file on Saturn
+#+end_src
+
+***** Screen setup
+
+First, we set up ~r11~ with the base address for VDP2 registers.
+Notice that it is the same as the  addresses starting with 0, but we're using an
+address that starts with 2 since we want cache-through access.
+
+Subsequent calls will manipulate the address on ~r11~ so we point to proper VDP2 registers.
+
+#+begin_src asm
+	mov.l	#$25f80000, r11
+#+end_src
+
+We point to VDP2's ~RAMCTL~ and set our screen mode to 5-bit RGB.
+
+#+begin_src asm
+	add	#$e, r11
+	;;      C-cc--VVRRRRRRRR
+	mov.w	#%1000001111111111, r6
+	mov.w	r6, @r11
+#+end_src
+
+Point to VDP2 ~MPOFN~ (map offset register) and zero it out.
+
+#+begin_src asm
+	add	#$2e, r11
+	;;      -NNN-nnn-NNN-nnn
+	mov	#%0000000000000000, r2
+	mov.w	r2, @r11	
+#+end_src
+
+The following  instructions start ~r11~  at ~$25f80078~, and  then pre-decrement
+this register one  word (16-bit) at a  time, and also write the  the contents of
+~r2~ (zero) at said address. So we are writing to these registers backwards.
+
+These commands will initialize the screen scroll value of NBG0 to zero.
+
+#+begin_src asm
+	add	#$3c, r11
+	mov.w	r2, @-r11		; VDP2 SCYDN0
+	mov.w	r2, @-r11		; VDP2 SCYIN0
+	mov.w	r2, @-r11		; VDP2 SCXDN0
+	mov.w	r2, @-r11		; VDP2 SCXIN0
+#+end_src
+
+Point to VDP2 ~CHCTLA~ (character control for  NBG0 and NBG1) and set it.
+We set it to bitmap format, sized 512x256, and with 256 colors.
+
+#+begin_src asm
+	add	#-72, r11
+	;;      --CCNNES-cccnnes
+	mov.w	#%0000000000010010, r2
+	mov.w	r2, @r11
+#+end_src
+
+Point to VDP2 ~BGON~ so we can enable the background and set it to transparent.
+
+#+begin_src asm
+	add	#-8, r11
+	;;      ---RNNNN--rrnnnn
+	mov.w	#%0000000100000001, r8
+	mov.w	r8, @r11
+#+end_src
+
+Point to VDP2 ~TVMD~. Turn it on, with no blackout.
+
+#+begin_src asm
+	add	#-32, r11
+	;;      D------BLLVV-HHH
+	mov.l	#%1000000000000000, r10
+	mov.w	r10, @r11
+#+end_src
+
+***** Palette setup
+
+Transfer four  colors to VDP2 ~CRAM~  so we can work  with them. We have  4KB of
+CRAM mapped at $25f00000.
+
+#+begin_src asm
+	mov.l	#$25f00000, r6		; Point to VDP2 CRAM
+	mov.l	#Palette, r8
+	mov	#4, r0			; register r0 used as loop index
+PaletteLoop:
+	mov.w	@r8+, r1
+	mov.w	r1, @r6
+	add	#2, r6
+
+	dt	r0			; Decrement and test
+	bf	PaletteLoop
+#+end_src
+
+***** Screen cursor
+
+We're going  to set  up an  area to  be our  work RAM,  and allocate  two 16-bit
+variables within  it. These  variables are  the X  and Y  coordinates of  a text
+cursor.
+
+~UserRam~  is  a label  located  at  our  program's  footer, and  ~CursorX~  and
+~CursorY~ are our variables within ~UserRam~.
+
+#+begin_src asm
+	mov.l	#UserRam, r14		; Point to work RAM
+	mov	#0, r0			; Set cursor position to 0, 0
+	mov.l	r0, @(CursorX,r14)	; Store X and Y at cursor offset
+	mov.l	r0, @(CursorY,r14)
+#+end_src
+
+**** Actual program
+
+First of  all, we're going to  store our text  address in ~r13~, and  then we'll
+call a subroutine to print it on screen.
+
+#+begin_src asm
+	mov.l	#TxtHelloWorld, r13 	; r13 is an argument to subroutine
+	bsr	PrintString
+	nop
+#+end_src
+
+After doing  that, we  don't need  to run  anything anymore,  so just  create an
+infinite loop here
+
+#+begin_src asm
+Halt:
+	bra Halt
+	nop
+#+end_src
+
+***** Subroutines
+
+****** PrintString
+
+This  subroutine  is straightforward  in  the  sense  that it  doesn't  directly
+interfere with anything but the return  address (in ~pr~ register, which we save
+and restore from stack).
+
+The basic idea is to iterate over the  characters on the string until we reach a
+character  ~255~  (or  ~-1~),  which  we're using  as  string  terminator.  Each
+character is moved to ~r0~.
+
+#+begin_src asm
+PrintString:
+	sts.l	pr, @-sp	; Save return address on stack
+PrintStringAgain:
+	mov.b	@r13+, r0	; Store character in r0; increment ptr
+	mov	#-1, r1			; Test if char is 255
+	cmp/eq	r0, r1
+	bt	PrintStringDone
+	nop
+	bsr	PrintChar		; Print char at r0
+	nop
+	bra	PrintStringAgain
+	nop
+PrintStringDone:
+	lds.l	@sp+, pr	; Restore return address
+	rts
+	nop
+#+end_src
+
+****** PrintChar
+
+First we start by backing up all used registers onto the stack.
+
+#+begin_src asm
+PrintChar:
+	sts.l	mach, @-sp
+	sts.l	macl, @-sp
+	mov.l	r0, @-sp
+	mov.l	r1, @-sp
+	mov.l	r2, @-sp
+	mov.l	r3, @-sp
+	mov.l	r4, @-sp
+	mov.l	r5, @-sp
+	mov.l	r6, @-sp
+#+end_src
+
+Calculate  offset on  bitmap font.  Font  has no  character below  32, and  each
+character uses 8 bytes (one byte per 8-pixel line).
+
+#+begin_src asm
+	mov.l	#Font, r5	; font data pointer on r5
+	add	        #-32, r0	; retrieve character index
+	shll	r0
+	shll	r0
+	shll	r0		; r0 <- r0 * 8 (8 bytes per character)
+	add	        r0, r5		; final character image start offset
+
+	mov.l	#$25e00000, r6	; Point to VDP2 screen VRAM
+	mov.l	#UserRAM, r4	; Point to work ram
+#+end_src
+
+Calculate VRAM  destination for character  data. Screen  is 512 bytes  wide, one
+byte per pixel. Screen base address is $25e00000.
+
+#+begin_src asm
+	mov.l	@(CursorX,r4), r0
+	shll	r0
+	shll	r0
+	shll	r0		; convert CursorX from char idx to byte
+	add	        r0, r6		; store in r6
+
+	mov.l	@(CursorY,r4), r0
+	shll	r0
+	shll	r0
+	shll	r0		; convert CursorY from char idx to byte
+	mov.l	#512, r1
+	mulu	r0, r1		; byte-indexed CursorY * 512
+	sts	        macl, r0	; store low result in r0
+	add	        r0, r6		; r6 <- r6 + r0
+#+end_src
+
+Since the font stores  one bit per pixel, we need to convert  it to one byte per
+pixel. So we load byte per byte of  our font and perform bit shifting magic from
+right to left on the pixel.
+
+#+begin_src asm
+	mov	        #7, r1		; go to rightmost pixel of character line by+
+	add         r1, r6		; +incrementing vram destination by 7
+	mov	        #8, r1		; r1 <- number of Y lines on character
+NextYLine:
+	mov	        #8, r0		; bits per line
+	mov.b	@r5+, r3	; get one font texture byte
+NextXPixel:
+	mov	        #1, r2		; Fill pixel completely
+	rotcr	r3		; Get single bit, store it on carry bit in SR
+	bt	        CharPixelSet	; If bit is full, go to pixel drawing
+	mov	        #0, r2		; If not, just clear the pixel
+CharPixelSet:
+	mov.b	r2, @r6		; Write pixel
+	add	        #-1, r6		; Go to the left
+	dt	        r0		; Decrease X
+	bf	        NextXPixel	; If at end, go to next pixel
+
+	mov.l	#512+8, r0	; A single line is 512 bytes + 8 bytes (pixels)
+	add	        r0, r6		; Go to next line
+	dt	        r1		; decrease Y and test if not 0
+	bf	        NextYLine
+
+	mov.l	@(CursorX,r4), r0
+	add	        #1, r0
+	mov.l	r0, @(CursorX,r4)
+#+end_src
+
+Finally, restore the registers and return.
+
+#+begin_src asm
+	mov.l	@sp+, r6
+	mov.l	@sp+, r5
+	mov.l	@sp+, r4
+	mov.l	@sp+, r3
+	mov.l	@sp+, r2
+	mov.l	@sp+, r1
+	mov.l	@sp+, r0
+	lds.l	@sp+, macl
+	lds.l	@sp+, mach
+	rts
+	nop
+#+end_src
+
+**** Footer
+
+Since we're  using the AS  Assembler, we need to  set up "checkpoints"  with the
+~ltorg~ instruction so the assembler can create dummy labels with extra data for
+the instructions.
+
+This is  necessary because SH2 commands  are assembled to 16-bit  code, so there
+isn't  much  space  for  immediate  values (only  one-byte  values  are  stored,
+actually).
+
+There can be  many of this command  across the file. The  assembler stores these
+values on the next ~ltorg~ it can find.
+
+#+begin_src asm
+ltorg
+#+end_src
+
+***** Constants
+
+We'll also set up our palette data colors...
+
+#+begin_src asm
+Palette:
+	;;       -BBBBBGGGGGRRRRR
+	dc.w	%0011100000000000
+	dc.w	%0000001111111111
+	dc.w	%0111111111100000
+	dc.w	%0000000000011111
+#+end_src
+
+...our hello world text string...
+
+#+begin_src asm
+TxtHelloWorld:	dc.b "Hello World 12345 ?!",255
+#+end_src
+
+...and our font data, which will be included from an external file.
+
+#+begin_src asm
+Font:		binclude "./res/Font96.FNT"
+#+end_src
+
+***** Variables and constants
+
+Define  the X  and Y  cursor  variable offsets,  then  align memory  at 32  bits
+boundary as a start for the work RAM.
+
+#+begin_src asm
+CursorX	equ 0
+CursorY	equ 4
+	align 4
+UserRam: ds.l 8
+#+end_src
+
+**** Some macros
+
+Basic macros for pushing and popping all registers onto the stack:
+
+#+begin_src asm
+PushAll macro
+        mov.l r0,@-sp
+        mov.l r1,@-sp
+        mov.l r2,@-sp
+        mov.l r3,@-sp
+        mov.l r4,@-sp
+        mov.l r5,@-sp
+        mov.l r6,@-sp
+        mov.l r7,@-sp
+        mov.l r8,@-sp
+        mov.l r9,@-sp
+        mov.l r10,@-sp
+        mov.l r11,@-sp
+        mov.l r12,@-sp
+        mov.l r13,@-sp
+        mov.l r14,@-sp
+        sts.l pr,@-sp
+        endm
+
+PopAll macro
+        lds.l @sp+,pr
+        mov.l @sp+,r14
+        mov.l @sp+,r13
+        mov.l @sp+,r12
+        mov.l @sp+,r11
+        mov.l @sp+,r10
+        mov.l @sp+,r9
+        mov.l @sp+,r8
+        mov.l @sp+,r7
+        mov.l @sp+,r6
+        mov.l @sp+,r5
+        mov.l @sp+,r4
+        mov.l @sp+,r3
+        mov.l @sp+,r2
+        mov.l @sp+,r1
+        mov.l @sp+,r0
+        endm
+#+end_src
+
+**** Assembling the code
+
+This uses the AS  Assembler. ~asw~ is the command for Windows.  I'm on Linux, so
+I'll use ~asl~.
+
+#+begin_src bash
+asl helloworld.asm -CPU SH7600 -o helloworld.bld
+p2bin helloworld.bld helloworld.bin
+#+end_src
+
+**** Running the code
+
+We can  run it using Yabause  emulator (in this  example I opened it  before and
+configured Saturn BIOS appropriately):
+
+#+begin_src bash
+yabause --binary=helloworld.bin
+#+end_src
+
+*** Commands
+
+| Command          | Description                                                       |
+|------------------+-------------------------------------------------------------------|
+| ~nop~            | Burns processor cycles                                            |
+| ~mov src,dst~    | (See ~mov.l~)                                                     |
+| ~mov.l addr,dst~ | Load from addr into dst -- ~.l~ for LONG (32-bit)                 |
+| ~mov.w addr,dst~ | Load from addr into dst -- ~.w~ for WORD (16-bit)                 |
+| ~mov.b addr,dst~ | Load from addr into dst -- ~.b~ for BYTE (8-bit)                  |
+| ~add a,dst~      | Add ~a~ to ~dst~, store in ~dst~                                  |
+| ~sub a,dst~      | Sub ~a~ from ~dst~, store in ~dst~ (doesn't work on immediates)   |
+| ~bra label~      | Branch (near) unconditionally                                     |
+| ~jmp label~      | Jump (far) unconditionally                                        |
+| ~bsr label~      | Branch (near) to subroutine, store ret addr in ~pr~               |
+| ~jsr @rn~        | Jump (far) to subroutine at ~@rn~, store ret addr in ~pr~         |
+| ~braf rn~        | Branch (far) unconditionally (~pc~ + ~rn~)                        |
+| ~bsrf rn~        | Branch to subroutine (far) (~pc~ + ~rn~), store ret addr in ~pr~  |
+| ~bt label~       | Branch (near) if true                                             |
+| ~bf label~       | Branch (near) if false                                            |
+| ~bt/s label~     | Branch (near) if true, with delay slot                            |
+| ~bf/s label~     | Branch (near) if false, with delay slot                           |
+| ~sts src,dst~    | (See ~sts.l~)                                                     |
+| ~sts.l src,dst~  | Store special register (~src~) in ~dst~ -- ~.l~ for LONG (32-bit) |
+| ~sts.w src,dst~  | Store special register (~src~) in ~dst~ -- ~.w~ for WORD (16-bit) |
+| ~sts.b src,dst~  | Store special register (~src~) in ~dst~ -- ~.b~ for BYTE (8-bit)  |
+| ~lds src,dst~    | (See ~lds.l~)                                                     |
+| ~lds.l src,dst~  | Load special register (~src~) in ~dst~ -- ~.l~ for LONG (32-bit)  |
+| ~lds.w src,dst~  | Load special register (~src~) in ~dst~ -- ~.w~ for WORD (16-bit)  |
+| ~lds.b src,dst~  | Load special register (~src~) in ~dst~ -- ~.b~ for BYTE (8-bit)   |
+| ~rts~            | Return from subroutine                                            |
+| ~rte~            | Return from exception                                             |
+
+**** Value literals
+
+Values starting with  ~#~ are imme4diate values. If they're  followed by ~$~, it
+is a hexadecimal number; if followed by  ~%~, it is binary. Characters in single
+quotes ~'~ are ASCII.
+
+**** Opcode operand manipulation
+
+Notice also that the word (particularly in commands such as ~mov.w~) is referred
+to as being  16-bit, because of how  SH2 code is assembled, even  though we know
+our registers are 32-bit.
+
+**** Branch/jump delay slots
+
+Branching and jumping may or may not have delay slots.
+
+| Opcode | Has delay slot? |
+|--------+-----------------|
+| ~jmp~  | Yes             |
+| ~bra~  | Yes             |
+| ~jsr~  | Yes             |
+| ~bsr~  | Yes             |
+| ~bsrf~ | Yes             |
+| ~braf~ | Yes             |
+| ~rte~  | Yes             |
+| ~rts~  | Yes             |
+| ~bt~   | No              |
+| ~bf~   | No              |
+| ~bt/s~ | Yes             |
+| ~bf/s~ | Yes             |
+
+** Addressing Modes
+
+| Format        | Description                                                     |
+|---------------+-----------------------------------------------------------------|
+| ~rn~          | Direct register addressing                                      |
+| ~@rn~         | Indirect register addressing                                    |
+| ~@rn+~        | Post-increment indirect register addressing                     |
+| ~@-rn~        | Pre-decrement indirect register addressing                      |
+| ~@(disp,rn)~  | Indirect register addressing w/ displacement (4bit, op-sized)   |
+| ~@(r0,rn)~    | Indirect indexed register addressing (always with ~r0~)         |
+| ~@(disp,gbr)~ | Indirect GBR addressing w/ displacement (8bit, op-sized)        |
+| ~@(r0,gbr)~   | Indirect indexed GBR addressing (always with ~r0~)              |
+| ~@(disp,pc)~  | PC-relative addressing with displacement (8bit, PC <- disp * 2) |
+| ~disp~        | PC-relative addressing (8bit, op-dependent e.g. ~bt~)           |
+| ~disp~        | PC-relative addressing (12bit, op-dependent e.g. ~bsr~)         |
+| ~rn~          | PC-relative addressing (register, op-dependent e.g. ~bsrf~)     |
+| ~#imm~        | Immediate addressing (8bit)                                     |
+
+There are some  small characteristics for these addresses  that change depending
+on opcode,  e.g. zero or sign  extension in case of  immediate addressing. Check
+out ChibiAliens' page for more information.
+
+** Conditions, Compares, Stack and Special Regs
+
+*** Opcodes
+
+| Command         | Description                                                    |
+|-----------------+----------------------------------------------------------------|
+| ~sett~          | Set T flag                                                     |
+| ~clrt~          | Clear T flag                                                   |
+| ~movt rn~       | Read T flag into ~rn~                                          |
+| ~dt rn~         | Decrement and test (decrement ~rn~, test if equals 0)          |
+| ~cmp/eq a,rn~   | Compare if ~rm~ = ~rn~ (signed if ~a~ is an immediate value)   |
+| ~cmp/ge rm,rn~  | Compare if ~rm~ >= ~rn~ (signed)                               |
+| ~cmp/gt rm,rn~  | Compare if ~rm~ > ~rn~ (signed)                                |
+| ~cmp/hs rm,rn~  | Compare if ~rm~ >= ~rn~ (higher or same -- unsigned)           |
+| ~cmp/hi rm,rn~  | Compare if ~rm~ > ~rn~ (higher -- unsigned)                    |
+| ~cmp/pl rn~     | Compare if ~rn~ > 0 (plus -- signed)                           |
+| ~cmp/pz rn~     | Compare if ~rn~ >= 0 (plus or zero -- signed)                  |
+| ~cmp/str rm,rn~ | Compare if a byte in ~rn~ matches same positioned byte in ~rm~ |
+
+- False/True comparison always relate to the T flag on status register.
+- Use ~bt~ and ~bf~ to branch depending on the T flag.
+- Use ~bt/s~ and ~bf/s~ if you need delay slots.
+- The "true" value  is conditioned to whether the  T flag is 1.  So  in ~dt~ for
+  example, if the given  register is 0, T is set to ~1~;  so ~bt~ will branch in
+  this case.
+- ~cmp/str~ compares if there is at least  a single byte on the same position in
+  both registers.
+
+*** TODO The Stack
+
+*** TODO System Registers and Control Registers
+
+** TODO Logical Ops, Signs and Shifts
+
+** TODO More Maths
+
+
+
+* TODO Memory map
+
+** TODO VDP1
+
+** TODO VDP2
+
+** TODO SMPC
+
