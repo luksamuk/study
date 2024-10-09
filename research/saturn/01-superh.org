@@ -106,7 +106,7 @@ We point to VDP2's ~RAMCTL~ and set our screen mode to 5-bit RGB.
 
 #+begin_src asm
 	add	#$e, r11
-	;;      C-cc--VVRRRRRRRR
+	;;        C-cc--VVRRRRRRRR
 	mov.w	#%1000001111111111, r6
 	mov.w	r6, @r11
 #+end_src
@@ -115,7 +115,7 @@ Point to VDP2 ~MPOFN~ (map offset register) and zero it out.
 
 #+begin_src asm
 	add	#$2e, r11
-	;;      -NNN-nnn-NNN-nnn
+	;;        -NNN-nnn-NNN-nnn
 	mov	#%0000000000000000, r2
 	mov.w	r2, @r11	
 #+end_src
@@ -139,7 +139,7 @@ We set it to bitmap format, sized 512x256, and with 256 colors.
 
 #+begin_src asm
 	add	#-72, r11
-	;;      --CCNNES-cccnnes
+	;;        --CCNNES-cccnnes
 	mov.w	#%0000000000010010, r2
 	mov.w	r2, @r11
 #+end_src
@@ -148,7 +148,7 @@ Point to VDP2 ~BGON~ so we can enable the background and set it to transparent.
 
 #+begin_src asm
 	add	#-8, r11
-	;;      ---RNNNN--rrnnnn
+	;;        ---RNNNN--rrnnnn
 	mov.w	#%0000000100000001, r8
 	mov.w	r8, @r11
 #+end_src
@@ -157,7 +157,7 @@ Point to VDP2 ~TVMD~. Turn it on, with no blackout.
 
 #+begin_src asm
 	add	#-32, r11
-	;;      D------BLLVV-HHH
+	;;        D------BLLVV-HHH
 	mov.l	#%1000000000000000, r10
 	mov.w	r10, @r11
 #+end_src
@@ -233,11 +233,11 @@ PrintString:
 	sts.l	pr, @-sp	; Save return address on stack
 PrintStringAgain:
 	mov.b	@r13+, r0	; Store character in r0; increment ptr
-	mov	#-1, r1			; Test if char is 255
+	mov	#-1, r1		; Test if char is 255
 	cmp/eq	r0, r1
 	bt	PrintStringDone
 	nop
-	bsr	PrintChar		; Print char at r0
+	bsr	PrintChar	; Print char at r0
 	nop
 	bra	PrintStringAgain
 	nop
@@ -269,11 +269,11 @@ character uses 8 bytes (one byte per 8-pixel line).
 
 #+begin_src asm
 	mov.l	#Font, r5	; font data pointer on r5
-	add	        #-32, r0	; retrieve character index
+	add	#-32, r0	; retrieve character index
 	shll	r0
 	shll	r0
 	shll	r0		; r0 <- r0 * 8 (8 bytes per character)
-	add	        r0, r5		; final character image start offset
+	add	r0, r5		; final character image start offset
 
 	mov.l	#$25e00000, r6	; Point to VDP2 screen VRAM
 	mov.l	#UserRAM, r4	; Point to work ram
@@ -287,7 +287,7 @@ byte per pixel. Screen base address is $25e00000.
 	shll	r0
 	shll	r0
 	shll	r0		; convert CursorX from char idx to byte
-	add	        r0, r6		; store in r6
+	add	r0, r6		; store in r6
 
 	mov.l	@(CursorY,r4), r0
 	shll	r0
@@ -295,8 +295,8 @@ byte per pixel. Screen base address is $25e00000.
 	shll	r0		; convert CursorY from char idx to byte
 	mov.l	#512, r1
 	mulu	r0, r1		; byte-indexed CursorY * 512
-	sts	        macl, r0	; store low result in r0
-	add	        r0, r6		; r6 <- r6 + r0
+	sts	macl, r0	; store low result in r0
+	add	r0, r6		; r6 <- r6 + r0
 #+end_src
 
 Since the font stores  one bit per pixel, we need to convert  it to one byte per
@@ -304,30 +304,30 @@ pixel. So we load byte per byte of  our font and perform bit shifting magic from
 right to left on the pixel.
 
 #+begin_src asm
-	mov	        #7, r1		; go to rightmost pixel of character line by+
-	add         r1, r6		; +incrementing vram destination by 7
-	mov	        #8, r1		; r1 <- number of Y lines on character
+	mov	#7, r1		; go to rightmost pixel of character line by+
+	add	r1, r6		; +incrementing vram destination by 7
+	mov	#8, r1		; r1 <- number of Y lines on character
 NextYLine:
-	mov	        #8, r0		; bits per line
+	mov	#8, r0		; bits per line
 	mov.b	@r5+, r3	; get one font texture byte
 NextXPixel:
-	mov	        #1, r2		; Fill pixel completely
+	mov	#1, r2		; Fill pixel completely
 	rotcr	r3		; Get single bit, store it on carry bit in SR
-	bt	        CharPixelSet	; If bit is full, go to pixel drawing
-	mov	        #0, r2		; If not, just clear the pixel
+	bt	CharPixelSet	; If bit is full, go to pixel drawing
+	mov	#0, r2		; If not, just clear the pixel
 CharPixelSet:
 	mov.b	r2, @r6		; Write pixel
-	add	        #-1, r6		; Go to the left
-	dt	        r0		; Decrease X
-	bf	        NextXPixel	; If at end, go to next pixel
+	add	#-1, r6		; Go to the left
+	dt	r0		; Decrease X
+	bf	NextXPixel	; If at end, go to next pixel
 
 	mov.l	#512+8, r0	; A single line is 512 bytes + 8 bytes (pixels)
-	add	        r0, r6		; Go to next line
-	dt	        r1		; decrease Y and test if not 0
-	bf	        NextYLine
+	add	r0, r6		; Go to next line
+	dt	r1		; decrease Y and test if not 0
+	bf	NextYLine
 
 	mov.l	@(CursorX,r4), r0
-	add	        #1, r0
+	add	#1, r0
 	mov.l	r0, @(CursorX,r4)
 #+end_src
 
@@ -361,7 +361,7 @@ There can be  many of this command  across the file. The  assembler stores these
 values on the next ~ltorg~ it can find.
 
 #+begin_src asm
-ltorg
+	ltorg
 #+end_src
 
 ***** Constants
@@ -397,6 +397,7 @@ boundary as a start for the work RAM.
 #+begin_src asm
 CursorX	equ 0
 CursorY	equ 4
+
 	align 4
 UserRam: ds.l 8
 #+end_src
@@ -464,37 +465,50 @@ configured Saturn BIOS appropriately):
 yabause --binary=helloworld.bin
 #+end_src
 
-*** Commands
+*** Common Opcodes
 
-| Command          | Description                                                       |
-|------------------+-------------------------------------------------------------------|
-| ~nop~            | Burns processor cycles                                            |
-| ~mov src,dst~    | (See ~mov.l~)                                                     |
-| ~mov.l addr,dst~ | Load from addr into dst -- ~.l~ for LONG (32-bit)                 |
-| ~mov.w addr,dst~ | Load from addr into dst -- ~.w~ for WORD (16-bit)                 |
-| ~mov.b addr,dst~ | Load from addr into dst -- ~.b~ for BYTE (8-bit)                  |
-| ~add a,dst~      | Add ~a~ to ~dst~, store in ~dst~                                  |
-| ~sub a,dst~      | Sub ~a~ from ~dst~, store in ~dst~ (doesn't work on immediates)   |
-| ~bra label~      | Branch (near) unconditionally                                     |
-| ~jmp label~      | Jump (far) unconditionally                                        |
-| ~bsr label~      | Branch (near) to subroutine, store ret addr in ~pr~               |
-| ~jsr @rn~        | Jump (far) to subroutine at ~@rn~, store ret addr in ~pr~         |
-| ~braf rn~        | Branch (far) unconditionally (~pc~ + ~rn~)                        |
-| ~bsrf rn~        | Branch to subroutine (far) (~pc~ + ~rn~), store ret addr in ~pr~  |
-| ~bt label~       | Branch (near) if true                                             |
-| ~bf label~       | Branch (near) if false                                            |
-| ~bt/s label~     | Branch (near) if true, with delay slot                            |
-| ~bf/s label~     | Branch (near) if false, with delay slot                           |
-| ~sts src,dst~    | (See ~sts.l~)                                                     |
-| ~sts.l src,dst~  | Store special register (~src~) in ~dst~ -- ~.l~ for LONG (32-bit) |
-| ~sts.w src,dst~  | Store special register (~src~) in ~dst~ -- ~.w~ for WORD (16-bit) |
-| ~sts.b src,dst~  | Store special register (~src~) in ~dst~ -- ~.b~ for BYTE (8-bit)  |
-| ~lds src,dst~    | (See ~lds.l~)                                                     |
-| ~lds.l src,dst~  | Load special register (~src~) in ~dst~ -- ~.l~ for LONG (32-bit)  |
-| ~lds.w src,dst~  | Load special register (~src~) in ~dst~ -- ~.w~ for WORD (16-bit)  |
-| ~lds.b src,dst~  | Load special register (~src~) in ~dst~ -- ~.b~ for BYTE (8-bit)   |
-| ~rts~            | Return from subroutine                                            |
-| ~rte~            | Return from exception                                             |
+| Command          | Description                                                      |
+|------------------+------------------------------------------------------------------|
+| ~nop~            | Burns processor cycles                                           |
+| ~mov src,dst~    | (See ~mov.l~)                                                    |
+| ~mov.l addr,dst~ | Load from addr into dst -- ~.l~ for LONG (32-bit)                |
+| ~mov.w addr,dst~ | Load from addr into dst -- ~.w~ for WORD (16-bit)                |
+| ~mov.b addr,dst~ | Load from addr into dst -- ~.b~ for BYTE (8-bit)                 |
+| ~add a,dst~      | Add ~a~ to ~dst~, store in ~dst~                                 |
+| ~sub a,dst~      | Sub ~a~ from ~dst~, store in ~dst~ (doesn't work on immediates)  |
+| ~bra label~      | Branch (near) unconditionally                                    |
+| ~jmp label~      | Jump (far) unconditionally                                       |
+| ~bsr label~      | Branch (near) to subroutine, store ret addr in ~pr~              |
+| ~jsr @rn~        | Jump (far) to subroutine at ~@rn~, store ret addr in ~pr~        |
+| ~braf rn~        | Branch (far) unconditionally (~pc~ + ~rn~)                       |
+| ~bsrf rn~        | Branch to subroutine (far) (~pc~ + ~rn~), store ret addr in ~pr~ |
+| ~bt label~       | Branch (near) if true                                            |
+| ~bf label~       | Branch (near) if false                                           |
+| ~bt/s label~     | Branch (near) if true, with delay slot                           |
+| ~bf/s label~     | Branch (near) if false, with delay slot                          |
+| ~sts src,dst~    | (See ~sts.l~)                                                    |
+| ~sts.l src,dst~  | Store special register (~src~) in ~dst~ (32-bit)                 |
+| ~sts.w src,dst~  | Store special register (~src~) in ~dst~ (16-bit)                 |
+| ~sts.b src,dst~  | Store special register (~src~) in ~dst~ (8-bit)                  |
+| ~lds src,dst~    | (See ~lds.l~)                                                    |
+| ~lds.l src,dst~  | Load into special register (~dst~) from ~src~ (32-bit)           |
+| ~lds.w src,dst~  | Load into special register (~dst~) from ~src~ (16-bit)           |
+| ~lds.b src,dst~  | Load into special register (~dst~) from ~src~ (8-bit)            |
+| ~rts~            | Return from subroutine                                           |
+| ~rte~            | Return from exception                                            |
+| ~ldc src,dst~    | (See ~ldc.l~)                                                    |
+| ~ldc.l src,dst~  | Load into control register (~dst~) from ~src~ (32-bit)           |
+| ~ldc.w src,dst~  | Load into control register (~dst~) from ~src~ (16-bit)           |
+| ~ldc.b src,dst~  | Load into control register (~dst~) from ~src~  (8-bit)           |
+| ~stc src, dst~   | (See ~stc.l~)                                                    |
+| ~stc.l src, dst~ | Store control register (~src~) in ~dst~ (32-bit)                 |
+| ~stc.w src, dst~ | Store control register (~src~) in ~dst~ (16-bit)                 |
+| ~stc.b src, dst~ | Store control register (~src~) in ~dst~ (8-bit)                  |
+
+Notice how some opcodes have size  specializations (~.l~, ~.w~, ~.b~). They mean
+LONG  (32-bit), WORD  (16-bit) and  BYTE (8-bit).  Even though  the Saturn  is a
+32-bit console (and  therefore has a 32-bit word), our  assembler is 16-bit, and
+so that's the word size the latter uses.
 
 **** Value literals
 
@@ -577,9 +591,56 @@ out ChibiAliens' page for more information.
 - ~cmp/str~ compares if there is at least  a single byte on the same position in
   both registers.
 
-*** TODO The Stack
+*** The Stack
 
-*** TODO System Registers and Control Registers
+~r15~ is used as stack pointer, and also aliased as ~sp~.
+
+To push  a value, we  push said  value and decrement  the stack pointer  at same
+time:
+
+#+begin_src asm
+	mov	rn, @-sp
+#+end_src
+
+To restore  a value, we move  the value back  to the register and  increment the
+stack pointer.
+
+#+begin_src asm
+	mov	@sp+, rn
+#+end_src
+
+Notice how the stack grows upwards (decreasing in address).
+
+In  subroutines, always  backup  the  ~pr~ register  by  using  ~sts~ and  ~lds~
+instructions:
+
+#+begin_src asm
+	bsr	SubTest
+	nop
+Halt:	bra	Halt
+	nop
+
+SubTest:
+	sts.l	pr, @-sp	; Backup previous return address
+	;; Extra stuff goes here...
+	lds.l	@sp+, pr	; Restore previous return address
+	rts
+	nop
+#+end_src
+
+*** System Registers and Control Registers
+
+- ~lds~ and  ~sts~ are used to  manipulate the values in  registers ~pr~, ~mach~
+  and ~macl~, which are SYSTEM registers.
+- ~ldc~ and ~stc~  are used to manipulate the values  in registers ~sr~ (flags),
+  ~gbr~ (global base register for GBR  address) and ~vbr~ (vector base register,
+  used for traps). These are CONTROL registers.
+- Control registers are PRIVILEGED, so you probably shouldn't use them in actual
+  code.
+- Some registers are SH-DSP only and don't exist on SH2 or SH3, so be mindful of
+  that when writing the assembly code!
+- Also, even though we may mess with  ~vbr~ using an emulator... this won't work
+  on an actual Sega Saturn. So don't try it. :P
 
 ** TODO Logical Ops, Signs and Shifts
 
