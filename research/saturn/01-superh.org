@@ -642,7 +642,60 @@ SubTest:
 - Also, even though we may mess with  ~vbr~ using an emulator... this won't work
   on an actual Sega Saturn. So don't try it. :P
 
-** TODO Logical Ops, Signs and Shifts
+** Logical Ops, Signs and Shifts
+
+| Command         | Instruction                                                                  |
+|-----------------+------------------------------------------------------------------------------|
+| ~and src,dst~   | Logical AND (can be used to clear bits) -- see ~and.l~                       |
+| ~and.b src,dst~ | 8-bit-precision AND                                                          |
+| ~and.w src,dst~ | 16-bit-precision AND                                                         |
+| ~and.l src,dst~ | 32-bit-precision AND (default)                                               |
+| ~or src,dst~    | Logical OR (can be used to set bits) -- see ~or.l~                           |
+| ~or.b src,dst~  | 8-bit-precision OR                                                           |
+| ~or.w src,dst~  | 16-bit-precision OR                                                          |
+| ~or.l src,dst~  | 32-bit-precision OR (default)                                                |
+| ~xor src,dst~   | Logical exclusive OR (can be used to toggle bits) -- see ~xor.l~             |
+| ~xor.b src,dst~ | 8-bit-precision XOR                                                          |
+| ~xor.w src,dst~ | 16-bit-precision XOR                                                         |
+| ~xor.l src,dst~ | 32-bit-precision XOR (default)                                               |
+| ~tst ra,rb~     | Logical AND; ~T <- (result == 0)~. Registers unchanged -- see ~tst.l~        |
+| ~tst.b src,dst~ | 8-bit-precision TST                                                          |
+| ~tst.w src,dst~ | 16-bit-precision TST                                                         |
+| ~tst.l src,dst~ | 32-bit-precision TST (default)                                               |
+| ~shal rn~       | Shift arithmetic left. ~T~ <- old top bit.                                   |
+| ~shll rn~       | Shift logical left. ~T~ <- old top bit. No difference from ~shal~.           |
+| ~shar rn~       | Shift arithmetic right. Sign extension is maintained. ~T~ <- old bottom bit. |
+| ~shlr rn~       | Shift logical right. Top bit turns zero. ~T~ <- old bottom bit.              |
+| ~shll2 rn~      | Shift logical left by 2 bits                                                 |
+| ~shlr2 rn~      | Shift logical right by 2 bits                                                |
+| ~shll8 rn~      | Shift logical left by 8 bits                                                 |
+| ~shlr8 rn~      | Shift logical right by 8 bits                                                |
+| ~shll16 rn~     | Shift logical left by 16 bits                                                |
+| ~shlr16 rn~     | Shift logical right by 16 bits                                               |
+| ~rotl rn~       | Rotate bits left (rotated-out bit appears on right but also on ~T~)          |
+| ~rotr rn~       | Rotate bits right (rotated-out bit appears on left but also on ~T~)          |
+| ~rotcl rn~      | Rotate bits left with carry bit (carry (~T~) is moved back at left)          |
+| ~rotcr rn~      | Rotate bits right with carry bit (carry (~T~) is moved back at right)        |
+| ~extu rn~       | Zero-extend an unsigned number, completing it with zeroes -- see ~extu.l~    |
+| ~extu.b rn~     | Zero-extend to 8-bit (unsigned)                                              |
+| ~extu.w rn~     | Zero-extend to 16-bit (unsigned)                                             |
+| ~extu.l rn~     | Zero-extend to 32-bit (unsigned)                                             |
+| ~exts rn~       | Sign-extend a signed number, extending sign bit to the left -- see ~exts.l~  |
+| ~exts.b rn~     | Sign-extend to 8-bit (signed)                                                |
+| ~exts.w rn~     | Sign-extend to 16-bit (signed)                                               |
+| ~exts.l rn~     | Sign-extend to 32-bit (signed)                                               |
+| ~neg src,dst~   | Negate value in ~src~ (flip bits, add 1), store at ~dst~                     |
+| ~negc src,dst~  | Negate carry (for 64-bit); ~rn = 0 - (rn + T)~                               |
+| ~not src,dst~   | Flip bits in ~src~, store at ~dst~                                           |
+
+- Even though these  operations use ~src~ and ~dst~, they  are performed between
+  both these values or registers, and saved in ~dst~.
+- Generally, ~src~  can be  an 8-bit  unsigned immediate number,  but if  it is,
+  ~dst~ must be ~r0~.
+- ~rotcl~ and ~rotcr~ are the key to  combine two 32-bit registers. If the carry
+  bit should be cleared, just use ~clrt~.
+- ~neg~ doesn't set the  ~T~ flag, so if one wishes to negate  a 64-bit pair, it
+  is possible to call ~clrt~ and then use ~negc~.
 
 ** TODO More Maths
 
