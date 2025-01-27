@@ -1,0 +1,73 @@
+#+title: Curso de Escultura de Personagens 3D e Animação no Blender
+
+* Introdução
+
+** Introdução
+
+O curso usa Blender 2.92, estou usando Blender 2.93 LTS.
+
+Em Edit > Preferences:
+
+1. Em Interface > Translation, troque o Blender para Inglês.
+2. Em Keymap > Preferences, troque a seleção com o botão do mouse para **Right**
+   (IMPORTANTE!  Ele vem  como  Left  por padrão,  mas  culturalmente, usa-se  o
+   Right).
+3. Em Add-ons, **habilite o pluging Rigging: Rigify**.
+
+** Navegação e funções básicas
+
+**Aqui estamos falando do ambiente 3D, e não ainda de escultura.**
+
+Selecione objetos com o botão direito.
+
+Posicione um cursor com o botão esquerdo. Objetos criados serão criados no ponto
+em que o cursor está.
+
+*** Ferramentas do painel lateral
+
+Ferramentas relevantes para objetos selecionados:
+
+- Move (G) (move o objeto ao longo dos eixos)
+- Rotate (R) (rotaciona ao longo dos  ângulos de Euler e também opcionalmente na
+  perspectiva atual)
+- Scale (S) (escalona o objeto)
+- Transform (tudo junto)
+
+**** Caso você use as letras de atalho...
+
+- clicar com o botão direito do mouse cancela a operação.
+- clicar com o botão esquerdo confirma.
+
+**** Caso você queira usar as ferramentas em apenas um eixo...
+
+1. Aperte o botão da transformação pretendida
+2. Aperte uma das teclas designando o eixo a ser modificado (X, Y ou Z).
+3. Você pode também alternar entre eixos quando já estiver com um eixo fixado.
+
+*** Criação de objetos
+
+Posicione o cursor com o botão esquerdo do mouse.
+
+Crie objetos com o menu Add, ou use **Shift + A**. Há várias opções aí.
+
+Os submenus  de relevância são Mesh  (formas mais básicas) e  Armature (que será
+usado para rigging.  Detalhe que Armature > Human (Meta-Rig)  deverá ser visível
+devido ao plugin Rigify.
+
+*** Atalhos interessantes
+
+- Vírgula  (,)  **DO  TECLADO  NUMÉRICO**:   Aproxima  e  centraliza  do  objeto
+  ou pedaço do objeto selecionado.
+- Mouse wheel up/down: Zoom
+- Pressionar mouse wheel: Rotação da perspectiva
+- Shift + pressionar mouse wheel: Panning
+- Shift +  C: Move o  cursor para o  centro do universo  e coloca os  objetos em
+  perspectiva total na tela.
+- Shift + D: Duplicar objeto.
+
+*** TODO Exercícios
+
+1. Criar  uma pequena  cidade  usando  cubos, escalonando-os,  duplicando-os  e
+  escalonando-os a rigor.
+2. Criar  uma primitiva Monkey e  criar um "corpo"  meio bobo para ele  (só para
+   praticar movimentação e transformação de objetos)
