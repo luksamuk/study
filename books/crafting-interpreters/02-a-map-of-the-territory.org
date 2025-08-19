@@ -1,0 +1,265 @@
+#+TITLE: Chapter 02: A Map of the Territory
+
+* Parts of a language
+
+A language  implementation starts  with a  text file as  a stream  of individual
+characters.
+
+** Front-end of the language implementation
+
+*** Scanning / Lexing
+
+Also known as lexing, or lexical analysis.
+
+This part is known as scanner or lexer.
+
+This structure groups  characters into "words", or tokens.  There are characters
+that can be ignored  such as whitespace, and some tokens can  even have a single
+character.
+
+Example:
+
+#+begin_example
+var average = (min+max)/2;
+#+end_example
+
+Individual tokens:
+
+#+begin_example
+var
+average
+=
+(
+min
++
+max
+)
+/
+2
+;
+#+end_example
+  
+*** Parsing
+
+Construction of the language's grammar.
+
+The parser takes a flat sequence of tokens and builds a structure known as parse
+tree or abstract syntax  tree. Also known simply as syntax  trees, ASTs, or just
+trees.
+
+Building an AST also includes reporting syntax errors.
+
+*** Static analysis
+
+This is where we  can analyze each of our expressions  and identify their scope,
+where variables are defined, etc. This process is called binding or resolution.
+
+This  is also  where we  perform type  checks when  we have  a statically  typed
+language.
+
+Scope, type checking,  and other semantic details on this  step can be annotated
+here with a few techniques:
+
+- As attributes on the AST;
+- As attributes on a lookup table  where the names of variables and declarations
+  are keys for consulting -- this is known as a symbol table;
+- Transform  the  AST into  a  new  data  structure  that better  expresses  the
+  semantics of the code (intermediate representations; see next)
+
+** "Middle-end" of the language implementation
+
+*** Intermediate representations
+
+Act as an  interface between the front-end, which is  language-specific, and the
+back-end, which is more coupled with final architecture.
+
+This middle-end of IRs are more coupled  with semantics, so while they are lower
+level than the  language itself, they are still not  coupled with implementation
+for specific architectures.
+
+This allows  some mobility so  that we may interchange  front and back  ends for
+languages with  little to  no effort:  write a  front-end for  Pascal or  C that
+translates  to  the IR;  then  write  back-ends that  translate  the  IR to  any
+architecture that you want.
+
+*** Optimization
+
+Since IRs are  tightly coupled with semantics,  this is also the  stage where we
+can  replace sections  of code  with others  that have  the same  semantics, but
+behave better.
+
+This is a big topic on itself and a huge amount of work is usually put here.
+
+Some topics of research for the future:
+
+- Constant folding;
+- Constant propagation;
+- Common subexpression elimination;
+- Loop invariant code motion;
+- Global value numbering;
+- Strength reduction;
+- Scalar replacement of aggregates;
+- Dead code elimination;
+- Loop unrolling...
+
+** Back-end of the language implementation
+
+*** Code generation
+
+Also  known as  "code gen".  Generates  primitive code,  usually something  like
+assembly for the target CPU.
+
+Here we have the option to perform codegen  for an actual existing CPU, or for a
+virtual machine.
+
+Code generated  for a virtual machine  is known as bytecode,  and the historical
+reason for the name is that each instruction is usually a single byte long.
+
+*** Virtual machine
+
+If the produced code is bytecode, then it  is the job of a virtual machine (VM),
+a program  that implements a theoretical  chip for the virtual  architecture, to
+translate and run the bytecode on the actual CPU.
+
+While this technique may have an impact on performance, it is also a good way to
+have portable code, since having the language run on many platforms implies only
+on porting the virtual machine to other architectures.
+
+The second interpreter for Lox will run with a VM.
+
+*** Runtime
+
+When  running the  code, either  natively or  on a  VM, we  may need  some basic
+services provided by  the language to the program that  is running. For example,
+you might need a garbage collector or something that helps managing memory while
+the application is running.
+
+The runtime may accompany the compiled binary, or in the case of a VM, it may be
+directly on the VM itself.
+
+* Shortcuts and alternate routes
+
+** Single-pass compilers
+
+Compilers that  interleave parsing,  analysis and code  generation so  that they
+produce output  directly in  the parser, for  example without  allocating syntax
+trees.
+
+While restrictive  to the language's  design, this  was a useful  technique when
+memory was a scarce resource (see how Pascal requires variable initialization at
+the beginning of a  scope, or how C does not  normally support calling functions
+before  their  declaration;  this  is  because  their  first  compilers  used  a
+single-pass tecnique).
+
+** Tree-walk interpreters
+
+Interpreters that  begin executing code right  after the code is  parsed into an
+AST, maybe after some bit of static  analysis is applied. Code is interpreted by
+traversing the syntax tree and evaluating branches, one at a time.
+
+This  kind of  implementation  is  common on  student  projects  (also, this  is
+basically what  is done on SICP's  metacircular evaluator, and also  on Majestic
+Lisp's  first  implementation!),  but  the  performance  is  not  good  on  such
+implementations.
+
+People tend to use the word "interpreter" to designate tree-walk interpreters.
+
+** Transpilers
+
+This technique  replaces the canonical  low-level codegen for the  back-end with
+codegen for other  high-level target language, therefore  producing strings with
+valid syntax  for another language;  from here  on, the target  language's tools
+take over.
+
+This technique is called a  source-to-source compiler, or a transcompiler; often
+also called a transpiler.
+
+** Just-in-time compilation
+
+Instead of compiling the IRs  ahead-of-time to target implementations, compilers
+with this technique take the IR to  the end-user's computer and, when it is time
+to  run the  application, the  IR  is loaded  and  then compiled  to the  native
+architecture.
+
+This technique is used because we still want the performance of native code, but
+we don't  want to  provide multiple  binaries of the  same application  for each
+architecture. So compile it on the user's machine when the program is needed!
+
+This is  what Microsoft does with  Common Language Runtime (CLR),  and also most
+JavaScript interpreters do this too.
+
+Worth mentioning: The HotSpot Java Virtual  Machine also adds profiling hooks to
+the generated code to analyze regions that are performance-critical and the kind
+of data that  they are processing, then automatically  performs optimization and
+recompiles those regions of code as needed.
+
+* Compilers and interpreters
+
+Compilation and interpretation is not a dichotomy.
+
+Compilation is an implementation technique  that involves translating the source
+code to some  other form, usually low level. So  generating assembly, generating
+bytecode, and transpiling, are all kinds of compilation.
+
+Compilation also does not  involve running code; this is a job  for the end user
+in this case.
+
+Saying that  an implementation "is  an interpreter"  means that it  takes source
+code and executes it immediately; the code runs programs from source.
+
+A  counterintuitive example:  The Go  compiler. Running  =go build=  generates a
+binary file and  does not run it,  so it is just compilation.  However, =go run=
+compiles the code and then runs it, so  the code is being interpreted. So the Go
+compiler:
+
+- Is a compiler, since it generates a binary that will still be run by the user;
+- Is an interpreter, since it supports running the code from source;
+- HAS a compiler, since using it as an interpreter still compiles the code.
+
+* Challenges
+
+** Pick an open source language; look at the code; find scanner and parser; is it handwritten or generated?
+
+I've  picked   up  Loko  Scheme,   more  specifically  a  mirror   from  GitHub:
+https://github.com/guenchi/loko. This  is a Scheme implementation  that compiles
+to native code. I have once used it to write a bare-bones kernel for x86_64.
+
+The parser is handwritten, and it seems like it exploits Scheme's own runtime to
+perform  scanning,   then  annotates  the   tokens  for  static   analysis  (See
+loko/runtime/reader.sls, line 487).
+
+The exploitable reader of  Lisp is probably one of the main  reasons why this is
+simple enough to be handwritten.
+
+** JIT is fast for dynamically-typed languages, what reasons are there not to use JIT?
+
+I had a hunch on this one, but I prefered to google it up anyway.
+
+Here's a mix of my hunches and of what I found:
+
+1. You're  introducing an extra  layer of abstraction, so  the code needs  to be
+   compiled before being run. This can  have some overhead, even though it might
+   only be done once.  So it seems fine for long-running  processes, but not for
+   small, short-lived applications.
+2. It is  still  an abstraction  over  architecture,  so it  is  not ideal  for
+  bare-metal applications, for the same reasons that VMs aren't.
+3. Again, it produces an overhead for  the end-user, so it may cause performance
+   problems for  the end user  at startup.  If an  opinion may be  excused here:
+   this is probably why React applications  suck so much in terms of performance
+   on browsers.
+4. For the same reason, a precompiled, ahead-of-time binary may use sofisticated
+   optimization tecniques that require a lot of time, since the compilation will
+   be done at the developer's end. So AOT compilation may produce better code.
+
+** Lisp implementations that compile to C also contain an interpreter. Why?
+
+Because Lisp is an awesome language.
+
+But more  than that,  this is  because Lisp dialect  implementations tend  to be
+compilers AND  interpreters; the  code is  generated, compiled  and subsequently
+run in those cases.
+
+Implementations such  as SBCL for example  compile the code to  machine language
+before execution. The =DISASSEMBLE= function  even allows one to inspect machine
+code  generated from  a  function, so  you can  also  perform optimizations  and
+rewrite your functions at runtime to be less generic and more performant.
