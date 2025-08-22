@@ -1,0 +1,28 @@
+#+TITLE: Crafting Interpreters: Notes on the book
+
+Below  you will  find my  notes while  reading this  book and  building the  Lox
+language interpreters in Java and C.
+
+* Code
+
+- [[./jlox/][jlox source]]
+- clox source (soon)
+
+* Chapter notes
+
+1. Introduction\\
+   No notes, just Hello Worlds  and a linked list implementation in C.
+2. [[./02-a-map-of-the-territory/ch02-notes.org][A Map of the Territory]]
+3. [[./03-the-lox-language/notes.org][The Lox Language]]\\
+   Tangles some test files in Lox language.
+4. [[./04-scanning/notes.org][Scanning]]
+
+* Tooling
+
+All Java  code was built using  IntelliJ IDEA Community Edition  because I'm not
+stupid enough  to pretend that  configuring Emacs for  Java doesn't suck,  and I
+don't wanna bloat my Emacs config also.
+
+All  C code,  on the  other hand,  is glued  together using  Makefiles and  such
+because C is portable and fits like a glove in Emacs.
+
