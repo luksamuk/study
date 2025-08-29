@@ -1,0 +1,132 @@
+#+title: Parsing Expressions
+#+startup: latexpreview entitiespretty
+
+The goal here is to write a parser with decent error handling, coherent internal
+structure and the ability to process a sophisticated syntax.
+
+It looks like it is simpler than we may thing. Also, taking a look at the Dragon
+Book might  be nice as complimentary  material, because theory isn't  covered in
+depth here.
+
+* Ambiguity and the parsing game
+
+Replicating Lox's grammar:
+
+#+begin_example
+expression     -> literal | unary | binary | grouping ;
+literal        -> NUMBER | STRING | "true" | "false" | "nil" ;
+grouping       -> "(" expression ")" ;
+unary          -> ( "-" | "!" ) expression ;
+binary         -> expression operator expression ;
+operator       -> "==" | "!=" | "<" | "<=" | ">" | ">="
+                | "+" | "-" | "*" | "/" ;
+#+end_example
+
+For an expression such as
+
+#+begin_example
+6 / 3 - 1
+#+end_example
+
+If we had  no order of precedence, we  might as well have two  different ways to
+generate  this   string:  we   start  by  picking   the  =binary=   rule  within
+expression. And either our  right expression is =3 - 1=,  or our left expression
+is =6 / 3=. This generates two different syntax trees!
+
+So we need to have rules of *precedence* and *associativity*.
+
+- Precedence relates to groups of  different operators, determining which should
+  be  evaluated first.  Operators  with high  precedence  (evaluated first)  are
+  "bound tighter". There are also operators with "no precedence", so mixing them
+  without explicit grouping will be a syntax error.
+- Associativity relates to  groups of equal operators,  determining direction of
+  associativity.   they  may   be  "left-associative",   "right-associative"  or
+  "non-associative"  (using it  more than  once on  the same  sequence being  an
+  error). E.g. minus is left-associative; assignment is right-associative.
+
+Here is Lox's associativity table:
+
+| Name        | Operators | Associates |
+|-------------+-----------+------------|
+| Equality    | ~==~ ~!=~ | Left       |
+| Comparisons | > >= < <= | Left       |
+| Term        | - +       | Left       |
+| Factor      | / *       | Left       |
+| Unary       | - !       | Right      |
+  
+Some parser  generators let you add  some precedence metadata to  some tokens so
+you are allowed to  keep the grammar ambiguous. But what we can  also do here is
+stratify our grammar so  we can have separate rules for  the operators, and then
+have them ordered.
+
+So from lower to higher order of precedence:
+
+#+begin_example
+expression -> equality ;
+equality   -> comparison ( ( "!=" | "==" ) comparison )* ;
+comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term       -> factor ( ( "-" | "+" ) factor )* ;
+factor     -> unary ( ( "/" | "*" ) unary )* ;
+unary      -> ( "!" | "-" ) unary
+            | primary ;
+primary    -> NUMBER | STRING | "true" | "false" | "nil"
+            | "(" expression ")" ;
+#+end_example
+
+So any  rule matches  itself and  anything else below  it: =unary=  matches both
+=unary=  and   =primary=;  while  =term=  matches   =term=,  =factor=,  =unary=,
+=primary=... And so on.
+
+Rules such  as =factor= could  be defined as  *left-recursive*, but the  kind of
+parser we're  using has trouble with  left-recursion like that. We  would end up
+with an infinite  loop since we wouldn't  have an initial "anchor"  of sorts for
+our expression, a way to terminate it.
+
+Notice  how  =factor=  is  left-associative  but it  makes  no  difference  for
+multiplication and  division. That idea of  definition is extended to  the upper
+rules.
+
+And by the  way, being left-associative means that the  leftmost expressions are
+or are  closer to a branch's  leaves; see the implementation  for =equality= and
+the diagram on the book (pp. 87).
+
+* Recursive Descent Parsing
+
+There  are  many  parsing  techniques,   such  as  LL(k),  LR(1),  LALR,  parser
+combinators, Earley  parsers, the shunting  yard algorithm, and someone  told me
+about Pratt parsers the other day.
+
+We are going  to use recursive descent  parsing. This the simplest  way to build
+parsers, and won't require  us to use parser generators (such  as Yacc, Bison or
+ANTLR).
+
+Even  though  they  are  simple,  they   are  also  fast,  robust,  and  support
+sophisticated error handling. GCC, V8  and Roslyn (C# bootstrapped compiler) all
+use recursive descent.
+
+It is a *top-down parser*, since it starts  at the most general rule down to the
+simplest  token terminators.  In contrast,  LR  parsers start  from the  primary
+expressions, composing them into larger structures.
+
+It is basically a literal translation  of each parser rule into imperative code,
+where each rule would be a function.
+
+One note:  Recursive descent basically  walks down  our grammar, so  the primary
+expressions are  at the bottom. But  conversely, rule *precedence* is  higher at
+the  LOWEST  levels;  see  how  *factor*  comes  after  *term*?  That's  because
+multiplication and division have higher precedence than sum and subtraction.
+
+Here is a rough translation of the grammar's syntax into code.
+
+| Grammar notation | Code representation               | Meaning                    |
+|------------------+-----------------------------------+----------------------------|
+| Terminal         | Code to match and consume a token | Single token               |
+| Nonterminal      | Call to that rule's function      | Rule                       |
+| \vert                | ~if~ or ~switch~ statement        | One rule or other          |
+| * or +           | ~while~ or ~for~ loop             | Zero or more / One or more |
+| ?                | ~if~ statement                    | One or none                |
+
+Recursive descent  parsing is also  under the category of  *predictive parsers*,
+since it looks ahead at the tokens to decide what to do next.
+
+

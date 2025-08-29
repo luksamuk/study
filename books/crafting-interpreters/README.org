@@ -17,7 +17,8 @@ language interpreters in Java and C.
    Tangles some test files in Lox language.
 4. [[./04-scanning/ch04-notes.org][Scanning]]
 5. [[./05-representing-code/ch05-notes.org][Representing Code]]
-
+6. [[./06-parsing-expressions/ch06-notes.org][Parsing Expressions]]
+   
 * Tooling
 
 All Java  code was built using  IntelliJ IDEA Community Edition  because I'm not
