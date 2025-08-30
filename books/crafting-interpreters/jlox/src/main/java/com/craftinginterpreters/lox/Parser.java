@@ -5,12 +5,28 @@ import static com.craftinginterpreters.lox.TokenType.*;
 
 /// Recursive-descent parser for Lox.
 class Parser {
+    /// Simple sentinel class for unwinding the parser.
+    private static class ParseError extends RuntimeException {}
+
     private final List<Token> tokens;
     private int current = 0;
 
-    /* Constructors */
+    /* Constructors and entry point */
+
+    /// Constructor for parser.
     Parser(List<Token> tokens) {
         this.tokens = tokens;
+    }
+
+    /// Parse the given list of tokens stored within parser.
+    /// Returns an abstract syntax tree on success, and `null` on error.
+    /// TODO: Revisit this when adding statements.
+    Expr parse() {
+        try {
+            return expression();
+        } catch(ParseError error) {
+            return null;
+        }
     }
 
     /* Helper functions */
@@ -51,6 +67,40 @@ class Parser {
     /// Returns the most recently consumed token.
     private Token previous() {
         return tokens.get(current - 1);
+    }
+
+    /// Checks if the next token is of the expected type.
+    /// If so, consumes. If not, report an error.
+    private Token consume(TokenType type, String message) {
+        if(check(type)) return advance();
+        throw error(peek(), message);
+    }
+
+    /// Returns a parse error when a wrong token is found.
+    private ParseError error(Token token, String message) {
+        Lox.error(token, message);
+        return new ParseError();
+    }
+
+    /// Synchronizes the parser state by advancing to the next statement.
+    /// Used after a syntax error is encountered to help unwinding the state.
+    private void synchronize() {
+        advance();
+        while(!isAtEnd()) {
+            if(previous().type == SEMICOLON) return;
+            switch(peek().type) {
+                case CLASS:
+                case FOR:
+                case FUN:
+                case IF:
+                case PRINT:
+                case RETURN:
+                case VAR:
+                case WHILE:
+                    return;
+            }
+            advance();
+        }
     }
 
     /* Grammar rules */
@@ -153,5 +203,7 @@ class Parser {
             consume(RIGHT_PAREN, "Expected ')' after expression.");
             return new Expr.Grouping(expr);
         }
+
+        throw error(peek(), "Expected expression.");
     }
 }

@@ -130,3 +130,71 @@ Recursive descent  parsing is also  under the category of  *predictive parsers*,
 since it looks ahead at the tokens to decide what to do next.
 
 
+* Syntax errors
+
+Parsers must  do two  things: produce a  syntax tree from  valid code,  but also
+detect errors and  tell the user about mistakes, when  given an invalid sequence
+of tokens. And that last part must not be underestimated.
+
+When a  parser runs into a  syntax error, it  must detect and report  the error,
+while also avoiding crashing or hanging.
+
+This is because, while the code may be invalid, it is still a valid input to the
+compiler.
+
+A decent parser sould also be fast, report as many distinct errors as there are,
+and minimize cascaded errors.
+
+The way that parsers respond to errors is called *error recovery*.
+
+** Panic mode error recovery
+
+Basically, it is  a technique which, once  a parser reaches an  error, it enters
+panic mode  immediately. This means that  at least one token  doesn't make sense
+given the grammar.
+
+After reaching  panic mode, it  does *synchronization*, which means  getting its
+state, and  then align  the sequence  of forthcoming tokens  such that  the next
+token *DOES* match the rule being parsed.
+
+In other  words, we select some  rule that will mark  the synchronization point,
+then the parser fixes its parsing state, jumping back out of nested calls, until
+it gets back to that rule which  is the synchronization point. Then, it discards
+tokens until it reaches one that can appear at that point.
+
+Additional syntax errors  in those syntax errors aren't reported,  but this also
+discards  falsely-reported cascaded  errors  that may  come  from the  discarded
+tokens as well.
+
+The  traditional   place  to   do  these   synchronization  points   is  between
+statements. Since  we don't have statements  yet, we won't synchronize  now, but
+we'll get things ready for when the time comes.
+
+*** Error production error recovery
+
+Another way to handle errors: *error production*.
+
+Basically augmenting the syntax with rules  that match errors. The parser parses
+it, but reports it as an error instead of adding it to the syntax tree.
+
+This is  especially useful  to help  users fix  mistakes when  writing erroneous
+code, so more mature parsers will make use of it.
+
+** Synchronizing a recursive descent parser
+
+The key here is that we end up using Java's own call stack to keep track of what
+the parser is doing; so each rule being  parsed is a call frame on the stack. To
+reset the state, we clear all  those frames. Which means... raising an exception
+that is handled through a try-catch block at our synchronization point!
+
+And to synchronize and move the parser state to the next statement, we just need
+to  keep  track  of the  next  semicolon,  which  might  be ending  the  current
+statement. Notice  that this isn't  perfect synchronization; we might  be ending
+prematurely a  =for= statement, for example.  But this is OK  because any errors
+that come  after the first one  is just a  "best effort" scenario.
+
+Oh,  and of  course, certain  keywords  (=class=, =for=,  =fun=, =if=,  =print=,
+=return=, =var=, =while=)  are also considered boundaries for  statements. If we
+reached them, we stop advancing our tokens.
+
+
