@@ -198,3 +198,43 @@ Oh,  and of  course, certain  keywords  (=class=, =for=,  =fun=, =if=,  =print=,
 reached them, we stop advancing our tokens.
 
 
+* Challenges
+
+I'm lazy,  so I don't wanna  do these right now.  I will just write  down what I
+think should be done.
+
+** Comma expressions
+
+Don't wanna do this right now, but I think  that maybe I could add a rule at the
+expression level, leveraging =equality= there.
+
+** Ternary operator
+
+Don't wanna do this either.
+
+But there shouldn't be any level of precedence between =?= and =:= since they're
+part of the same rule, and it  should be *right-associative* so it can represent
+an if-elseif-elseif-else by chaining ternaries. Otherwise we would have a really
+bad case of [[http://www.phpsadness.com/sad/30][PHP ternary]].
+
+** Error productions to handle binary operators at left
+
+That's easy but I don't wanna also
+
+
+* Designo note: Logic versus history
+
+This part comments on how bitwise  operators have lower precedence than equality
+on C and how it makes things weird.
+
+Then it  talks about  language design  from a viewpoint  of someone  who already
+knows other languages: It really helps newcomers to learn about your language if
+you  use concepts  that make  the most  sense, and  reuse concepts  that already
+exist, and that goes for some operator precedences too.
+
+It helps the with the language getting known and being easier to pick up.
+
+"It's often better to make the most of what users already know".
+
+Still, new stuff is important for a new language also.
+
