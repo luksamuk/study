@@ -2,7 +2,6 @@
    multiline comment
 */
 
-var foo = 2;
 
 // This is another comment
 
@@ -11,3 +10,5 @@ var foo = 2;
    multiline
    comment
 */
+
+(1 + 2) == 3
