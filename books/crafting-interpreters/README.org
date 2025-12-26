@@ -19,6 +19,7 @@ language interpreters in Java and C.
 5. [[./05-representing-code/ch05-notes.org][Representing Code]]
 6. [[./06-parsing-expressions/ch06-notes.org][Parsing Expressions]]
 7. [[./07-evaluating-expressions/ch07-notes.org][Evaluating Expressions]]
+8. [[./08-statements-and-state/ch08-notes.org][Statements and State]]
    
 * Tooling
 

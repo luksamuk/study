@@ -1,0 +1,13 @@
+#+TITLE: Statements and State
+
+Statements are supposed to produce side-effects.
+
+Assignments  on  most  languages  produce  no  value  and  therefore  are  never
+expressions.
+
+I  do  recall,  though,  that  when  I was  creating  Majestic,  I  did  specify
+definitions as if they were expressions,  since they return values -- the symbol
+that gives name to the value, that is.
+
+Anyway, here we'll add assignment, prints, blocks and local scope.
+

@@ -14,4 +14,16 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/java/com/craftinginterpreters/lox</directory>
+                <excludes>
+                    <exclude>AstPrinter.java</exclude>
+                    <exclude>AstRpnPrinter.java</exclude>
+                </excludes>
+            </resource>
+        </resources>
+    </build>
+
 </project>
