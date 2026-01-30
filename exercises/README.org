@@ -1,41 +1,36 @@
 #+TITLE: Exercises
 
-Exercícios avulsos feitos com propósito de aprendizagem.
+Individual exercises created for learning purposes.
 
 - =99-lisp-problems=
-  Resoluções para os [[http://www.ic.unicamp.br/~meidanis/courses/mc336/2006s2/funcional/L-99_Ninety-Nine_Lisp_Problems.html][Ninety-Nine Lisp Problems da Unicamp]].
+  Solutions to the [[http://www.ic.unicamp.br/~meidanis/courses/mc336/2006s2/funcional/L-99_Ninety-Nine_Lisp_Problems.html][Ninety-Nine Lisp Problems from Unicamp]].
 
 - =challenges=
-  Códigos soltos que implementam coisas simples. Você pode querer dar
-  uma olhadinha, talvez descubra algo interessante.
+  Loose code that implements simple things. You might want to take a look; maybe you'll discover something interesting.
 
 - =erlang-tutorial=
-  Exercícios feitos no tutorial oficial da linguagem Erlang.
+  Exercises done in the official Erlang language tutorial.
 
 - =incremental-economy-simulator=
-  Jogo simulador de economia incremental. Não-finalizado.
+  Incremental economy simulator game. Incomplete.
 
 - =lfe-tutorial=
-  Tutorial de Erlang, reescrito em LFE (Lisp-Flavored Erlang).
+  Erlang tutorial, rewritten in LFE (Lisp-Flavored Erlang).
 
 - =maratonas=
-  Códigos feitos como resolução de Maratonas de Programação. Também
-  inclui códigos do URI Online Judge e do SPOJ.
+  Code created as solutions to Programming Marathons. Also includes code from URI Online Judge and SPOJ.
 
 - =project-euler=
-  Resoluções de problemas do Project Euler em linguagens
-  variadas. Dica: faça você mesmo antes de copiar a resolução. :)
+  Solutions to Project Euler problems in various languages. Tip: try solving it yourself before copying the solution. :)
 
 - =quine=
-  Implementação de um quine em Common Lisp.
+  Implementation of a quine in Common Lisp.
 
 - =rpn-calculator=
-  Calculadora em notação polonesa reversa, feita em F#.
+  Calculator in reverse Polish notation, written in F#.
 
 - ~sml~
-  Notas de leitura do PDF /A Crash Course on Standard ML/.
+  Reading notes for the PDF /A Crash Course on Standard ML/.
 
 - ~prolog~
-  Experimentos com a linguagem Prolog.
-
-  
+  Experiments with the Prolog language.
