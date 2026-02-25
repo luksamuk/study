@@ -1,0 +1,66 @@
+* BPE Algorithm
+
+[[https://towardsdatascience.com/byte-pair-encoding-for-beginners-708d4472c0c7/][Fonte: Byte-Pair encoding for beginners]]
+
+#+begin_src python :results output
+import re, collections
+
+def get_stats(vocab):
+    pairs = collections.defaultdict(int)
+    for word, freq in vocab.items():
+        symbols = word.split()
+        for i in range(len(symbols) - 1):
+            pairs[symbols[i], symbols[i+1]] += freq
+    return pairs
+
+def merge_vocab(pair, v_in):
+    v_out = {}
+    bigram = re.escape(" ".join(pair))
+    p = re.compile(r"(?<!\S)" + bigram + r"(?!\S)")
+    for word in v_in:
+        w_out = p.sub("".join(pair), word)
+        v_out[w_out] = v_in[word]
+    return v_out
+
+def main():
+    vocab = {
+        "l o w </w>": 5,
+        "l o w e r </w>": 2,
+        "n e w e r </w>": 6,
+        "w i d e s t </w>": 3,
+    }
+    num_merges = 10
+    for i in range(num_merges):
+        pairs = get_stats(vocab)
+        best = max(pairs, key=pairs.get)
+        vocab = merge_vocab(best, vocab)
+        print(best)
+    print(f"Vocab:\n{vocab}")
+
+main()
+#+end_src
+
+#+RESULTS:
+#+begin_example
+('w', 'e')
+('we', 'r')
+('wer', '</w>')
+('l', 'o')
+('n', 'e')
+('ne', 'wer</w>')
+('lo', 'w')
+('low', '</w>')
+('w', 'i')
+('wi', 'd')
+Vocab:
+{'low</w>': 5, 'lo wer</w>': 2, 'newer</w>': 6, 'wid e s t </w>': 3}
+#+end_example
+
+** Materiais complementares
+
+- [[https://medium.com/@VectorWorksAcademy/understanding-byte-pair-encoding-bpe-tokenizer-a-technical-deep-dive-ca9ab1021b31][Understanding
+  Byte Pair Encoding (BPE)) Tokenizer]]
+- [[https://sebastianraschka.com/blog/2025/bpe-from-scratch.html][Implementação
+  de BPE do zero]]
+
+  
