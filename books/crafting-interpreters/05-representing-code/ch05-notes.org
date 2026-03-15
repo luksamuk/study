@@ -1,0 +1,423 @@
+#+TITLE: Representing Code
+#+startup: latexpreview
+
+The goal here is  to program a representation for code. In  other words, we take
+the tokens and structure  them in such a way that we  can extract semantics from
+it.
+
+For  example, arithmetic  expressions  can be  represented in  such  a way  that
+precedence  is expressed  using  a tree,  from  leaf nodes  up  toward the  root
+(post-order traversal).
+
+Trees are  not the only  way to  do that; we  could also generate  bytecode, but
+we'll use trees in this specific case.
+
+* Context-free grammars
+
+In Vieira (2006), a context-free grammar is  defined (pp. 156-157) as:
+
+A grammar  $(V, \Sigma, R, P)$,  in which every  rule has a form  $X \rightarrow
+\omega$, where $X \in V$ and $\omega \in (V \cup \Sigma)^{*}$.
+
+Also,  $V$  is  the  language  definition's  "variables"  (nonterminals),  while
+$\Sigma$  is the  alphabet. We  also have  $(V \cup  \Sigma)^{*}$ as  the Kleene
+closure defining the possible words that can  be defined using the rules for the
+language's syntax --  consider also that generally we have  the symbol $\lambda$
+as the empty word for these grammars.
+
+For example, consider a grammar $G$ for a language $L(G)$ such that:
+
+- $V = \{P\}$;
+- $\Sigma = \{0, 1\}$;
+- $P$ is the initial form of the grammar;
+- $R$ contains the single rule:
+  - $P \rightarrow 0P0\ |\ 1P1\ |\ 0\ |\ 1\ |\ \lambda$
+
+Now we can clearly  see that we can generate palindrome  sentences of zeroes and
+ones,  with  an  arbitrary  equal  amount  of those.  So  our  language  can  be
+represented as:
+
+$L(G) = \{\omega \in \{0, 1\}^{*}\ |\ \omega = \omega^{R}\}$
+
+Here are a few words that can be generated from that grammar.
+
+#+begin_example
+        (an empty word)
+0
+1
+00
+11
+0000
+0110
+1111
+1001
+...
+#+end_example
+
+In the  context of our language,  the alphabet is  our *tokens*, and our  set of
+rules  are our  grammar rules  for  building programs.  A valid  program in  our
+language is a program that follows the syntax rules of our grammar.
+
+Suddenly, theory and practice are not so distant after all, right?
+
+| Terminology         | Lexical grammar | Syntactic grammar | Symbol       |
+|---------------------+-----------------+-------------------+--------------|
+| Alphabet            | Characters      | Tokens            | $\Sigma$     |
+| Word                | Lexeme/token    | Expression        | $\omega \in L(G)$  |
+| Implemented by...   | Scanner         | Parser            |              |
+
+If  we  restrict  heads  to  a single  symbol,  we're  defining  a  context-free
+grammar.
+
+There are more  powerful formalisms. For example, unrestricted  grammars allow a
+sequence of symbols in the head as well as the body (think of how rules expand).
+
+** Rules for grammars
+
+Some more nomenclature:
+
+- *Terminal*: A letter from the grammar's alphabet.
+- *Nonterminal*: Reference to another rule in the grammar.
+
+It is possible to have multiple rules with the same name! When that happens, you
+are allowed to pick up the rule that best fits your case.
+
+John Backus et all created the *Backus-Naur form* (*BNF*) to describe ALGOL 58's
+grammar, and so now everyone uses a flavor of BNF tweaked as its own.
+
+** A grammar for Lox expressions
+
+For now we are going to worry about:
+
+- Literals;
+- Unary expressions;
+- Binary expressions;
+- Parentheses.
+
+Which are enough for expressions such as:
+
+#+begin_src lox
+1 - (2 * 3) < 4 == false
+#+end_src
+
+And the grammar can be defined as follows. Notice that the capitalized names are
+terminals that are a single lexeme but the representation may vary.
+
+#+begin_example
+expression     -> literal | unary | binary | grouping ;
+literal        -> NUMBER | STRING | "true" | "false" | "nil" ;
+grouping       -> "(" expression ")" ;
+unary          -> ( "-" | "!" ) expression ;
+binary         -> expression operator expression ;
+operator       -> "==" | "!=" | "<" | "<=" | ">" | ">="
+                | "+" | "-" | "*" | "/" ;
+#+end_example
+
+The grammar is  said to be ambiguous,  but I could not immediately  find what is
+its ambiguity.
+
+
+* Working with trees
+
+** The expression problem
+
+Ok, this is worth some notes.
+
+We have declared an abstract class  =Expr= and several subclasses related to our
+grammar such  as =Unary=, =Binary=,  etc. That  are static subclasses,  yet they
+still inherit =Expr=.
+
+So right  now we  have some operations  to do  with these types  and we  need to
+relate them to the types.
+
+Object orientation  says that each class  could have an implementation  for each
+operation, so we would implement  methods like =interpret=, =resolve=, =analyze=
+for  each of  these classes.  But if  we create  a new  rule, we  would have  to
+implement them all over again.
+
+Functional  languages,  on  the  other  hand,  would  have  these  functions  as
+standalone and perform pattern  matching on these types. But if  we create a new
+type, we would still have to implement behavior for that type on each function.
+
+This is called the "expression problem".
+
+If we had been  working with Common Lisp (CLOS specifically)  or Julia, we could
+solve this with multimethods and dynamic  dispatch at the cost of not performing
+static  type  checking  (because  dispatch   happens  at  runtime)  or  separate
+compilation.
+
+So we will just slap a design pattern that solves this problem...
+
+** The Visitor pattern
+
+First  things first,  "visitor"  is not  about  visiting nodes;  and  it is  not
+necessarily related to traversing trees either.
+
+Even though we will use classes that are tree-like, that's just a coincidence.
+
+*What it allows us to do is define all  of the behavior for a new operation on a
+ set of types in a single place, without having to touch the types themselves.*
+
+So it brings together things from both  OO and functional: we dispatch on types,
+but at  the same  time we define  behavior at  one time and  it should  work for
+everyone involved. And this is done through a layer of indirection.
+
+Here's the book's example. Suppose we have pastries defined with inheritance.
+
+
+#+begin_src java
+abstract class Pastry {
+	// ...
+}
+
+class Beignet extends Pastry {
+	// ...
+}
+
+class Cruller extends Pastry {
+	// ...
+}
+#+end_src
+
+Define an  interface for  the visitors.  Each operation  is a  visitor; distinct
+methods were defined  here just to evidence that these  are statically compiled,
+the opposite  of overrides  (if we  were overloading a  single visit  method, it
+would still be statically-compiled).
+
+#+begin_src java
+interface PastryVisitor {
+	void visitBeignet(Beignet beignet);
+	void visitCruller(Cruller cruller);
+}
+#+end_src
+
+Then implement the =accept= method for each visited class:
+
+#+begin_src java
+abstract class Pastry {
+	abstract void accept(PastryVisitor visitor);
+}
+
+class Beignet extends Pastry {
+	@override
+	void accept(PastryVisitor visitor) {
+		visitor.visitBeignet(this);
+	}
+}
+
+class Cruller extends Pastry {
+	@override
+	void accept(PastryVisitor visitor) {
+		visitor.visitCruller(this);
+	}
+}
+#+end_src
+
+
+So now,  to perform an  operation on  any kind of  Pastry, we call  the Pastry's
+=accept= method, and through inheritance  it will call the proper implementation
+for that operation within the class implementing =PastryVisitor=.
+
+So  now we  get a  way to  implement  our verbs  as proper  classes while  still
+retaining static analysis.
+
+We could also  pass a context on  the method =accept=, but we  don't really need
+that here.
+
+
+* Challenges
+
+** Producing a gramar without syntax sugar
+
+Original grammar:
+
+#+begin_example
+expr -> expr ( "(" ( expr ("," expr)* )? ")" | "." IDENTIFIER )+
+      | IDENTIFIER
+      | NUMBER
+#+end_example
+
+Without syntax sugar:
+
+#+begin_example
+expr -> expr
+expr -> expr grouping
+expr -> IDENTIFIER
+expr -> NUMBER
+
+grouping -> "(" commaseparated ")"
+
+commaseparated -> expr
+commaseparated -> expr "," commaseparated
+#+end_example
+
+This grammar  produces an  identifier, a number,  or a  nested, comma-separated,
+paren-delimited list of expressions, where each of these expressions may also be
+another comma-separated list.
+
+** Complimentary pattern for functional languages
+
+The idea here is to have object orientation on a functional language, then!
+
+I'm gonna do it using Common Lisp because I am not insane..
+
+Here's a sketch of the syntax I am aiming for.
+
+#+begin_src lisp :tangle no
+(dclass foo
+  (bar)
+  ((say-hello ()
+     (format t (foo-get-bar this)))
+   (set-name (name)
+     (foo-set-bar this name))
+   (say-goodbye ()
+     (format t "Goodbye!"))))
+#+end_src
+
+We have a few ideas.
+
+- We define  fields within  the first  list after class  name. It  is a  list of
+  fields which will comprise the object's state, simply put.
+- Each field  will have  a getter named  =CLASSNAME-get-FIELDNAME= and  a setter
+  =CLASSNAME-set-FIELDNAME= (e.g. =foo-get-bar=, =foo-set-bar=).
+- We define  methods just  after the  fields list.  Each of  the methods  may be
+  declared as having no parameters, but  they implicitly receive =this= as first
+  parameter; that parameter is an instance  to the current object. These methods
+  are called with =CLASSNAME-METHODNAME= (e.g. =foo-say-goodbye=)
+
+How are  we going  to represent  the fields? Well...  there is  such a  thing as
+alists and  plists in Lisp,  and I'm going  to use alists  because I do  want to
+change state,  otherwise I would have  to abstain from using  constructs such as
+=setf=.
+
+We are going to represent our objects as alists. =assoc= is going to be our main
+vector for  retrieving a field.  Using =assoc= with  =setf= will give  us ad-hoc
+mutability.
+
+The rest are macros, which is what Lisp does best.
+
+
+#+begin_src lisp
+(defmacro dclass (classname
+                  (&rest dfields)
+                  (&body dmethods))
+  `(progn
+     ;; Generate constructor
+     (DEFUN ,(intern (format nil "~a-INSTANTIATE" classname)) ,dfields
+       (LIST ,@(loop for field in dfields
+                     collect `(cons (quote ,field) ,field))))
+     ;; Generate getters and setters
+     ,@(loop for field in dfields
+             collect
+             `(DEFUN ,(intern (format nil "~a-GET-~a" classname field)) (THIS)
+                (CDR (ASSOC (QUOTE ,field) THIS)))
+             collect
+             `(DEFUN ,(intern (format nil "~a-SET-~a" classname field)) (THIS VALUE)
+                (SETF (CDR (ASSOC (QUOTE ,field) THIS))
+                      VALUE)))
+     ;; Generate methods
+     ,@(loop for (method-name method-lambda-list . method-body) in dmethods
+             collect
+             `(DEFUN ,(intern (format nil "~a-~a" classname method-name))
+                (THIS ,@method-lambda-list)
+                ,@method-body))))
+#+end_src
+
+#+RESULTS:
+: DCLASS
+
+And here is an evaluation of the example:
+
+#+begin_src lisp :results output
+(dclass foo
+    (name age)
+    ((say-hello ()
+       (format t "Hello, ~a!~%" (foo-get-name this)))
+     (multiply-age (mult)
+       (foo-set-age this (* (foo-get-age this)
+                            mult))
+       (format t "Age is now ~a~%" (foo-get-age this)))
+     (say-goodbye ()
+       (format t "Goodbye!~%"))))
+
+(defparameter *test* (foo-instantiate "Lucas" 31))
+
+(foo-say-hello *test*)
+(foo-multiply-age *test* 2)
+(foo-say-goodbye *test*)
+#+end_src
+
+#+RESULTS:
+: Hello, Lucas!
+: Age is now 62
+: Goodbye!
+
+** Writing a pretty printer with reverse polish notation
+
+Here's my attempt.
+
+#+begin_src java
+package com.craftinginterpreters.lox;
+
+///  This printer is temporary and may be removed soon
+
+public class AstRpnPrinter implements Expr.Visitor<String> {
+    String print(Expr expr) {
+        return expr.accept(this);
+    }
+
+    @Override
+    public String visitBinaryExpr(Expr.Binary expr) {
+        return expr.left.accept(this) +
+                " " +
+                expr.right.accept(this) +
+                " " +
+                expr.operator.lexeme;
+    }
+
+    @Override
+    public String visitGroupingExpr(Expr.Grouping expr) {
+        return expr.expression.accept(this);
+    }
+
+    @Override
+    public String visitLiteralExpr(Expr.Literal expr) {
+        if(expr.value == null) return "nil";
+        return expr.value.toString();
+    }
+
+    @Override
+    public String visitUnaryExpr(Expr.Unary expr) {
+        return expr.right.accept(this) + " " + expr.operator.lexeme;
+    }
+
+    public static void main(String[] args) {
+        Expr expression = new Expr.Binary(
+                new Expr.Grouping(
+                        new Expr.Binary(
+                                new Expr.Literal(1),
+                                new Token(TokenType.PLUS, "+", null, 1),
+                                new Expr.Literal(2)
+                        )
+                ),
+                new Token(TokenType.STAR, "*", null, 1),
+                new Expr.Grouping(
+                        new Expr.Binary(
+                                new Expr.Literal(4),
+                                new Token(TokenType.MINUS, "-", null, 1),
+                                new Expr.Literal(3)
+                        )
+                )
+        );
+        System.out.println(new AstRpnPrinter().print(expression));
+    }
+}
+#+end_src
+
+Output:
+
+#+begin_example
+1 2 + 4 3 - *
+#+end_example
+
+As expected.

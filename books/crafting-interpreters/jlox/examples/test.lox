@@ -1,0 +1,14 @@
+/* This is a
+   multiline comment
+*/
+
+
+// This is another comment
+
+/* This is yet
+   another
+   multiline
+   comment
+*/
+
+(1 + 2) == 3

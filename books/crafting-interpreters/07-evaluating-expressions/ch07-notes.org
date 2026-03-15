@@ -1,0 +1,143 @@
+#+title: Evaluating Expressions
+#+startup: latexpreview entitiespretty
+
+* Representing values
+
+Here, the  user will  see the objects  as Lox values,  but we'll  use underlying
+values from the language used during  implementation -- namely, Java. We'll also
+use the  `java.lang.Object` class to help  us do some reflection  on runtime and
+dispatch   operations   depending   on   types,  by   using   the   =instanceof=
+operator. Plus, we can use Java's own boxed types for representation:
+
+| Lox       | Corresponding Java type |
+|-----------+-------------------------|
+| Any value | =Object=                |
+| =nil=     | =null=                  |
+| Boolean   | =Boolean=               |
+| Number    | =Double=                |
+| String    | =String=                |
+
+More  work  will be  needed  for  other stuff  such  as  functions, classes  and
+instances, but that's for later.
+
+Oh, and also  -- Memory management and  garbage collection is the  JVM's job for
+this implementation.
+
+* Evaluating Expressions
+
+We won't  be using the  Gang of Four's  interpreter design pattern,  which would
+stuff behavior onto the syntax tree objects so they interpret themselves.
+
+Instead, we'll just abuse our Visitor pattern that already exists.
+
+We also  do a *post-order  traversal* here,  since we can't  evaluate expression
+nodes until their children are already evaluated.
+
+** Evaluating literals
+
+Literals are almost  values, but not quite; literals appear  on the source code,
+and are  from the  parser's domain.  Values, on  the other  hand, belong  to the
+interpreter, being a concept of it, and also part of the runtime.
+
+In our  case, we  took advantage  of the scanning  process and  already produced
+values for literals on that step.
+
+** Evaluating parentheses
+
+Some languages don't  define a node for a parenthesized  expression with a child
+node to the expression itself, like we do.
+
+But here, we're doing this because we'll need it later to work with assignments.
+
+** Evaluating unary expressions
+
+Since we  don't really  know if  =expr.right= is a  number, we  have to  cast to
+=double= at runtime  when defining the "minus" operator. And  that is the kernel
+of what makes Lox dynamically typed: this resolution happens at runtime.
+
+** Truthiness and falsiness
+
+Even  though we  don't  do  implicit conversions,  we  introduce truthiness  and
+falsiness to non-boolean values.
+
+Lox  follows Ruby's  rule:  =false= and  =nil= are  falsey.  Everything else  is
+truthy.
+
+** Evaluating binary operators
+
+Notice that we're introducing left-to-right  evaluation and that this evaluation
+order can introduce side effects. This is on purpose.
+
+The  PLUS   operator  here  is   overloaded  for  both  arithmetic   and  string
+concatenation.  This  overload  can  make  the  language  more  approachable  to
+newcomers.
+
+Equality  operators support  operands  of  any type,  even  mixed  ones. So  the
+equality logic is hoisted separately, just like truthiness.
+
+Equality leverages  =java.lang.Object.equal()= to check for  equality, so values
+such as =NaN= (that generally appear for  =(0 / 0)=) will not appear here, since
+this method does not follow IEEE 754 entirely for doubles.
+
+In the  end, apart from that,  we just handle  situations where =a= is  equal to
+=nil= so we don't get an exception when calling =.equal()=.
+
+* Runtime errors
+
+Right now  the casts we  introduced ensure that, when  an operand is  of invalid
+type, a =ClassCastException= is thrown, and that will unwind the stack for us.
+
+But  that's  not  desirable since  the  usage  of  the  JVM should  be  just  an
+implementation detail, not explicit to the user.
+
+So we need to  capture that error and basically give  a meaningful message while
+still keeping the REPL running, instead of, say, killing everything at point.
+
+* Challenges
+
+** Would you extend Lox to support comparing other types?
+
+Absolutely NOT, but I think it would be  useful to have a way to explicitly cast
+some values to others.  For example, casting a boolean to  integer could be very
+useful  on certain  situations, and  if  we had  some sort  of foreign  function
+interface  with C,  maybe it  would  be interesting  to cast  objects to  obtain
+pointers, but that  would also imply a  lot of care, true  integer values, maybe
+even  a  proper  pointer  type  so  we   can  avoid  many  of  the  pitfalls  on
+this... perharps even proper classes defined only for that.
+
+** Support string and number concatenation
+
+All I  had to do on  =visitBinaryExpr= was add  this case prior to  throwing the
+=RuntimeError=:
+
+#+begin_src java
+// in visitBinaryExpr, at end of the PLUS case:
+if((left instanceof String && right instanceof Double)
+   || (left instanceof Double && right instanceof String)){
+	return stringify(left) + stringify(right);
+}
+#+end_src
+
+** About division by zero
+
+Right now division by zero complies with IEEE 754 and returns =NaN= on =(0 / 0)=
+case, and =Infinity= otherwise.
+
+Personally I  think that it  should throw  an error, so  we need to  compare the
+dividend with zero. Unfortunately, that's not really that obvious for Doubles.
+
+What I'm  going to do here  is use a very  small value (let's call  it \epsilon), which
+will be =2 * Double.MIN_VALUE=. Of course, this means that zero should be within
+a certain threshold of an acceptable value, related to how Doubles can represent
+very small numbers.
+
+Here's what I didn in =visitBinaryExpr=:
+
+#+begin_src java
+case SLASH:
+    checkNumberOperands(expr.operator, left, right);
+    if(Math.abs((double)right) < 2 * Double.MIN_VALUE) {
+	    throw new RuntimeError(expr.operator, "Division by zero");
+    }
+    return (double)left / (double)right;
+#+end_src

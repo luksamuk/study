@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Test Pretty Printer" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.craftinginterpreters.lox.AstPrinter" />
+    <module name="lox" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

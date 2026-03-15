@@ -1,0 +1,50 @@
+fun zero(f, x) {
+    return x;
+}
+
+fun one(f, x) {
+    return f(x);
+}
+
+fun two(f, x) {
+    return f(f(x));
+}
+
+fun three(f, x) {
+    return f(f(f(x)));
+}
+
+fun four(f, x) {
+    return f(f(f(f(x))));
+}
+
+fun five(f, x) {
+    return f(f(f(f(f(x)))));
+}
+
+// -----
+
+fun succ(n, f, x) {
+    return f(n(f, x));
+}
+
+fun add(m, n, f, x) {
+    return m(f, n(f, x));
+}
+
+// -----
+
+fun plus_one(n) {
+    return n + 1;
+}
+
+// -----
+
+print zero(plus_one, 0);
+print one(plus_one, 0);
+print two(plus_one, 0);
+print three(plus_one, 0);
+print four(plus_one, 0);
+print five(plus_one, 0);
+print succ(five, plus_one, 0);
+print add(five, four, plus_one, 0);

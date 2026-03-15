@@ -1,0 +1,287 @@
+#+TITLE: Scanning
+
+Most of the things in this chapter are related to coding, so from now on, I will
+simply start writing notes on specific subtopics.
+
+* The Interpreter Framework
+
+** Error handling
+
+The   method  =error=   is   declared  here   with   no  private/public   access
+modifier. Recall from Java that having no access modifier also modifies how that
+element is visible. Here is a transcript of a table from stackoverflow.
+
+| Modifier  | Class | Package | Subclass | World |
+|-----------+-------+---------+----------+-------|
+| public    | Y     | Y       | Y        | Y     |
+| protected | Y     | Y       | Y        | N     |
+| (Default) | Y     | Y       | N        | N     |
+| private   | Y     | N       | N        | N     |
+
+What this means  is that methods and attributes are  package-private by default,
+meaning that they  can be seen over the  package, but cannot be seen  by a class
+that inherits the discussed base class, nor by other classes on other packages.
+
+* Lexemes and Tokens
+
+Static analysis is  basically scanning through the list  of characters, grouping
+them together onto the smallest sequences that still represent something.
+
+Each of these sequences is called a  *lexeme*. Notice that they are just the raw
+substrings.
+
+For example.
+
+#+begin_src lox
+var language = "lox";
+#+end_src
+
+Individual lexemes:
+
+#+begin_example
+var
+language
+=
+"lox"
+;
+#+end_example
+
+If we bundle together a *lexeme* with some other data (related to semantics, for
+example), we call the bundle a *token*.
+
+This bundle can have extra useful data such as:
+
+- Token type (for example, keywords);
+- Literal value (for example, number or string values...);
+- Location information (for example, line, column, length, etc. jlox only uses lines);
+- etc...
+
+** Location information
+
+One interesting  strategy: Some languages store  the offset of the  beginning of
+the file to the beginning of the  lexeme, plus their length. So displaying error
+messages related  to tokens will  be slow. However, these  only need to  be done
+when there are errors, and most tokens won't end up in error messages.
+
+Plus,  offset and  length  are  already information  that  will  be needed  when
+capturing the lexeme, so you're already good  to go with respect to storing this
+kind of data.
+
+* Regular languages and expressions
+
+The  scanner is  basically a  loop  that gulps  characters from  first to  last,
+consuming characters that are a part of a  lexeme, and then emits a token at the
+end of a lexeme.
+
+It is possible to use regexes to match each kind of lexeme.
+
+The rules  that determine how  the language  groups characters into  lexemes are
+called its *lexical grammar*. Lox's grammar is a simple language, enough to be a
+*regular language*, which means that the lexemes can be recognized using regular
+expressions after all.
+
+Lex  and  Flex are  tools  to  handle  grammars  with regular  expressions  like
+that. You give them regexes, they give you a scanner.
+
+But here we'll handcraft it.
+
+This closely relates  to Chomsky's grammars too!  The theory can be  seen at The
+Dragon Book (Compilers: Principles, Techniques and Tools).
+
+
+* Longer lexemes
+
+Function =peek=  performs an operation  called *lookahead*, which means  that we
+are looking at the next character to help us decide what to do.
+
+=advance= is a *consumer*, so it just consumes the current character.
+
+=match=  is  a combination  of  both:  it performs  a  *lookahead*  and, if  the
+character is the one expected, it gets consumed.
+
+Notice also how *comments are lexemes*,  but since they are not meaningful, they
+are ignored.
+
+** Number literals
+
+In  Lox, all  numbers are  internally represented  as double-precision  floating
+points, but integer and decimal literals are supported.
+
+Leading or trailing decimal points are not allowed.
+
+Oh! And the  minus sign will not be  a part of the number literal.  They will be
+the minus  operator applied  to a  number. Personally I  think this  is shooting
+yourself on  the foot and there  is an aside  note discussing a case  where this
+could  be terribly  wrong, such  as  =print -123.abs();=,  if we  were to  allow
+calling methods for number literals like that.
+
+But what the heck, I'm not here to bash on language design. I'll leave my design
+choices to Majestic Lisp.
+
+* Reserved words and identifiers
+
+Concept: *Maximal munch*.
+
+Whenever two  lexical grammar  rules can  both match  a chunk  of code  that the
+scanner is looking at, whichever one matches the most characters wins.
+
+This is the base  for not confusing tokens such as the keyword  =or= and, say, a
+variable name like =orchid=.
+
+Because of that, we can't determine if  a *reserved word* was used until we stop
+at what might be the  end of a lexeme; and this is also  why we call those words
+"reserved".
+
+* Challenges
+
+** Lexical grammars of Python and Haskell are not regular. Why? And what does it mean?
+
+So the explanation relates to Chomsky's grammars  and I was lucky to learn about
+them on Computer Theory classes, so I won't extend much here.
+
+According  to  Wikipedia,  a  grammar  is regular  if  it  is  right-regular  or
+left-regular. The production rules therefore allow words to "sprout" to the left
+or to the right.
+
+But if  we mix these two,  we may end up  with a context-free grammar  like this
+language:
+
+$L = \{a^{n} b^{n} \| n > 0 \}$
+
+Note  that  we   can't  just  build  our  language  from   left  or  from  right
+there. Something there depends on context.
+
+This seems  to be the case  for Python and Haskell,  and I can clearly  see that
+from Python especially  because Python needs to have CONTEXT  for its statements
+and expressions, since they are bound by WHITESPACE INDENTATION.
+
+That whitespace indentation right there gives  us the impression that we need to
+stack and keep  track of whatever level  of indentation we are  right now. Well,
+stacking  leads  us in  computer  theory  to  pushdown  automatons --  PDAs,  or
+"autômatos  de  pilha",  as  I  learned in  Portuguese  --.  This  makes  Python
+context-sensitive.  And  being  context-sensitive  means it  cannot  be  just  a
+finite-state machine!
+
+I don't know enough Haskell to explain  that from a Haskell standpoint though. I
+believe whitespace matters too?
+
+** Space affects how code is parsed in CoffeeScript, Ruby and the C preprocessor, Where and what effect does it have in each?
+
+*** CoffeeScript
+
+Apparently, parentheses around a function call is optional, so you can then pass
+a parameter to a function by using  white space. I found this example that seems
+to  illustrate that  --  you need  a  space after  =map=  because the  anonymous
+function is its parameter. Here's two semantically equivalent expressions.
+
+#+begin_src coffee
+# Function call with explicit arguments between parens
+nums = [1..10].map((i) -> i*2)
+
+# Function call omitting parens
+nums = [1..10].map (i) -> i*2
+#+end_src
+
+*** Ruby
+
+Ruby has a similar issue -- methods can be called without parentheses!
+
+So whitespace does matter in these cases.
+
+#+begin_src ruby
+puts 2.between?(1, 3) # Outputs "true"
+puts 2.between? 1, 3  # Outputs "true"
+
+puts 2.between? (1, 3) # Errors with the , token
+#+end_src
+
+*** C preprocessor
+
+The C preprocessor only takes macros and  rewrite them as a string of tokens and
+whitespace, so this step happens before anything is semantically checked.
+
+The C preprocessor is  not standardized so it is mostly  subject to whatever the
+hell  the programmers  want to  do. In  GCC, for  example, escaped  newlines are
+deleted, hence we have another case of whitespace that matters.
+
+More info: https://gcc.gnu.org/onlinedocs/gcc-3.0.4/cppinternals_4.html
+
+** Why would you want to write a scanner that does not discard comments and whitespace?
+
+Because it may be the case that  the comments provide some sort of documentation
+that may be semantically valid as metadata.
+
+Even more than  that; if for some  reason you have annotations  on your language
+and you decide to  put them inside comments, this might also be  a good cause to
+parse comments too. They  may even be a sublanguage of sorts,  in this case.
+
+** Add C-style multiline comments to Lox
+
+Here's how I did it. Everything is at =Scanner.java=.
+
+First of  all, in  =Scanner.scanToken=, I  modified the base  rule for  ='/'= as
+such:
+
+#+begin_src java
+            case '/':
+                if(match('/')) {
+                    // A comment goes until EOL
+                    while (peek() != '\n' && !isAtEnd()) advance();
+                } else if(match('*')) {
+                    multilineComment();
+                } else {
+                    addToken(SLASH);
+                }
+                break;
+#+end_src
+
+Then I declared the method =Scanner.multilineComment=:
+
+#+begin_src java
+    private void multilineComment() {
+        int start_line = line;
+        while(!isAtEnd()) {
+            switch(peek()) {
+                case '\n':
+                    line++;
+                    break;
+                case '*':
+                    if (peekNext() == '/') {
+                        advance();
+                        advance();
+                        return;
+                    }
+                    break;
+            }
+            advance();
+        }
+        Lox.error(start_line, "Unclosed multiline comment");
+    }
+#+end_src
+
+About NESTING, I will not do that. If  I do that, we're going to reach a similar
+case discussed on  the previous questions, in  which I'll end up  with a comment
+that needs to keep track of its delimiters  left and right, which is a job for a
+stack of sorts.
+
+This means that our  grammar will not be regular anymore,  therefore being a job
+for a pushdown  automaton ("autômato de pilha" in  Portuguese...), and therefore
+our language will not be expressible as a regular grammar anymore.
+
+This will  probably imply  changing the  entire algorithm  there. So  yeah... No
+way. :)
+
+* Design note: Implicit semicolons
+
+I just  wanna point out  that this read was  very insightful and  the JavaScript
+part made me laugh once more at how much this language is a mess.
+
+My own opinion is that having statement terminators is chic for infix languages,
+but that's because I'm  a fan of C in many aspects. I  like for example how Rust
+basically copied how semicolons work in C, C++ and Java, and then slapped scopes
+as expressions and the last statement of a scope as its return value.
+
+They could have left the ternary operator there, though.
+
+But if I have the option, I will simply build a Lisp dialect like I already am.
+

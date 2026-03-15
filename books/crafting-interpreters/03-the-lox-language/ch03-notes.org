@@ -1,0 +1,528 @@
+#+TITLE: The Lox Language
+
+* Hello, Lox
+
+#+begin_src lox :tangle helloworld.lox
+print "Hello, world!";
+#+end_src
+
+* A high-level language
+
+** Dynamic typing
+
+Lox is dynamically-typed, which means  that variables can have values attributed
+to them of different types at each time.
+
+Type error resolution is also done at runtime instead of at static analysis.
+
+** Automatic memory management
+
+There  are  two fundamental  types  of  automatic memory  management:  reference
+counting and tracing garbage collection.
+
+Reference counting  tends to be  easier but over  time, the limitations  of this
+technique  can become  troublesome (reader's  note: see  Rust and  its reference
+counting across scopes when concurrency is in play).
+
+Garbage collection  tends to  have a  fearsome reputation but  can be  fun, even
+though debugging garbage collectors can be hard.
+
+Lox uses a garbage collector.
+
+* Data types
+
+** Booleans
+
+#+begin_src lox
+true;
+false;
+#+end_src
+
+** Numbers
+
+Lox  is going  to  follow  the javascript  way  and  have only  double-precision
+floating points as a numeric type.
+
+#+begin_src lox
+1234; // Integer
+12.34; // Decimal
+#+end_src
+
+** Strings
+
+Literals  enclosed  in double  quotes.  Can  be  tricky; will  probably  support
+unicode. The idea  of a character is  open-ended: can be ASCII,  unicode, a code
+point, a  "grapheme cluster".  Strings may  also have  fixed length  or variable
+length...
+
+#+begin_src lox
+"I am a string";
+"";
+"123";
+#+end_src
+
+** Nil
+
+Represents no value.
+
+There are  strong arguments  to ban  the "null value"  from languages,  and this
+might be very effective on  statically-typed languages, but on dynamically-typed
+languages, not having the "null value" seems to be more annoying.
+
+#+begin_src lox
+nil;
+#+end_src
+
+* Expressions
+
+** Arithmetic
+
+Basic arithmetic operators.
+
+#+begin_src lox
+add + me;
+subtract - me;
+multiply * me;
+divide / me;
+#+end_src
+
+- These are binary operators.
+- Subexpressions are known as operands.
+- Operators are infix.
+
+One of these operators may also be a prefix operator:
+
+#+begin_src lox
+-negateMe;
+#+end_src
+
+Operator behavior are basically the same one would find in C.
+
+** Comparison and equality
+
+These operations always return a boolean result.
+
+#+begin_src lox
+less < than;
+lessThan <= orEqual;
+greater > than;
+greaterThan >= orEqual;
+
+1 == 2; // false
+"cat" != "dog"; // true
+
+// Comparisons are type-tolerant
+314 == "pi"; // false
+
+// Values of different types are never equivalent.
+// We have no implicit conversions
+123 == "123"; // false
+#+end_src
+
+** Logical operators
+
+Negation.
+
+#+begin_src lox
+!true; // false
+!false; // true
+#+end_src
+
+Conjunction.
+
+#+begin_src lox
+true and false; // false
+true and true; // true
+#+end_src
+
+Disjunction.
+
+#+begin_src lox
+false or false; // false
+true or false; // true
+#+end_src
+
+Conjunction  and disjunction  operate sort  of like  control flows  because they
+short-circuit: if the  first operand is enough to yield  the entire expression's
+result, then the second operand won't even be evaluated.
+
+** Precedence and grouping
+
+Precedence and  groping is inherited from  C and will be  discussed further when
+parsing. Whenever precedence fails, use parens to group stuff.
+
+* Statements
+
+While an expression's  main job is to  produce a value, a statement's  job is to
+produce an effect.
+
+Examples of statements:
+
+#+begin_src lox
+// Evaluates a single expression and displays the result
+print "Hello, world";
+
+"some expression"; // Semicolon at end promotes expression to an "expression statement"
+
+// Statements can be packed within a block
+{
+    print "One statement";
+    print "Two statements";
+}
+#+end_src
+
+blocks also affect scoping.
+
+* Variables
+
+Variables  are  declared by  using  =var=  statements. Omitting  an  initializer
+defaults a variable to =nil=.
+
+#+begin_src lox
+var imAVariable = "here is my value";
+var iAmNil;
+
+// Accessing variables
+print imAVariable; // "here is my value"
+imAVariable = "test";
+print imAVariable; // "test"
+#+end_src
+
+Scoping rules will be detailed once programmed, but are much like C and Java.
+
+* Control flow
+
+=if=, =else=, =while= and =for=, basically.
+
+#+begin_src lox
+if(condition) {
+    print "yes";
+} else {
+    print "no";
+}
+
+var a = 1;
+while(a < 10) {
+    print a;
+    a = a + 1;
+}
+
+for(var a = 1; a < 10; a = a + 1) {
+    print a;
+}
+#+end_src
+
+* Functions
+
+Function calls work just like in C.
+
+#+begin_src lox
+makeBreakfast(bacon, eggs, toast);
+makeBreakfast();
+#+end_src
+
+Function definition:
+
+#+begin_src lox
+fun printSum(a, b) {
+    print a + b;
+}
+#+end_src
+
+Some clarification on nomenclatures:
+
+- An *argument* is a value passed to a function, so function calls have argument
+  lists. Also called "actual parameters".
+- A *parameter* is  a variable that holds  the value of the  argument inside the
+  body  of the  function. So  function declarations  have parameter  lists. Also
+  called "formal parameters" or simply "formals".
+
+Bodies of functions  are blocks and so,  values can be returned  with a =return=
+statement.
+
+#+begin_src lox
+fun returnSum(a, b) {
+    return a + b;
+}
+#+end_src
+
+** Declaration vs definition
+
+Some  statically typed  languages like  C  make a  distinction between  function
+declaration and function definition.
+
+A declaration binds the function's type to its name, but does not define a body.
+
+A  definition declares  the function  and also  fills in  the body  so that  the
+function can be compiled.
+
+Lox is dynamically typed, so this distinction isn't meaningful to it.
+
+* Closures
+
+Functions in Lox are first-class citizens.
+
+#+begin_src lox
+fun addPair(a, b) {
+    return a + b;
+}
+
+fun identity(a) {
+    return a;
+}
+
+print identity(addPair)(1, 2); // Prints 3.
+#+end_src
+
+Since functions can be used as block scopes, a function may capture the scope of
+another, thus creating closures:
+
+#+begin_src lox
+fun retFunction() {
+    var outside = "outside";
+    fun inner() {
+        print outside;
+    }
+    return inner;
+}
+
+var fn = retFunction();
+fn(); // Prints "outside"
+#+end_src
+
+This  nomenclature was  created by  Peter  J. Landin  since it  involves a  data
+structure that closes over and holds the variables it needs.
+
+* Classes
+
+Lox has classes.
+
+** Why might any language want to be object oriented?
+
+Because it can  still be useful and  having objects comes in handy.  Plus we can
+avoid the  need to  prefix all  function names that  would collide  with similar
+functions of different types, since methods are scoped to the object.
+
+** Why is Lox object oriented?
+
+Because most books  don't cover it well and  it won't hurt looking at  how it is
+implemented after all.
+
+** Classes or prototypes
+
+Class-based OO  is the classic  way of  implementing object orientation  in C++,
+Java and C#, and usually operate with instances and classes. In those, there may
+be  a static  dispatch (which  looks  up methods  at compile  time), or  dynamic
+dispatch  (which looks  up methods  at  runtime on  the actual  instance of  the
+object).
+
+Prototype-based  OO is  implemented in  JavaScript  and merges  the concepts  of
+classes and objects: There are only  objects that may contain state and methods;
+they also  can directly inherit from  ("delegate to") each other.
+
+So prototypal  languages seem more  fundamental than class  languages, therefore
+being simpler  to implement  too, and  have a  higher flexibility  on expressing
+patterns. But this flexibility often leads to... reinventing classes.
+
+Lox is going for a class-based approach.
+
+** Classes in Lox
+
+#+begin_src lox
+class Breakfast {
+    cook() {
+        print "Eggs a-fryin'!";
+    }
+
+    serve(who) {
+        print "Enjoy your breakfast, " + who + ".";
+    }
+}
+#+end_src
+
+Classes are  first-class in Lox. So  creating classes means that  an object with
+the class name is also created. Therefore classes can be manipulated as such:
+
+#+begin_src lox
+var someVariable = Breakfast;
+someFunction(Breakfast);
+#+end_src
+
+Calling a class like a function produces an instance of itself.
+
+#+begin_src lox
+var breakfast = Breakfast();
+print breakfast; // "Breakfast instance"
+#+end_src
+
+** Instantiation and initialization
+
+Fields are supposed to be added  freely to instances, unfortunately. To create a
+field, perform an assignment; if it doesn't exist, it will be created.
+
+#+begin_src lox
+breakfast.meat = "sausage";
+breakfast.bread = "sourdough";
+#+end_src
+
+To access a field or a method within a class definition, use the =this= keyword.
+
+#+begin_src lox
+class Breakfast {
+    serve(who) {
+        print "Enjoy your " + this.meat + " and " +
+            this.bread + ", " + who + ".";
+    }
+    // ...
+}
+#+end_src
+
+To initialize an object, just define  an =init= method. It will be automatically
+called when the class is instantiated:
+
+#+begin_src lox
+class Breakfast {
+    init(meat, bread) {
+        this.meat = meat;
+        this.bread = bread;
+    }
+    // ...
+}
+
+var baconAndToast = Breakfast("bacon", "toast");
+baconAndToast.serve("Dear Reader");
+// "Enjoy your bacon and toast, Dear Reader."
+#+end_src
+
+** Inheritance
+
+Lox supports single inheritance.
+
+It also inherits constructors.
+
+#+begin_src lox
+class Brunch < Breakfast {
+    init(meat, bread, drink) {
+        super.init(meat, bread);
+        this.drink = drink;
+    }
+
+    drink() {
+        print "How about a " + this.drink + "?";
+    }
+}
+
+var benedict = Brunch("ham", "English muffin", "Bloody Mary");
+benedict.serve("Noble Reader");
+#+end_src
+
+Here, Brunch is  a derived class or  subclass, and Breakfast is a  base class or
+superclass.  Hence the  use of  the  keyword =super=  to call  the base  class's
+constructor.
+
+* The Standard Library
+
+Will contain  a small set of  functions and stuff  just to get things  done. The
+language is not supposed to be used for real problems anyway.
+
+* Challenges
+
+** Sample Lox programs
+
+#+begin_src lox :tangle fibonacci.lox
+fun fibonacci(n) {
+    if((n == 0) or (n == 1)) {
+        return 1;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+for(var i = 0; i < 5; i = i + 1) {
+    print fibonacci(i);
+}
+#+end_src
+
+There seems to  be an edge case involving concatenating  numbers into strings. I
+might  not  be aware  of  the  standard library  right  now,  but seems  like  a
+limitation.
+
+#+begin_src lox :tangle church-numerals.lox
+fun zero(f, x) {
+    return x;
+}
+
+fun one(f, x) {
+    return f(x);
+}
+
+fun two(f, x) {
+    return f(f(x));
+}
+
+fun three(f, x) {
+    return f(f(f(x)));
+}
+
+fun four(f, x) {
+    return f(f(f(f(x))));
+}
+
+fun five(f, x) {
+    return f(f(f(f(f(x)))));
+}
+
+// -----
+
+fun succ(n, f, x) {
+    return f(n(f, x));
+}
+
+fun add(m, n, f, x) {
+    return m(f, n(f, x));
+}
+
+// -----
+
+fun plus_one(n) {
+    return n + 1;
+}
+
+// -----
+
+print zero(plus_one, 0);
+print one(plus_one, 0);
+print two(plus_one, 0);
+print three(plus_one, 0);
+print four(plus_one, 0);
+print five(plus_one, 0);
+print succ(five, plus_one, 0);
+print add(five, four, plus_one, 0);
+#+end_src
+
+** Questions about syntax and semantics
+
+First thing  that comes to  mind are anonymous  functions: Can we  declare them?
+Since they're  first class  citizens, it  would do a  lot for  us to  have them,
+especially if we're going for functional approaches.
+
+Are  classes  going to  have  something  similar  to destructors?  Doesn't  feel
+necessary but could be a feature. Maybe not, though.
+
+** Since Lox is tiny, how many more features does it need?
+
+Lox is not  really my cup of tea,  so I don't think it's missing  much because I
+don't see a real-world scenario for it  where something else (like Lua or Scheme
+or even Majestic) would excel instead.
+
+But I feel  like there should be  a way to concatenate strings  and numbers, for
+example. Though this may  be covered by the standard library,  it would be nicer
+if there were a plus operator overload.
+
+And the anonymous function thing.
+
+* Design note: Expressions and statements
+
+Nothing  to add,  just wanna  say that  I like  the idea  that everything  is an
+expression. I actually find it to be more useful and perhaps easier to implement
+than having statements mixed in the bag.
+
